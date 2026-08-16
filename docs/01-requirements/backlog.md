@@ -4,9 +4,18 @@
 `01-spec/` จัดกลุ่มตามระดับความสำคัญ
 
 > หมายเหตุ: ณ ตอนนี้มีเอกสาร spec 2 ฉบับ คือ
-> [[20260816-01-grant-receipt-verification]] (สร้าง 2026-08-16, FR-01–FR-12/NFR-01–NFR-07) และ
-> [[20260816-02-pdpa-compliance]] (สร้าง 2026-08-16, FR-13–FR-18/NFR-08–NFR-11) ตารางด้านล่างนี้
-> นำเข้าทุกรายการ FR/NFR จากทั้งสองเอกสารแล้ว
+> [[20260816-01-grant-receipt-verification]] (สร้าง 2026-08-16, FR-01–FR-12/FR-19/FR-21,
+> NFR-01–NFR-07) และ [[20260816-02-pdpa-compliance]] (สร้าง 2026-08-16, FR-13–FR-18/FR-20,
+> NFR-08–NFR-11) ตารางด้านล่างนี้นำเข้าทุกรายการ FR/NFR จากทั้งสองเอกสารแล้ว
+>
+> **อัปเดต 2026-08-16 (รอบ 2):** เพิ่ม FR-19, FR-21 (ขยายรายละเอียด FR-01/FR-10 เรื่อง validation
+> การอัปโหลด/export) และ FR-20 (ข้อเสนอตั้งต้น ยังไม่ finalize — ปิด open point การถอนความยินยอม
+> ต่อข้อมูลที่เคยประมวลผลไปแล้ว รอการยืนยันจากผู้ใช้) หลัง `test-writer` พบช่องว่างระหว่างเขียน
+> Acceptance Criteria (`sync-test-plan`)
+>
+> **อัปเดต 2026-08-16 (รอบ 3):** ผู้ใช้ยืนยันคำตอบ FR-20 แล้ว (ลบข้อมูลทั้งหมดทันทีเมื่อถอนความยินยอม
+> ไม่แยกตามสถานะ export) — **FR-20 finalize แล้ว** พร้อมทบทวนเหตุผลของ FR-18 ที่เกี่ยวข้อง (คงเงื่อนไข
+> เดิมไว้ แต่เปลี่ยนเหตุผลรองรับเป็น Audit Trail — ดู [[20260816-02-pdpa-compliance#8.2 ทบทวนเหตุผลของ FR-18 หลังคำชี้แจงเรื่องบทบาทระบบ (ประเมินเมื่อ 2026-08-16 รอบ 3)]])
 
 ## ระดับความสำคัญ: สูง (ต้องมีใน MVP)
 
@@ -27,6 +36,9 @@
 | FR-15 | บันทึกหลักฐานการให้ความยินยอม (Consent Record) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
 | FR-16 | ถอนความยินยอม (Withdraw Consent) และจัดการผลกระทบต่อกระบวนการตรวจใบเสร็จ | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
 | FR-18 | ลบ/ขอลบข้อมูลใบเสร็จของตนเองด้วยตนเองผ่าน UI (Right to Erasure) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
+| FR-19 | ตรวจสอบและปฏิเสธไฟล์อัปโหลดที่ไม่ถูกต้อง (File Upload Validation) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
+| FR-20 | ลบข้อมูลใบเสร็จ/ผลตรวจทั้งหมดทันทีเมื่อถอนความยินยอม (Withdraw Consent — Full Immediate Erasure) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
+| FR-21 | ป้องกันการ Export รายงานเมื่อยังไม่มีใบเสร็จสถานะผ่าน | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 
 ## ระดับความสำคัญ: กลาง
 
@@ -54,7 +66,7 @@ _(ยังไม่มีรายการ)_
 | NFR-08 | Cross-border Data Transfer (Conditional — รอการตัดสินใจ vendor) | [[20260816-02-pdpa-compliance#5. Non-Functional Requirements]] | Backlog |
 | NFR-09 | Data Processing Agreement กับผู้ให้บริการภายนอก (Organizational) | [[20260816-02-pdpa-compliance#5. Non-Functional Requirements]] | Backlog |
 | NFR-10 | Data Breach Notification (Organizational/Process) | [[20260816-02-pdpa-compliance#5. Non-Functional Requirements]] | Backlog |
-| NFR-11 | Data Retention & Deletion Policy (รอกำหนดเป้าหมาย) | [[20260816-02-pdpa-compliance#5. Non-Functional Requirements]] | Backlog |
+| NFR-11 | Data Retention & Deletion Policy (รอกำหนดเป้าหมาย — TBD) | [[20260816-02-pdpa-compliance#5. Non-Functional Requirements]] | Backlog |
 
 ## รายการที่ตัดออกจากขอบเขต (Out of Scope — เพื่ออ้างอิง ไม่ใช่ backlog item)
 
@@ -70,8 +82,16 @@ _(ยังไม่มีรายการ)_
 รายการต่อไปนี้ถูกบันทึกไว้ใน [[20260816-02-pdpa-compliance]] แล้วว่าต้องทบทวนเพิ่มเติมก่อนเข้าสู่
 ขั้นตอนออกแบบละเอียด (`[[architecture]]`, `[[detailed-design]]`):
 
-- พฤติกรรมของระบบเมื่อนักวิจัยถอนความยินยอม (Withdraw Consent) ต่อข้อมูลที่เคยประมวลผลไปแล้ว
-  ก่อนถอน (ดู FR-16)
 - ที่ตั้งผู้ให้บริการ OCR/LLM จริง (ในไทย/ต่างประเทศ) ที่กระทบว่าต้องใช้มาตรการ cross-border
   transfer ตาม NFR-08 หรือไม่
-- ตัวเลขระยะเวลาเก็บข้อมูล (retention) ที่แน่นอนตาม NFR-11 (รอระเบียบของมหาวิทยาลัย/กรมบัญชีกลาง)
+- ตัวเลขระยะเวลาเก็บข้อมูล (retention) ที่แน่นอนตาม NFR-11 (รอระเบียบของมหาวิทยาลัย/กรมบัญชีกลาง) —
+  **หมายเหตุ 2026-08-16 (รอบ 3):** แม้ตัวเลขยังเป็น TBD แต่ NFR-11 ไม่ใช่เหตุผลจำกัดสิทธิ์การลบ
+  ข้อมูลของเจ้าของข้อมูลอีกต่อไป (ดู FR-18/FR-20 หัวข้อ 8.2 ของ [[20260816-02-pdpa-compliance]])
+  เป็นเพียงนโยบายการเก็บ/ลบข้อมูลตามปกติของระบบเองเท่านั้น
+
+**ปิดแล้ว 2026-08-16 (รอบ 3):** พฤติกรรมของระบบเมื่อนักวิจัยถอนความยินยอม (Withdraw Consent) ต่อข้อมูล
+ที่เคยประมวลผลไปแล้วก่อนถอน (เดิมอ้างอิง FR-16) — ผู้ใช้ยืนยันเป็น **FR-20**: ลบข้อมูลใบเสร็จ/ผลตรวจ
+ทั้งหมดทันที ไม่แยกตามสถานะ export เพราะระบบเป็นเพียง pre-check gate ไม่ใช่ archival/official
+retention system (ดู [[20260816-02-pdpa-compliance#8.1 คำถามเรื่อง FR-20 — ถามเมื่อ 2026-08-16 รอบ 2, ผู้ใช้ยืนยันคำตอบแล้วในรอบ 3]]) การชี้แจงนี้ยังทำให้ต้องทบทวนเหตุผล (ไม่ใช่พฤติกรรม) ของ FR-18
+ด้วย — สรุปคือคงเงื่อนไขเดิมไว้ แต่เปลี่ยนเหตุผลรองรับเป็น Audit Trail/ป้องกันการลบหลักฐานหนีความรับผิด
+(ดู [[20260816-02-pdpa-compliance#8.2 ทบทวนเหตุผลของ FR-18 หลังคำชี้แจงเรื่องบทบาทระบบ (ประเมินเมื่อ 2026-08-16 รอบ 3)]])

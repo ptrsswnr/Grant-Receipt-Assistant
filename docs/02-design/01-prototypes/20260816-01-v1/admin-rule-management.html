@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin: จัดการระเบียบ — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html" class="active">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge role-badge--admin">Admin</span>
+    <span class="fr-badge">FR-11, NFR-04</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>จัดการระเบียบทุนวิจัยใน Rule Engine</h1>
+    <p class="text-body">นำเข้า/อัปเดตกฎจากระเบียบทุนวิจัยของมหาวิทยาลัยเข้าสู่ Rule Engine เมื่อระเบียบ
+      เปลี่ยนแปลง โดยไม่ต้อง retrain LLM (FR-11)</p>
+    <div class="banner banner--info" style="margin-top:16px;">
+      <p class="text-body" style="margin:0;"><strong>ข้อจำกัดสิทธิ์ (FR-12):</strong> บทบาท Admin
+        จำกัดขอบเขตเฉพาะการจัดการระเบียบ/กฎใน Rule Engine เท่านั้น <strong>ไม่มีสิทธิ์เข้าถึงข้อมูล
+        ใบเสร็จส่วนบุคคลของนักวิจัยแม้แต่รายการเดียว</strong></p>
+    </div>
+  </div>
+
+  <div class="section card" style="max-width:640px;">
+    <h4>นำเข้าระเบียบเวอร์ชันใหม่</h4>
+    <div class="field">
+      <label for="rule-file">ไฟล์ระเบียบ/เงื่อนไขที่อัปเดต</label>
+      <div class="dropzone" style="min-height:120px;">
+        <div class="dropzone__icon">⬆</div>
+        <p class="text-body" style="margin:0;">ลากไฟล์ระเบียบมาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</p>
+      </div>
+    </div>
+    <div class="field">
+      <label for="version">เวอร์ชันระเบียบ</label>
+      <input type="text" id="version" value="2568.2">
+    </div>
+    <div class="field">
+      <label for="effective-date">วันที่เริ่มมีผล</label>
+      <input type="text" id="effective-date" value="01/09/2568">
+    </div>
+    <button type="button" class="btn btn-primary btn-md">นำเข้าระเบียบเวอร์ชันใหม่</button>
+    <p class="help-text">ระบบจะบันทึกเวอร์ชันระเบียบนี้ไว้ใน Audit Trail เพื่อรองรับการตรวจสอบย้อนหลัง
+      (NFR-04) — ใบเสร็จที่ส่งเข้าตรวจหลังจากนี้จะใช้ระเบียบเวอร์ชันใหม่ทันที</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <h3>ประวัติเวอร์ชันระเบียบ (Audit Trail — NFR-04)</h3>
+    <div class="list">
+      <div class="list-item">
+        <span>เวอร์ชัน 2568.1 — มีผล 01/08/2568</span>
+        <span class="list-item__meta">
+          <span class="text-tiny">นำเข้าโดย Admin · 31/07/2568 14:20</span>
+          <span class="chip-status chip-status--pass">ใช้งานอยู่</span>
+        </span>
+      </div>
+      <div class="list-item">
+        <span>เวอร์ชัน 2567.3 — มีผล 01/01/2568 ถึง 31/07/2568</span>
+        <span class="list-item__meta">
+          <span class="text-tiny">นำเข้าโดย Admin · 20/12/2567 09:05</span>
+          <span class="chip-status chip-status--pending">ปิดใช้งานแล้ว</span>
+        </span>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-11 — นำเข้า/อัปเดตระเบียบทุนวิจัยเข้าสู่ Rule Engine โดยไม่ retrain LLM ·
+     NFR-04 — Audit Trail บันทึกเวอร์ชันระเบียบที่ใช้ตรวจแต่ละครั้ง</p>
+</footer>
+
+</body>
+</html>

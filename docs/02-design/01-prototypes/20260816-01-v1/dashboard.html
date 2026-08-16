@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-08, FR-09</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>Dashboard สรุปภาพรวมใบเสร็จ</h1>
+    <p class="text-body">ภาพรวมสถานะใบเสร็จของทุนวิจัยแต่ละก้อนที่ท่านถือ (เห็นเฉพาะทุนของตนเอง — FR-12)</p>
+  </div>
+
+  <div class="section">
+    <div class="banner banner--warning">
+      <h4 style="margin-bottom:6px;">แจ้งเตือน: มีใบเสร็จที่ต้องดำเนินการ <span class="badge-count">3</span></h4>
+      <p class="text-body">ทุน "พัฒนาโมเดล AI เพื่อการเกษตร" มีใบเสร็จ 2 รายการสถานะ "ต้องแก้ไข" และ 1
+        รายการสถานะ "ไม่เข้าเงื่อนไข" ที่ยังไม่ได้รับการแก้ไข (FR-09)</p>
+      <a href="my-receipts.html" class="btn btn-primary btn-sm">ไปดูใบเสร็จที่ต้องแก้ไข</a>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>ทุน: พัฒนาโมเดล AI เพื่อการเกษตร (ปีงบประมาณ 2568)</h3>
+
+    <div class="grid-3">
+      <div class="stat-tile">
+        <div class="stat-tile__value stat-tile__value--pass">6</div>
+        <div class="stat-tile__label">ผ่าน</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile__value stat-tile__value--fix">2</div>
+        <div class="stat-tile__label">ต้องแก้ไข</div>
+      </div>
+      <div class="stat-tile">
+        <div class="stat-tile__value stat-tile__value--reject">1</div>
+        <div class="stat-tile__label">ไม่เข้าเงื่อนไข</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h4 style="margin-bottom:12px;">สัดส่วนสถานะใบเสร็จทั้งหมด (10 ใบ)</h4>
+      <div class="status-bar" role="img" aria-label="ใบเสร็จ 10 ใบ: ผ่าน 6 ใบ, ต้องแก้ไข 2 ใบ, ไม่เข้าเงื่อนไข 1 ใบ, รอตรวจสอบ 1 ใบ">
+        <div class="status-bar__segment status-bar__segment--pass" style="flex:6;">6</div>
+        <div class="status-bar__segment status-bar__segment--fix" style="flex:2;">2</div>
+        <div class="status-bar__segment status-bar__segment--reject" style="flex:1;">1</div>
+        <div class="status-bar__segment status-bar__segment--pending" style="flex:1;">1</div>
+      </div>
+      <div class="status-legend">
+        <span class="status-legend__item"><span class="status-legend__swatch status-legend__swatch--pass"></span>ผ่าน — 6 ใบ</span>
+        <span class="status-legend__item"><span class="status-legend__swatch status-legend__swatch--fix"></span>ต้องแก้ไข — 2 ใบ</span>
+        <span class="status-legend__item"><span class="status-legend__swatch status-legend__swatch--reject"></span>ไม่เข้าเงื่อนไข — 1 ใบ</span>
+        <span class="status-legend__item"><span class="status-legend__swatch status-legend__swatch--pending"></span>รอตรวจสอบ — 1 ใบ</span>
+      </div>
+    </div>
+
+    <div class="row" style="justify-content:flex-end; margin-top:16px;">
+      <a href="my-receipts.html" class="btn btn-secondary btn-md">ดูใบเสร็จทั้งหมดของทุนนี้</a>
+      <a href="export-report.html" class="btn btn-primary btn-md">ไป Export รายงาน</a>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <h3>ทุนอื่นที่ถืออยู่</h3>
+    <div class="list">
+      <a class="list-item" href="#">
+        <span>ทุนวิจัยตัวอย่างที่ 2 — วัสดุการเรียนรู้ดิจิทัล</span>
+        <span class="list-item__meta">
+          <span class="chip-status chip-status--pass">ผ่านครบทุกใบ</span>
+          <span class="list-item__chevron">›</span>
+        </span>
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-08 — Dashboard สรุปภาพรวมใบเสร็จของทุน (จำนวนผ่าน/ต้องแก้/ไม่เข้าเงื่อนไข) ·
+     FR-09 — แจ้งเตือนใบเสร็จที่มีปัญหาค้างอยู่ยังไม่ได้แก้ไข (ไม่รวมกำหนดเวลาส่งหลักฐาน — ตัดออกจากขอบเขต MVP)</p>
+</footer>
+
+</body>
+</html>

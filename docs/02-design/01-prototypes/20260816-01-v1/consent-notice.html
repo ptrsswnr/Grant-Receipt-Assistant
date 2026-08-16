@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Notice &amp; Consent — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html" class="active">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-13, FR-14, FR-15</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="stepper" aria-label="ขั้นตอนการเริ่มใช้งาน">
+    <div class="stepper__step is-current">
+      <div class="stepper__dot">1</div>
+      <div class="stepper__label">ยอมรับข้อตกลง</div>
+    </div>
+    <div class="stepper__step">
+      <div class="stepper__dot">2</div>
+      <div class="stepper__label">อัปโหลดใบเสร็จ</div>
+    </div>
+    <div class="stepper__step">
+      <div class="stepper__dot">3</div>
+      <div class="stepper__label">ตรวจสอบข้อมูล</div>
+    </div>
+    <div class="stepper__step">
+      <div class="stepper__dot">4</div>
+      <div class="stepper__label">ผลตรวจ</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="consent-overlay">
+      <div class="card-elevated consent-modal">
+        <h3>ก่อนใช้งาน โปรดอ่านประกาศความเป็นส่วนตัว</h3>
+        <p class="text-body">
+          <strong>วัตถุประสงค์การเก็บ/ใช้ข้อมูล:</strong> Grant Receipt Assistant เก็บและประมวลผลข้อมูล
+          ใบเสร็จของท่าน (ยอดเงิน วันที่ หมวดค่าใช้จ่าย ชื่อร้าน/ผู้ขาย และภาพใบเสร็จ) เพื่อตรวจสอบ
+          เบื้องต้นก่อนที่ท่านจะยื่นเอกสารให้เจ้าหน้าที่การเงินของมหาวิทยาลัยตรวจจริง ระบบนี้เป็นเพียง
+          "ด่านตรวจก่อนสอบ" ไม่ใช่ระบบจัดเก็บเอกสารทางการอย่างเป็นทางการ
+        </p>
+        <p class="text-body">
+          <strong>ผู้ควบคุมข้อมูล:</strong> มหาวิทยาลัย (ในฐานะผู้ควบคุมข้อมูลตาม PDPA)
+        </p>
+        <p class="text-body">
+          <strong>ระยะเวลาเก็บข้อมูล:</strong> เป็นไปตามนโยบายการเก็บ/ลบข้อมูลของระบบ (อยู่ระหว่างกำหนด
+          ตัวเลขที่แน่นอน) ข้อมูลจะถูกลบทันทีเมื่อท่านถอนความยินยอม
+        </p>
+        <p class="text-body">
+          <strong>สิทธิ์ของท่าน:</strong> ขอเข้าถึง/ขอสำเนาข้อมูลส่วนบุคคล, ลบข้อมูลใบเสร็จบางรายการด้วยตนเอง,
+          และถอนความยินยอมได้ทุกเมื่อ (ซึ่งจะทำให้ระบบลบข้อมูลใบเสร็จ/ผลตรวจทั้งหมดของท่านทันที)
+        </p>
+        <p class="text-body">
+          หากท่าน <strong>ไม่ให้ความยินยอม</strong> ท่านจะไม่สามารถอัปโหลดใบเสร็จเข้าสู่ระบบได้
+        </p>
+        <div class="actions">
+          <a href="#declined" class="btn btn-ghost btn-md">ไม่ยินยอม</a>
+          <a href="upload-receipt.html" class="btn btn-primary btn-md">ยืนยันให้ความยินยอม</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="declined">
+    <div class="banner banner--error">
+      <h4>สถานะเมื่อไม่ให้ความยินยอม (ตัวอย่าง)</h4>
+      <p class="text-body">คุณเลือกไม่ให้ความยินยอม จึงไม่สามารถอัปโหลดใบเสร็จเข้าสู่ระบบได้ (FR-14)
+        หากต้องการใช้งานภายหลัง สามารถกลับมาให้ความยินยอมได้ทุกเมื่อ</p>
+      <a href="login.html" class="btn btn-secondary btn-sm">กลับไปหน้าเข้าสู่ระบบ</a>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-13 — แสดง Privacy Notice ก่อนใช้งานครั้งแรก/ก่อนอัปโหลด · FR-14 — ขอความยินยอมชัดแจ้ง ·
+     FR-15 — บันทึกหลักฐานการให้ความยินยอม (วันที่ + เวอร์ชัน Privacy Notice) ·
+     modal นี้ห้ามปิดด้วยการคลิกนอกกรอบ/กด Esc — ต้องเลือกตัวเลือกใดตัวเลือกหนึ่งเท่านั้น</p>
+</footer>
+
+</body>
+</html>

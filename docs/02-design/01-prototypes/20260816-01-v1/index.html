@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grant Receipt Assistant — Prototype v1</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html" class="active">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+</header>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>Grant Receipt Assistant</h1>
+    <p class="text-body">Clickable Prototype เวอร์ชัน 1 — ครอบคลุมทั้ง 7 journey / 12 ฟีเจอร์ ตาม
+      <span class="text-mono">feature-list.md</span> และ <span class="text-mono">user-journey.md</span>
+      ยึด token และองค์ประกอบจาก <span class="text-mono">DESIGN.md</span> ทั้งหมด ไม่มีการกำหนดสี/สไตล์ใหม่นอกเอกสารนั้น</p>
+  </div>
+
+  <div class="section index-journey-group">
+    <h3>Journey 1 — อัปโหลดใบเสร็จและตรวจสอบผลจนผ่านเกณฑ์ <span class="role-badge">นักวิจัย/เจ้าของทุน</span></h3>
+    <div class="grid-2">
+      <a class="index-screen-card card" href="consent-notice.html">
+        <h4>Privacy Notice &amp; Consent</h4>
+        <p class="text-small">แสดงประกาศความเป็นส่วนตัวและขอความยินยอมก่อนใช้งานครั้งแรก</p>
+        <p class="fr-badge">FR-13, FR-14, FR-15</p>
+      </a>
+      <a class="index-screen-card card" href="upload-receipt.html">
+        <h4>อัปโหลดใบเสร็จ</h4>
+        <p class="text-small">Dropzone อัปโหลดไฟล์ jpg/png/PDF พร้อมตรวจสอบไฟล์ก่อนเสมอ</p>
+        <p class="fr-badge">FR-01, FR-19</p>
+      </a>
+      <a class="index-screen-card card" href="review-ocr-data.html">
+        <h4>ตรวจสอบ/แก้ไขข้อมูลจาก OCR</h4>
+        <p class="text-small">ตรวจทานข้อมูลที่ OCR อ่านได้ก่อนส่งเข้า Rule Engine</p>
+        <p class="fr-badge">FR-02, FR-03, NFR-01</p>
+      </a>
+      <a class="index-screen-card card" href="verification-result.html">
+        <h4>ผลตรวจ Rule Engine + คำอธิบาย LLM</h4>
+        <p class="text-small">แสดงสถานะใบเสร็จพร้อมคำอธิบายและอ้างอิงระเบียบ / แก้ไขส่งซ้ำ</p>
+        <p class="fr-badge">FR-04, FR-05, FR-06, FR-07</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="section index-journey-group">
+    <h3>Journey 2 — ติดตามภาพรวมทุนและจัดการใบเสร็จที่มีปัญหา <span class="role-badge">นักวิจัย/เจ้าของทุน</span></h3>
+    <div class="grid-2">
+      <a class="index-screen-card card" href="dashboard.html">
+        <h4>Dashboard สรุปภาพรวมทุน</h4>
+        <p class="text-small">Stat Tile + สัดส่วนสถานะใบเสร็จ + แจ้งเตือนปัญหาค้าง</p>
+        <p class="fr-badge">FR-08, FR-09</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="section index-journey-group">
+    <h3>Journey 3 — Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว <span class="role-badge">นักวิจัย/เจ้าของทุน</span></h3>
+    <div class="grid-2">
+      <a class="index-screen-card card" href="export-report.html">
+        <h4>Export รายงาน</h4>
+        <p class="text-small">ปุ่ม Export ปิด/เปิดตามเงื่อนไขว่ามีใบเสร็จผ่านหรือไม่</p>
+        <p class="fr-badge">FR-10, FR-21</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="section index-journey-group">
+    <h3>Journey 4 — Admin นำเข้า/อัปเดตระเบียบทุนวิจัย <span class="role-badge role-badge--admin">Admin</span></h3>
+    <div class="grid-2">
+      <a class="index-screen-card card" href="admin-rule-management.html">
+        <h4>จัดการระเบียบใน Rule Engine</h4>
+        <p class="text-small">นำเข้า/อัปเดตระเบียบเวอร์ชันใหม่ พร้อม Audit Trail เวอร์ชันที่เคยใช้</p>
+        <p class="fr-badge">FR-11, NFR-04</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="section index-journey-group">
+    <h3>Journey 5 — ถอนความยินยอม (Withdraw Consent) <span class="role-badge">นักวิจัย/เจ้าของทุน</span></h3>
+    <div class="grid-2">
+      <a class="index-screen-card card" href="privacy-consent-management.html">
+        <h4>จัดการความยินยอม</h4>
+        <p class="text-small">ดูสถานะ consent ปัจจุบัน และถอนความยินยอม (ลบข้อมูลทั้งหมดทันที)</p>
+        <p class="fr-badge">FR-16, FR-20</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="section index-journey-group">
+    <h3>Journey 6 — ขอเข้าถึง/ขอสำเนาข้อมูลส่วนบุคคล <span class="role-badge">นักวิจัย/เจ้าของทุน</span></h3>
+    <div class="grid-2">
+      <a class="index-screen-card card" href="data-access-request.html">
+        <h4>ขอสำเนาข้อมูลส่วนบุคคล</h4>
+        <p class="text-small">ขอสำเนาข้อมูลใบเสร็จ/ผลตรวจ/ประวัติ consent ทั้งหมด</p>
+        <p class="fr-badge">FR-17</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="section index-journey-group">
+    <h3>Journey 7 — ลบข้อมูลใบเสร็จของตนเองด้วยตนเอง (Right to Erasure) <span class="role-badge">นักวิจัย/เจ้าของทุน</span></h3>
+    <div class="grid-2">
+      <a class="index-screen-card card" href="my-receipts.html">
+        <h4>ใบเสร็จของฉัน</h4>
+        <p class="text-small">ลบใบเสร็จที่ยังไม่ถูก export / ปิดกั้นการลบใบเสร็จที่ export แล้ว</p>
+        <p class="fr-badge">FR-18</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="section index-journey-group">
+    <h3>จุดเริ่มต้น</h3>
+    <div class="grid-2">
+      <a class="index-screen-card card" href="login.html">
+        <h4>เข้าสู่ระบบ</h4>
+        <p class="text-small">เลือกบทบาท (นักวิจัย/เจ้าของทุน หรือ Admin) — สาธิตการจำกัดสิทธิ์การเข้าถึง</p>
+        <p class="fr-badge">FR-12, NFR-05</p>
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>อ้างอิง: <span class="text-mono">docs/02-design/DESIGN.md</span>,
+  <span class="text-mono">docs/02-design/feature-list.md</span>,
+  <span class="text-mono">docs/02-design/user-journey.md</span> —
+  ดูรายละเอียดขอบเขต/หมายเหตุการออกแบบที่ <span class="text-mono">prototype.md</span></p>
+</footer>
+
+</body>
+</html>

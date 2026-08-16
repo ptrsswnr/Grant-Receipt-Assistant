@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ขอสำเนาข้อมูลส่วนบุคคล — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html" class="active">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-17</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>ขอเข้าถึง/ขอสำเนาข้อมูลส่วนบุคคล</h1>
+    <p class="text-body">ขอสำเนาข้อมูลส่วนบุคคลทั้งหมดที่ระบบเก็บไว้เกี่ยวกับตัวท่าน ในรูปแบบที่อ่าน/
+      นำไปใช้ต่อได้ — แยกจากหน้า Export รายงาน (ซึ่งเป็นรายงานสรุปใบเสร็จที่ผ่านตรวจแล้วสำหรับยื่น
+      เจ้าหน้าที่การเงินเท่านั้น) เพราะเป็นสำเนาข้อมูลส่วนบุคคลครบถ้วนตามสิทธิ์ PDPA (FR-17)</p>
+  </div>
+
+  <div class="section card" style="max-width:640px;">
+    <h4>ข้อมูลที่จะรวมอยู่ในสำเนา</h4>
+    <div class="list">
+      <div class="list-item"><span>ข้อมูลใบเสร็จทั้งหมด (ยอดเงิน วันที่ หมวด ชื่อร้าน ภาพใบเสร็จ)</span></div>
+      <div class="list-item"><span>ผลตรวจจาก Rule Engine และคำอธิบายจาก LLM ของทุกใบเสร็จ</span></div>
+      <div class="list-item"><span>ประวัติการให้/ถอนความยินยอม (วันที่ เวอร์ชัน Privacy Notice)</span></div>
+    </div>
+    <a href="#ready" class="btn btn-primary btn-md" style="margin-top:16px;">ขอสำเนาข้อมูลส่วนบุคคลทั้งหมด</a>
+  </div>
+
+  <div class="section" id="ready">
+    <div class="banner banner--success">
+      <h4>สำเนาข้อมูลพร้อมแล้ว (ตัวอย่างสถานะหลังกดขอสำเนา)</h4>
+      <p class="text-body">ระบบเตรียมไฟล์สำเนาข้อมูลส่วนบุคคลของท่านเสร็จแล้ว สามารถดาวน์โหลดได้ที่นี่
+        (รูปแบบไฟล์ที่อ่าน/นำไปใช้ต่อได้ เช่น JSON/CSV/PDF)</p>
+      <button type="button" class="btn btn-secondary btn-md">ดาวน์โหลดสำเนาข้อมูล (.zip)</button>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-17 — ขอเข้าถึง/ขอสำเนาข้อมูลใบเสร็จส่วนบุคคลของตนเอง (Data Subject Access &amp; Portability)</p>
+</footer>
+
+</body>
+</html>

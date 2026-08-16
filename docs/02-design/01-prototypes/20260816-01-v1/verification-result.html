@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ผลตรวจ Rule Engine — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html" class="active">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-04, FR-05, FR-06, FR-07</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="stepper" aria-label="ขั้นตอนการเริ่มใช้งาน">
+    <div class="stepper__step is-done"><div class="stepper__dot">✓</div><div class="stepper__label">ยอมรับข้อตกลง</div></div>
+    <div class="stepper__step is-done"><div class="stepper__dot">✓</div><div class="stepper__label">อัปโหลดใบเสร็จ</div></div>
+    <div class="stepper__step is-done"><div class="stepper__dot">✓</div><div class="stepper__label">ตรวจสอบข้อมูล</div></div>
+    <div class="stepper__step is-current"><div class="stepper__dot">4</div><div class="stepper__label">ผลตรวจ</div></div>
+  </div>
+
+  <div class="section text-left-block">
+    <h1>ผลตรวจใบเสร็จ</h1>
+    <p class="text-body">Rule Engine เป็นผู้ตัดสินผล (ไม่ใช่ LLM) — LLM ทำหน้าที่แปลผลเป็นภาษาที่เข้าใจง่าย
+      พร้อมอ้างอิงข้อระเบียบที่ใช้ตัดสินเสมอ (FR-04, FR-05, FR-06, NFR-02, NFR-03)</p>
+  </div>
+
+  <div class="section">
+    <h3>ตัวอย่างที่ 1: สถานะ "ต้องแก้ไข"</h3>
+
+    <div class="receipt-card" style="margin-bottom:16px; text-decoration:none;">
+      <div class="receipt-card__thumb">🧾</div>
+      <div class="receipt-card__body">
+        <div class="receipt-card__amount">฿4,500.00</div>
+        <div class="receipt-card__meta">12/08/2568 · ค่าวัสดุ · ร้านวัสดุก่อสร้าง ใจดี</div>
+      </div>
+      <div class="receipt-card__status"><span class="chip-status chip-status--fix">ต้องแก้ไข</span></div>
+    </div>
+
+    <div class="rule-callout rule-callout--fix">
+      <p class="rule-callout__explain">
+        ใบเสร็จนี้มียอดเงิน 4,500 บาท ซึ่ง<strong>เกินวงเงินสูงสุดที่กำหนดไว้สำหรับหมวด "ค่าวัสดุ"</strong>
+        (ไม่เกิน 3,000 บาทต่อรายการ) วิธีแก้ไข: กรุณาแยกใบเสร็จตามรายการย่อย หรือเลือกหมวดค่าใช้จ่ายให้ตรง
+        กับประเภทของรายการนี้มากขึ้น แล้วส่งเข้าตรวจใหม่อีกครั้ง
+      </p>
+      <div class="rule-callout__ref">
+        <span>📎</span>
+        <span>อ้างอิง: ระเบียบการเบิกจ่ายค่าวัสดุ ข้อ 4.2 (เวอร์ชันระเบียบ 2568.1, นำเข้าโดย Admin เมื่อ 01/08/2568)</span>
+      </div>
+    </div>
+
+    <div class="row" style="justify-content:flex-end; margin-top:12px;">
+      <a href="upload-receipt.html" class="btn btn-secondary btn-md">อัปโหลดใบเสร็จใหม่แทน</a>
+      <a href="review-ocr-data.html" class="btn btn-primary btn-md">แก้ไขข้อมูลและส่งตรวจซ้ำ</a>
+    </div>
+    <p class="text-small" style="margin-top:8px;">FR-07 — แก้ไข/อัปโหลดใบเสร็จใหม่แทนใบเดิม แล้ววนกลับไปตรวจกับ Rule Engine ซ้ำจนกว่าจะผ่าน</p>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <h3>ตัวอย่างที่ 2: สถานะ "ผ่าน"</h3>
+
+    <div class="receipt-card" style="margin-bottom:16px;">
+      <div class="receipt-card__thumb">🧾</div>
+      <div class="receipt-card__body">
+        <div class="receipt-card__amount">฿1,200.00</div>
+        <div class="receipt-card__meta">10/08/2568 · ค่าเดินทาง · บริษัท ขนส่งด่วน จำกัด</div>
+      </div>
+      <div class="receipt-card__status"><span class="chip-status chip-status--pass">ผ่าน</span></div>
+    </div>
+
+    <div class="rule-callout rule-callout--pass">
+      <p class="rule-callout__explain">
+        ใบเสร็จนี้ผ่านเกณฑ์ทุกข้อ ยอดเงินไม่เกินวงเงินสูงสุดของหมวด "ค่าเดินทาง" และมีข้อมูลครบถ้วนตามที่ระเบียบ
+        กำหนด พร้อมสำหรับนำไปรวมในรายงาน Export เพื่อยื่นเจ้าหน้าที่การเงิน
+      </p>
+      <div class="rule-callout__ref">
+        <span>📎</span>
+        <span>อ้างอิง: ระเบียบการเบิกจ่ายค่าเดินทาง ข้อ 2.1 (เวอร์ชันระเบียบ 2568.1)</span>
+      </div>
+    </div>
+    <div class="row" style="justify-content:flex-end; margin-top:12px;">
+      <a href="export-report.html" class="btn btn-primary btn-md">ไปที่หน้า Export รายงาน</a>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <h3>ตัวอย่างที่ 3: สถานะ "ไม่เข้าเงื่อนไข"</h3>
+
+    <div class="receipt-card" style="margin-bottom:16px;">
+      <div class="receipt-card__thumb">🧾</div>
+      <div class="receipt-card__body">
+        <div class="receipt-card__amount">฿850.00</div>
+        <div class="receipt-card__meta">05/08/2568 · ค่าบันเทิง (ไม่อยู่ในรายการที่อนุญาต) · ร้านอาหารริมทาง</div>
+      </div>
+      <div class="receipt-card__status"><span class="chip-status chip-status--reject">ไม่เข้าเงื่อนไข</span></div>
+    </div>
+
+    <div class="rule-callout rule-callout--reject">
+      <p class="rule-callout__explain">
+        หมวดค่าใช้จ่าย "ค่าบันเทิง" <strong>ไม่อยู่ในรายการหมวดที่ทุนวิจัยนี้อนุญาตให้เบิกได้</strong>
+        ใบเสร็จนี้จึงไม่สามารถนำไปยื่นเบิกกับทุนนี้ได้ กรุณาตรวจสอบว่าเลือกหมวดถูกต้องหรือไม่ หากยืนยันว่า
+        เป็นรายการนี้จริง ใบเสร็จนี้จะไม่สามารถนำไปรวมในรายงาน Export ได้
+      </p>
+      <div class="rule-callout__ref">
+        <span>📎</span>
+        <span>อ้างอิง: ระเบียบรายการหมวดค่าใช้จ่ายที่อนุญาต ข้อ 1.1 (เวอร์ชันระเบียบ 2568.1)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <h3>สถานะทั้งหมดในระบบ (Legend)</h3>
+    <div class="row">
+      <span class="chip-status chip-status--pass">ผ่าน</span>
+      <span class="chip-status chip-status--fix">ต้องแก้ไข</span>
+      <span class="chip-status chip-status--reject">ไม่เข้าเงื่อนไข</span>
+      <span class="chip-status chip-status--pending">รอตรวจสอบ</span>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-04 — ตรวจด้วย Rule-based Engine · FR-05 — LLM แปลผลเป็นภาษาที่เข้าใจง่าย · FR-06 — แสดงสถานะพร้อมอ้างอิงระเบียบ ·
+     FR-07 — แก้ไข/อัปโหลดใบเสร็จใหม่แล้วตรวจซ้ำ · NFR-02 — ภาษาที่เข้าใจง่าย · NFR-03 — Explainability (อ้างอิงระเบียบเสมอ) ·
+     NFR-04 — Audit Trail (บันทึกเวอร์ชันระเบียบที่ใช้ตัดสิน)</p>
+</footer>
+
+</body>
+</html>

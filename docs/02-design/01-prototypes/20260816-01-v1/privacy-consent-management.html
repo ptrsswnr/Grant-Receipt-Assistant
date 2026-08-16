@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>จัดการความยินยอม — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html" class="active">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-16, FR-20</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>จัดการความยินยอม (Consent)</h1>
+    <p class="text-body">ดูสถานะการให้ความยินยอมปัจจุบัน และถอนความยินยอมได้ทุกเมื่อผ่านหน้านี้ (FR-16)</p>
+  </div>
+
+  <div class="section card" style="max-width:640px;">
+    <h4>สถานะปัจจุบัน</h4>
+    <p class="text-body">คุณให้ความยินยอมแล้วเมื่อ <strong>16/08/2569</strong> ต่อ Privacy Notice
+      เวอร์ชัน <strong>1.0</strong> (บันทึกไว้เป็นหลักฐานตามหลักความรับผิดชอบ — FR-15)</p>
+    <a href="#withdraw" class="btn btn-destructive btn-md">ถอนความยินยอม</a>
+  </div>
+
+  <div class="section" id="withdraw">
+    <div class="banner banner--error">
+      <h4>ยืนยันการถอนความยินยอม</h4>
+      <p class="text-body">
+        เมื่อคุณถอนความยินยอม ระบบจะ<strong>ระงับการอัปโหลด/ประมวลผลใบเสร็จใหม่ของคุณทันที</strong> (FR-16)
+        และจะ<strong>ลบข้อมูลใบเสร็จ/ผลตรวจทั้งหมดของคุณที่ระบบเก็บไว้ทันที โดยไม่แยกตามสถานะ export</strong>
+        (FR-20) — เหตุผลคือ Grant Receipt Assistant เป็นเพียง "ด่านตรวจก่อนสอบ" ไม่ใช่ระบบจัดเก็บเอกสาร
+        ทางการอย่างเป็นทางการ เมื่อไม่มีความยินยอมแล้วจึงไม่มีฐานทางกฎหมายเหลืออยู่ที่จะเก็บข้อมูลต่อได้
+        <strong>การกระทำนี้ไม่สามารถย้อนกลับได้</strong>
+      </p>
+      <div class="row">
+        <a href="privacy-consent-management.html" class="btn btn-ghost btn-md">ยกเลิก</a>
+        <a href="#withdrawn" class="btn btn-destructive btn-md">ยืนยันการถอนความยินยอมและลบข้อมูลทั้งหมด</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" id="withdrawn">
+    <div class="banner banner--info">
+      <h4>สถานะหลังถอนความยินยอมสำเร็จ (ตัวอย่าง)</h4>
+      <p class="text-body">ระบบได้ระงับการอัปโหลด/ประมวลผลใบเสร็จใหม่ และลบข้อมูลใบเสร็จ/ผลตรวจทั้งหมด
+        ของคุณเรียบร้อยแล้ว หากต้องการใช้งานอีกครั้งในอนาคต จะต้องให้ความยินยอมใหม่ผ่านหน้า Privacy Notice</p>
+      <a href="consent-notice.html" class="btn btn-secondary btn-sm">ดูหน้า Privacy Notice อีกครั้ง</a>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-16 — ถอนความยินยอมและระงับการอัปโหลด/ประมวลผลใหม่ทันที ·
+     FR-20 — ลบข้อมูลใบเสร็จ/ผลตรวจทั้งหมดทันทีเมื่อถอนความยินยอม ไม่แยกตามสถานะ export</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Export รายงาน — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html" class="active">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-10, FR-21</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว</h1>
+    <p class="text-body">สร้างไฟล์รายงานสรุปใบเสร็จที่ผ่านการตรวจแล้วของทุน สำหรับนำไปยื่นต่อเจ้าหน้าที่
+      การเงินของมหาวิทยาลัยเอง (เจ้าหน้าที่การเงินไม่ใช่ผู้ใช้ระบบนี้ — รับไฟล์ภายนอกระบบเท่านั้น) —
+      FR-10</p>
+  </div>
+
+  <div class="section">
+    <h3>ตัวอย่างที่ 1: ทุนที่ยังไม่มีใบเสร็จผ่านเลย</h3>
+    <div class="card">
+      <h4>ทุนวิจัยตัวอย่างที่ 3 — เพิ่งเริ่มอัปโหลดใบเสร็จ</h4>
+      <p class="text-body">ยังไม่มีใบเสร็จที่ผ่านการตรวจสำหรับทุนนี้ ปุ่ม Export จึงถูกปิดการใช้งานไว้ก่อน
+        เพื่อป้องกันไม่ให้ท่านส่งรายงานเปล่าให้เจ้าหน้าที่การเงินโดยไม่ตั้งใจ (FR-21)</p>
+      <button type="button" class="btn btn-primary btn-md" disabled>Export รายงาน (ปิดใช้งาน)</button>
+      <a href="my-receipts.html" class="btn btn-secondary btn-md">ไปแก้ไขใบเสร็จที่ยังไม่ผ่าน</a>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <h3>ตัวอย่างที่ 2: ทุนที่มีใบเสร็จผ่านแล้วอย่างน้อย 1 ใบ</h3>
+    <div class="card">
+      <h4>ทุน: พัฒนาโมเดล AI เพื่อการเกษตร (ปีงบประมาณ 2568)</h4>
+      <p class="text-body">ทุนนี้มีใบเสร็จสถานะ "ผ่าน" แล้ว 6 รายการ พร้อมสำหรับสร้างรายงาน Export</p>
+
+      <div class="list" style="margin:16px 0;">
+        <div class="list-item">
+          <span>฿1,200.00 · 10/08/2568 · ค่าเดินทาง</span>
+          <span class="chip-status chip-status--pass">ผ่าน</span>
+        </div>
+        <div class="list-item">
+          <span>฿650.00 · 03/08/2568 · ค่าวัสดุ</span>
+          <span class="chip-status chip-status--pass">ผ่าน</span>
+        </div>
+        <div class="list-item">
+          <span>฿2,300.00 · 01/08/2568 · ค่าจ้างเหมาบริการ</span>
+          <span class="chip-status chip-status--pass">ผ่าน</span>
+        </div>
+      </div>
+      <p class="text-small">แสดง 3 จาก 6 รายการที่ผ่านตรวจแล้ว — ใบเสร็จสถานะ "ต้องแก้ไข"/"ไม่เข้าเงื่อนไข"
+        จะไม่ถูกรวมในรายงานนี้</p>
+
+      <button type="button" class="btn btn-primary btn-md">Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว</button>
+      <p class="help-text">ไฟล์ที่ได้จะดาวน์โหลดเป็นรายงานสรุป (PDF/Excel) สำหรับนำไปยื่นเจ้าหน้าที่การเงิน
+        ของมหาวิทยาลัยเองภายนอกระบบนี้</p>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-10 — Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว · FR-21 — ปิดปุ่ม Export เมื่อยังไม่มีใบเสร็จสถานะผ่าน
+     พร้อมข้อความแจ้งเหตุผลที่กดไม่ได้</p>
+</footer>
+
+</body>
+</html>

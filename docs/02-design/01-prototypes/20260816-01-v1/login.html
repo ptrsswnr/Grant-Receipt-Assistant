@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เข้าสู่ระบบ — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html" class="active">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta"><span class="fr-badge">FR-12, NFR-05</span></div>
+</header>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>เข้าสู่ระบบ</h1>
+    <p class="text-body">ระบบมี 2 บทบาทเท่านั้น เลือกบทบาทด้านล่างเพื่อทดลองดู flow ของแต่ละฝั่ง
+      (นักวิจัยเห็นเฉพาะข้อมูลของตนเอง, Admin ไม่มีสิทธิ์เข้าถึงข้อมูลใบเสร็จส่วนบุคคลเลย — FR-12, NFR-05)</p>
+  </div>
+
+  <div class="section card" style="max-width:480px;">
+    <div class="field">
+      <label for="email">อีเมล</label>
+      <input type="email" id="email" placeholder="researcher@university.ac.th">
+    </div>
+    <div class="field">
+      <label for="password">รหัสผ่าน</label>
+      <input type="password" id="password" placeholder="••••••••">
+    </div>
+    <button type="button" class="btn btn-primary btn-md" style="width:100%;" disabled>เข้าสู่ระบบ (mock — เลือกบทบาทด้านล่างแทน)</button>
+  </div>
+
+  <div class="section">
+    <h3>เลือกบทบาทเพื่อทดลองใช้งาน</h3>
+    <div class="grid-2">
+      <a class="card index-screen-card" href="dashboard.html">
+        <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+        <h4 style="margin-top:12px;">เข้าสู่ระบบด้วยบทบาทนักวิจัย</h4>
+        <p class="text-small">ผู้ใช้ที่เคยให้ความยินยอมแล้ว — ไปที่ Dashboard สรุปภาพรวมทุนของตนเอง</p>
+      </a>
+      <a class="card index-screen-card" href="consent-notice.html">
+        <span class="role-badge">นักวิจัย/เจ้าของทุน (ครั้งแรก)</span>
+        <h4 style="margin-top:12px;">ทดลอง flow ผู้ใช้ใหม่</h4>
+        <p class="text-small">ยังไม่เคยให้ความยินยอม — ต้องผ่าน Privacy Notice ก่อน (FR-13, FR-14)</p>
+      </a>
+      <a class="card index-screen-card" href="admin-rule-management.html">
+        <span class="role-badge role-badge--admin">Admin</span>
+        <h4 style="margin-top:12px;">เข้าสู่ระบบด้วยบทบาท Admin</h4>
+        <p class="text-small">จำกัดสิทธิ์เฉพาะจัดการระเบียบใน Rule Engine ไม่เห็นข้อมูลใบเสร็จส่วนบุคคล</p>
+      </a>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-12 — นักวิจัยเห็นเฉพาะข้อมูลของตนเอง, Admin ไม่มีสิทธิ์เข้าถึงข้อมูลใบเสร็จส่วนบุคคล ·
+     NFR-05 — Security/Access Control</p>
+</footer>
+
+</body>
+</html>

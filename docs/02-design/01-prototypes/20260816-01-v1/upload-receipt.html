@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>อัปโหลดใบเสร็จ — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html" class="active">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-01, FR-19</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="stepper" aria-label="ขั้นตอนการเริ่มใช้งาน">
+    <div class="stepper__step is-done"><div class="stepper__dot">✓</div><div class="stepper__label">ยอมรับข้อตกลง</div></div>
+    <div class="stepper__step is-current"><div class="stepper__dot">2</div><div class="stepper__label">อัปโหลดใบเสร็จ</div></div>
+    <div class="stepper__step"><div class="stepper__dot">3</div><div class="stepper__label">ตรวจสอบข้อมูล</div></div>
+    <div class="stepper__step"><div class="stepper__dot">4</div><div class="stepper__label">ผลตรวจ</div></div>
+  </div>
+
+  <div class="section text-left-block">
+    <h1>อัปโหลดใบเสร็จ</h1>
+    <p class="text-body">อัปโหลดไฟล์ภาพถ่ายใบเสร็จ (jpg/png) หรือไฟล์ PDF สแกน ผูกกับทุนวิจัยของท่าน
+      ระบบจะตรวจสอบไฟล์ก่อนเสมอ ก่อนส่งเข้าสู่กระบวนการอ่านข้อมูลด้วย OCR (FR-01, FR-19)</p>
+  </div>
+
+  <div class="section" style="max-width:640px;">
+    <div class="field">
+      <label for="fund">ทุนวิจัยที่ผูกกับใบเสร็จนี้</label>
+      <select id="fund">
+        <option>ทุนพัฒนาโมเดล AI เพื่อการเกษตร (ปีงบประมาณ 2568)</option>
+        <option>ทุนวิจัยตัวอย่างที่ 2</option>
+      </select>
+      <p class="help-text">ใบเสร็จจะถูกผูกไว้กับทุนที่เลือกนี้เท่านั้น — นักวิจัยเห็นเฉพาะทุนของตนเอง (FR-12)</p>
+    </div>
+
+    <div class="dropzone" tabindex="0">
+      <div class="dropzone__icon">⬆</div>
+      <h4 style="margin:0;">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</h4>
+      <p class="text-body" style="margin:0;">รองรับไฟล์ชนิด .jpg, .png และ .pdf เท่านั้น</p>
+    </div>
+
+    <div class="row" style="margin-top:16px; justify-content:flex-end;">
+      <a href="review-ocr-data.html" class="btn btn-primary btn-md">อัปโหลดและอ่านข้อมูลด้วย OCR</a>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>ตัวอย่างข้อความแจ้งเตือนเมื่อไฟล์ไม่ถูกต้อง (FR-19)</h3>
+    <p class="text-small">ระบบต้องปฏิเสธไฟล์ทันทีในกรณีต่อไปนี้ พร้อมข้อความ error ภาษาไทยที่ชัดเจน แทนที่จะส่งต่อเข้า OCR</p>
+
+    <div class="card" style="border-color:var(--color-error); margin-bottom:16px;">
+      <div class="dropzone is-error" style="min-height:100px;">
+        <div class="dropzone__icon" style="border-color:var(--color-error); color:var(--color-error);">✕</div>
+        <p class="error-text">ไม่รองรับไฟล์ประเภทนี้ กรุณาอัปโหลดไฟล์ชนิด .jpg, .png หรือ .pdf เท่านั้น</p>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:var(--color-error); margin-bottom:16px;">
+      <div class="dropzone is-error" style="min-height:100px;">
+        <div class="dropzone__icon" style="border-color:var(--color-error); color:var(--color-error);">✕</div>
+        <p class="error-text">ไฟล์นี้เสียหายหรือเปิดไม่ได้ กรุณาถ่ายภาพหรือสแกนใบเสร็จใหม่แล้วอัปโหลดอีกครั้ง</p>
+      </div>
+    </div>
+
+    <div class="card" style="border-color:var(--color-error);">
+      <div class="dropzone is-error" style="min-height:100px;">
+        <div class="dropzone__icon" style="border-color:var(--color-error); color:var(--color-error);">✕</div>
+        <p class="error-text">ไฟล์มีขนาดใหญ่เกินกำหนด กรุณาบีบอัดไฟล์หรือถ่ายภาพใหม่ให้มีขนาดเล็กลง</p>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-01 — อัปโหลดใบเสร็จ (jpg/png/PDF) ผูกกับทุนของตนเอง ·
+     FR-19 — ตรวจสอบและปฏิเสธไฟล์อัปโหลดที่ไม่ถูกต้องก่อนเข้าสู่ OCR เสมอ</p>
+</footer>
+
+</body>
+</html>

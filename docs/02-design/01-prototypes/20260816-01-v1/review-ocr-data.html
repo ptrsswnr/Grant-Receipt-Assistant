@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตรวจสอบข้อมูลจาก OCR — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html" class="active">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-02, FR-03, NFR-01</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="stepper" aria-label="ขั้นตอนการเริ่มใช้งาน">
+    <div class="stepper__step is-done"><div class="stepper__dot">✓</div><div class="stepper__label">ยอมรับข้อตกลง</div></div>
+    <div class="stepper__step is-done"><div class="stepper__dot">✓</div><div class="stepper__label">อัปโหลดใบเสร็จ</div></div>
+    <div class="stepper__step is-current"><div class="stepper__dot">3</div><div class="stepper__label">ตรวจสอบข้อมูล</div></div>
+    <div class="stepper__step"><div class="stepper__dot">4</div><div class="stepper__label">ผลตรวจ</div></div>
+  </div>
+
+  <div class="section text-left-block">
+    <h1>ตรวจสอบและแก้ไขข้อมูล</h1>
+    <p class="text-body">ระบบอ่านข้อมูลนี้จากใบเสร็จภาษาไทยอัตโนมัติด้วย OCR แล้ว (FR-02, NFR-01) —
+      กรุณาตรวจสอบความถูกต้องและแก้ไขก่อนส่งเข้าตรวจกับ Rule Engine เพื่อป้องกันผลตรวจคลาดเคลื่อนจากกรณี
+      OCR อ่านตัวเลข/ข้อความผิด (FR-03)</p>
+  </div>
+
+  <div class="row" style="align-items:flex-start;">
+
+    <div class="card" style="flex:0 0 220px;">
+      <div class="dropzone__icon" style="width:100%; height:160px; font-size:40px; border-radius:var(--radius-sm);">🧾</div>
+      <p class="text-small" style="margin-top:12px;">receipt_20260816.jpg</p>
+      <span class="chip-status chip-status--pending">รอตรวจสอบ</span>
+    </div>
+
+    <div class="card" style="flex:1 1 400px;">
+      <div class="field">
+        <label for="amount">ยอดเงิน (บาท)</label>
+        <input type="text" id="amount" class="input-mono" value="4,500.00">
+        <p class="help-text">อ่านโดย OCR — ตรวจสอบตัวเลขให้ตรงกับใบเสร็จจริงก่อนส่งตรวจ</p>
+      </div>
+      <div class="field">
+        <label for="date">วันที่ในใบเสร็จ</label>
+        <input type="text" id="date" value="12/08/2568">
+      </div>
+      <div class="field">
+        <label for="category">หมวดค่าใช้จ่าย</label>
+        <select id="category">
+          <option>ค่าวัสดุ</option>
+          <option>ค่าเดินทาง</option>
+          <option>ค่าจ้างเหมาบริการ</option>
+          <option>ค่าอาหารและเครื่องดื่ม</option>
+        </select>
+        <p class="help-text">แก้ไขหมวดได้หากระบบจัดหมวดผิด — Rule Engine จะใช้ค่านี้เป็นหลักในการตรวจ (FR-04)</p>
+      </div>
+      <div class="field">
+        <label for="vendor">ชื่อร้าน/ผู้ขาย</label>
+        <input type="text" id="vendor" value="ร้านวัสดุก่อสร้าง ใจดี">
+      </div>
+
+      <div class="row" style="justify-content:flex-end; margin-top:8px;">
+        <a href="upload-receipt.html" class="btn btn-secondary btn-md">ย้อนกลับไปอัปโหลดใหม่</a>
+        <a href="verification-result.html" class="btn btn-primary btn-md">ส่งเข้าตรวจกับ Rule Engine</a>
+      </div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-02 — OCR อ่านข้อมูลใบเสร็จอัตโนมัติ (ยอดเงิน/วันที่/หมวด/ชื่อร้าน) ·
+     FR-03 — ตรวจสอบ/แก้ไขข้อมูลก่อนส่งตรวจ · NFR-01 — รองรับภาษาไทยเต็มรูปแบบ</p>
+</footer>
+
+</body>
+</html>

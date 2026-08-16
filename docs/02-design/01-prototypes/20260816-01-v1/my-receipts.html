@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ใบเสร็จของฉัน — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="proto-bar">
+  <div class="proto-bar__brand">Grant Receipt Assistant · Prototype v1</div>
+  <nav class="proto-bar__nav">
+    <a href="index.html">หน้ารวม</a>
+    <a href="login.html">เข้าสู่ระบบ</a>
+    <a href="consent-notice.html">Privacy Notice</a>
+    <a href="upload-receipt.html">อัปโหลดใบเสร็จ</a>
+    <a href="review-ocr-data.html">ตรวจข้อมูล OCR</a>
+    <a href="verification-result.html">ผลตรวจ</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="my-receipts.html" class="active">ใบเสร็จของฉัน</a>
+    <a href="export-report.html">Export รายงาน</a>
+    <a href="privacy-consent-management.html">จัดการ Consent</a>
+    <a href="data-access-request.html">ขอสำเนาข้อมูล</a>
+    <a href="admin-rule-management.html">Admin: ระเบียบ</a>
+  </nav>
+  <div class="proto-bar__meta">
+    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
+    <span class="fr-badge">FR-18</span>
+  </div>
+</header>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>ใบเสร็จของฉัน</h1>
+    <p class="text-body">รายการใบเสร็จทั้งหมดของทุน "พัฒนาโมเดล AI เพื่อการเกษตร" — นักวิจัยสามารถลบ
+      ใบเสร็จของตนเองได้เองผ่าน UI นี้ ยกเว้นใบเสร็จที่ถูกรวมอยู่ใน export รายงานที่ส่งเจ้าหน้าที่การเงิน
+      ไปแล้ว (FR-18)</p>
+  </div>
+
+  <div class="section">
+    <h3>ใบเสร็จที่ต้องดำเนินการ</h3>
+    <div class="receipt-card" style="margin-bottom:12px;">
+      <div class="receipt-card__thumb">🧾</div>
+      <div class="receipt-card__body">
+        <div class="receipt-card__amount">฿4,500.00</div>
+        <div class="receipt-card__meta">12/08/2568 · ค่าวัสดุ</div>
+      </div>
+      <div class="receipt-card__status"><span class="chip-status chip-status--fix">ต้องแก้ไข</span></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <h3>กรณีที่ 1: ใบเสร็จที่ยังไม่ถูก Export — ลบได้เอง</h3>
+
+    <div class="receipt-card" style="margin-bottom:12px;">
+      <div class="receipt-card__thumb">🧾</div>
+      <div class="receipt-card__body">
+        <div class="receipt-card__amount">฿850.00</div>
+        <div class="receipt-card__meta">05/08/2568 · ค่าบันเทิง (ไม่อยู่ในรายการที่อนุญาต)</div>
+      </div>
+      <div class="receipt-card__status"><span class="chip-status chip-status--reject">ไม่เข้าเงื่อนไข</span></div>
+    </div>
+
+    <div class="row" style="justify-content:flex-end;">
+      <a href="#confirm-delete" class="btn btn-destructive btn-sm">ลบใบเสร็จนี้</a>
+    </div>
+
+    <div class="card" id="confirm-delete" style="margin-top:16px; border-color:var(--color-error);">
+      <h4>ยืนยันการลบใบเสร็จ</h4>
+      <p class="text-body">คุณต้องการลบใบเสร็จ "฿850.00 · 05/08/2568 · ค่าบันเทิง" ใช่หรือไม่?
+        การลบไม่สามารถย้อนกลับได้ ข้อมูลนี้ยังไม่ถูกรวมใน export รายงานใดๆ จึงลบได้ทันที</p>
+      <div class="row" style="justify-content:flex-end;">
+        <a href="#" class="btn btn-ghost btn-sm">ยกเลิก</a>
+        <a href="my-receipts.html" class="btn btn-destructive btn-sm">ยืนยันการลบใบเสร็จ</a>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="section">
+    <h3>กรณีที่ 2: ใบเสร็จที่ถูก Export ไปแล้ว — ปิดกั้นการลบเอง</h3>
+
+    <div class="receipt-card" style="margin-bottom:12px;">
+      <div class="receipt-card__thumb">🧾</div>
+      <div class="receipt-card__body">
+        <div class="receipt-card__amount">฿1,200.00</div>
+        <div class="receipt-card__meta">10/08/2568 · ค่าเดินทาง · รวมอยู่ใน export ชุด #EXP-2568-003 แล้ว</div>
+      </div>
+      <div class="receipt-card__status"><span class="chip-status chip-status--pass">ผ่าน</span></div>
+    </div>
+
+    <div class="banner banner--info">
+      <p class="text-body">ใบเสร็จนี้ถูกส่งออก (export) ไปให้เจ้าหน้าที่การเงินแล้ว จึง<strong>ไม่สามารถลบเอง
+        ผ่าน UI ได้</strong> เพื่อรักษา Audit Trail และป้องกันการลบหลักฐานหนีความรับผิดหลังยื่นเบิกไปแล้ว
+        (FR-18) หากจำเป็นต้องลบจริง กรุณายื่นคำร้องผ่านช่องทาง Admin/DPO ภายนอกระบบแทน</p>
+      <button type="button" class="btn btn-destructive btn-sm" disabled>ลบใบเสร็จนี้ (ปิดใช้งาน)</button>
+    </div>
+  </div>
+
+</main>
+
+<footer class="page-footer">
+  <p>FR-18 — ลบ/ขอลบข้อมูลใบเสร็จของตนเองด้วยตนเองผ่าน UI (Right to Erasure) เงื่อนไข: ลบได้เฉพาะใบเสร็จ
+     ที่ยังไม่ถูก export ส่งเจ้าหน้าที่การเงินไปแล้ว</p>
+</footer>
+
+</body>
+</html>
