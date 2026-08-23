@@ -60,6 +60,14 @@ docs/
 
 โปรเจกต์นี้มี custom agents ใน `.claude/agents/` และ skills ใน `.claude/skills/` สำหรับสร้าง/ตรวจสอบความสอดคล้องของเอกสารแต่ละชั้นให้ตรงกับชั้นก่อนหน้าเสมอ ตามลำดับ: spec → `backlog.md` → `feature-list.md`/`user-journey.md` → แตกแขนงขนานกัน 3 สาย (technical spec ใน `02-technical/`, test plan ใน `03-testing/`, prototype ใน `01-prototypes/`) → phase plan ใน `01-requirements/02-plan/`+`03-task/` เมื่อผู้ใช้ขอให้ทำงานที่ตรงกับหน้าที่ของ skill ใดอยู่แล้ว **ให้เรียกใช้ skill/agent นั้นแทนการแก้ไฟล์เอกสารตรงๆ เอง** เพื่อให้การตรวจสอบ cross-file consistency และการบันทึกสรุปงานลง `docs/05-log/{YYYYMMDD}-log.md` เป็นไปตามรูปแบบเดิมของโปรเจกต์
 
+**มาตรฐานกลางเรื่องการถามผู้ใช้เมื่อไม่ชัดเจน**: agent ใดที่ทำการตัดสินใจเชิงออกแบบ/แนวคิด
+(architecture, api-spec/db-spec, detailed design, feature/journey grouping, test plan, phase
+plan) เมื่อพบจุดที่ตัดสินใจได้มากกว่า 1 ทางอย่างสมเหตุสมผล และเอกสารชั้นก่อนหน้าไม่ได้ให้ข้อมูล
+พอจะตัดสินใจแทนผู้ใช้ได้ **ต้องหยุดแล้วถามผู้ใช้ผ่าน `AskUserQuestion` เสมอ โดยเสนออย่างน้อย 3
+แนวทาง พร้อมข้อดี/ข้อเสียของแต่ละแนวทาง** ห้ามเดาเองแล้วเลือกทางใดทางหนึ่งเงียบๆ แม้จะตั้งใจบันทึก
+ไว้เป็น "ค่าเริ่มต้นชั่วคราว" ในเอกสารก็ตาม — เป็นมาตรฐานเดียวกันทั้งโปรเจกต์ ไม่ใช่พฤติกรรมเฉพาะ
+agent ตัวใดตัวหนึ่ง เมื่อสร้าง agent ใหม่ที่ทำงานลักษณะนี้ ให้เพิ่มกฎนี้ไว้ด้วยตั้งแต่แรก
+
 จุดเริ่มต้นที่ใช้บ่อย:
 - `/capture-requirement` — แปลง requirement ดิบจากผู้ใช้เป็นเอกสาร spec ใหม่/แก้ไขของเดิม พร้อมอัปเดต backlog
 - `/audit-backlog`, `/sync-feature-journey`, `/sync-technical-spec` (รวม architecture → api-spec/db-spec → detailed-design → nfr-review), `/sync-test-plan`, `/sync-phase-plan`, `/build-prototype` — ตรวจสอบและ sync เอกสารแต่ละชั้นให้ตรงกับชั้นก่อนหน้า
