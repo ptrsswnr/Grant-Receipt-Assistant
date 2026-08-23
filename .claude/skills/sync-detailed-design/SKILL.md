@@ -30,7 +30,10 @@ date") กับ `api-spec.md`/`db-spec.md`/`feature-list.md` หรือไม
    framework/library เฉพาะภาษาใดๆ หลุดเข้าไป
 
 5. **สรุปให้ผู้ใช้ทราบ**: up to date หรือไม่ก่อนตรวจ, ไฟล์ที่สร้าง/แก้ไข, จุดที่ถามผู้ใช้ (ถ้ามี),
-   ช่องว่างของ api-spec/db-spec ที่ subagent รายงาน (ถ้ามี)
+   ช่องว่างของ api-spec/db-spec ที่ subagent รายงาน (ถ้ามี) — `detailed-design-writer` อาจถามผู้ใช้
+   ตรงๆ ระหว่างทำงาน (ผ่าน `AskUserQuestion` พร้อมอย่างน้อย 3 แนวทางและข้อดี/ข้อเสีย) เมื่อพบจุด
+   ออกแบบ sequence flow/state/edge case ที่ไม่ชัดเจน หรือพบไฟล์ design ที่ล้าสมัย ให้ปล่อยให้
+   subagent ถามเองตามปกติ ไม่ต้องดักคำถามไว้เอง
 
 ## ข้อควรระวัง
 
