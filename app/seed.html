@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ใส่ข้อมูลตัวอย่าง · Grant Receipt Assistant</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="js/nav.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
+  <script src="js/firebase-config.js" defer></script>
+</head>
+<body>
+  <div id="nav"></div>
+
+  <div class="page-shell">
+    <div class="section text-left-block">
+      <h1>🌱 ใส่ข้อมูลตัวอย่างลง Firestore</h1>
+      <p class="text-body">
+        หน้านี้ใช้ครั้งเดียวตอนตั้งค่าโปรเจกต์ — กดปุ่มด้านล่างเพื่อใส่ funds, receipts และ
+        files (sub-collection) จาก <code>js/data.js</code> ลง Firestore ของโปรเจกต์
+        grant-receipt-assistant กดซ้ำได้ ไม่เกิดข้อมูลซ้ำ (ใช้ id เดิมทุกครั้ง)
+      </p>
+    </div>
+
+    <div class="card">
+      <button type="button" class="btn btn-primary btn-md" id="ปุ่มใส่ข้อมูล">ใส่ข้อมูลตัวอย่าง</button>
+      <pre id="ผลลัพธ์การใส่ข้อมูล" style="white-space:pre-wrap; margin-top:16px; font-family:var(--font-mono); font-size:13px;">ยังไม่ได้กดใส่ข้อมูล</pre>
+    </div>
+  </div>
+
+  <script src="js/seed.js" defer></script>
+</body>
+</html>

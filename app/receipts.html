@@ -4,17 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ใบเสร็จของฉัน (เชื่อม Firestore จริง) — Grant Receipt Assistant</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/nav.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
+<script src="js/firebase-config.js" defer></script>
 </head>
 <body>
 
-<header class="proto-bar">
-  <div class="proto-bar__brand">Grant Receipt Assistant · เชื่อม Firestore จริง</div>
-  <div class="proto-bar__meta">
-    <span class="role-badge">นักวิจัย/เจ้าของทุน</span>
-    <span class="fr-badge">Week 6 Homework</span>
-  </div>
-</header>
+<div id="nav"></div>
 
 <main class="page-shell">
 
@@ -22,7 +20,8 @@
     <h1>ใบเสร็จของฉัน</h1>
     <p class="text-body">
       หน้านี้อ่านข้อมูลจริงจาก Cloud Firestore (collection <code>receipts</code>) ไม่ใช่ข้อมูล mock
-      ในโค้ด — ข้อมูลตัวอย่างถูกใส่ไว้ล่วงหน้าผ่าน <code>scripts/seed-firestore.mjs</code>
+      ในโค้ด — ถ้ายังไม่มีข้อมูล ให้ไปที่หน้า <a href="seed.html">🌱 ใส่ข้อมูลตัวอย่าง</a> ก่อน หรือกรอก
+      ใบเสร็จเองที่หน้า <a href="new-receipt.html">อัปโหลดใบเสร็จใหม่</a>
       สถานะ/คำอธิบายจาก AI เป็นข้อมูลสมมติ (ยังไม่มี OCR/Rule Engine/LLM จริงเชื่อมต่อ —
       ดูเหตุผลใน <code>SCOPE.md</code>)
     </p>
@@ -41,99 +40,7 @@
      collection: <span class="text-mono">receipts</span></p>
 </footer>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-  import {
-    getFirestore,
-    collection,
-    getDocs,
-    query,
-    orderBy,
-  } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyBS1Pi2xs3RTQQFG5ox6HDK1iOPnjFY5iE",
-    authDomain: "grant-receipt-assistant.firebaseapp.com",
-    projectId: "grant-receipt-assistant",
-    storageBucket: "grant-receipt-assistant.firebasestorage.app",
-    messagingSenderId: "748022324743",
-    appId: "1:748022324743:web:d75edfffdb66c50ad354a2",
-    measurementId: "G-783V7JH4S4",
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  const STATUS_CHIP_CLASS = {
-    "ผ่าน": "chip-status--pass",
-    "ต้องแก้ไข": "chip-status--fix",
-    "ไม่เข้าเงื่อนไข": "chip-status--reject",
-  };
-
-  function formatCurrency(amount) {
-    if (typeof amount !== "number") return "-";
-    return "฿" + amount.toLocaleString("th-TH", { minimumFractionDigits: 2 });
-  }
-
-  function receiptCardHtml(receipt) {
-    const chipClass = STATUS_CHIP_CLASS[receipt.status] ?? "chip-status--pending";
-    return `
-      <div class="receipt-card" style="margin-bottom:12px;">
-        <div class="receipt-card__thumb">🧾</div>
-        <div class="receipt-card__body">
-          <div class="receipt-card__amount">${formatCurrency(receipt.confirmedAmount)}</div>
-          <div class="receipt-card__meta">${receipt.confirmedDate ?? "-"} · ${receipt.confirmedCategory ?? "-"} · ${receipt.confirmedVendorName ?? "-"}</div>
-        </div>
-        <div class="receipt-card__status">
-          <span class="chip-status ${chipClass}">${receipt.status ?? "ไม่ทราบสถานะ"}</span>
-        </div>
-      </div>
-      ${receipt.aiExplanation ? `
-      <div class="rule-callout rule-callout--${chipClass.includes("pass") ? "pass" : chipClass.includes("fix") ? "fix" : "reject"}" style="margin-bottom:24px;">
-        <p class="rule-callout__explain">${receipt.aiExplanation}</p>
-      </div>` : ""}
-    `;
-  }
-
-  async function loadReceipts() {
-    const loadState = document.getElementById("load-state");
-    const list = document.getElementById("receipt-list");
-
-    try {
-      const q = query(collection(db, "receipts"), orderBy("uploadedAt", "desc"));
-      const snapshot = await getDocs(q);
-
-      if (snapshot.empty) {
-        loadState.innerHTML = `
-          <div class="banner banner--warning">
-            <p class="text-body">ยังไม่มีข้อมูลใน collection <code>receipts</code> —
-              รัน <span class="text-mono">npm run seed</span> ก่อน (ต้องเปลี่ยน Firestore Rules
-              เป็นโหมดเปิดเขียนชั่วคราวก่อนด้วย ดู <code>firestore.rules</code>)</p>
-          </div>`;
-        return;
-      }
-
-      let html = "";
-      snapshot.forEach((doc) => {
-        html += receiptCardHtml(doc.data());
-      });
-
-      list.innerHTML = html;
-      list.style.display = "block";
-      loadState.style.display = "none";
-    } catch (err) {
-      loadState.innerHTML = `
-        <div class="banner banner--error">
-          <p class="text-body"><strong>โหลดข้อมูลไม่สำเร็จ:</strong> ${err.message}</p>
-          <p class="text-small">ตรวจสอบว่า Firestore Rules อนุญาต read (<code>allow read: if true;</code>)
-            และมี collection <code>receipts</code> อยู่จริงแล้ว</p>
-        </div>`;
-      console.error(err);
-    }
-  }
-
-  loadReceipts();
-</script>
+<script src="js/receipts.js" defer></script>
 
 </body>
 </html>

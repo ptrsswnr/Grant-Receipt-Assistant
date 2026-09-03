@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Grant Receipt Assistant — Week 6</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/nav.js" defer></script>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>Grant Receipt Assistant</h1>
+    <p class="text-body">ผู้ช่วยตรวจสอบใบเสร็จ/หลักฐานการเบิกจ่ายเงินทุนวิจัย ก่อนส่งเจ้าหน้าที่การเงินตรวจจริง</p>
+  </div>
+
+  <div class="card" style="margin-bottom:24px;">
+    <h3>หน้าจอของระบบ (Week 6)</h3>
+    <div class="row">
+      <a class="btn btn-primary btn-md" href="receipts.html">ใบเสร็จของฉัน</a>
+      <a class="btn btn-secondary btn-md" href="new-receipt.html">อัปโหลดใบเสร็จใหม่</a>
+      <a class="btn btn-ghost btn-md" href="seed.html">🌱 ใส่ข้อมูลตัวอย่าง</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>สถานะของใบเสร็จมี 3 ค่า</h3>
+    <p class="text-body">
+      <span class="chip-status chip-status--pass">ผ่าน</span> ·
+      <span class="chip-status chip-status--fix">ต้องแก้ไข</span> ·
+      <span class="chip-status chip-status--reject">ไม่เข้าเงื่อนไข</span>
+    </p>
+    <p class="text-small">สัปดาห์นี้สถานะมาจาก mock Rule Engine ใน <code>js/data.js</code> ไม่ใช่ระเบียบทุนวิจัยจริง — ดูเหตุผลใน <code>SCOPE.md</code>/<code>BACKLOG.md</code></p>
+  </div>
+
+</main>
+
+</body>
+</html>

@@ -5,8 +5,11 @@ rules_version = '2';
 //
 // สถานะปัจจุบัน (Week 6 homework): ยังไม่มีระบบ login/auth จริง และข้อมูลทั้งหมดใน
 // Firestore เป็นข้อมูลสมมติ (mock) ไม่ใช่ข้อมูลจริงของนักวิจัย — จึงยังไม่ล็อกสิทธิ์ตาม
-// เจ้าของ (requesterId) ตาม FR-12/NFR-05 ในตอนนี้ ปล่อยให้อ่านได้แบบเปิด เพื่อให้หน้า
-// รายการของแอปดึงข้อมูลจริงจาก Firestore มาแสดงได้ตามโจทย์การบ้าน
+// เจ้าของ (requesterId) ตาม FR-12/NFR-05 ในตอนนี้
+//
+// เปิดทั้ง read และ write แบบไม่ต้อง auth เพราะมี 2 หน้าที่ต้องเขียนจากฝั่ง client ตรงๆ
+// โดยเจตนา: app/seed.html (ปุ่มใส่ข้อมูลตัวอย่าง) และ app/new-receipt.html (ฟอร์มกรอกใบเสร็จ
+// ด้วยมือแทน OCR ที่ยังไม่มี) — ทั้งสองหน้าไม่มี backend คั่นกลาง จึงต้องพึ่ง rule นี้ชั่วคราว
 //
 // เมื่อไหร่ก็ตามที่เริ่มใส่ข้อมูลจริงของนักวิจัยจริง (ผ่านการทำ auth จริงตาม Sprint ถัดไป)
 // ต้องเปลี่ยนมาใช้ owner-based rule ด้านล่าง (ดูส่วน "เมื่อมี Auth จริงแล้ว") ก่อนใช้งานจริงเด็ดขาด
@@ -15,18 +18,23 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    match /funds/{fundId} {
-      allow read: if true;
-      allow write: if false; // เขียนได้เฉพาะผ่าน seed script (เปิดชั่วคราวตอน seed เท่านั้น — ดูด้านล่าง)
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+
+    match /fundSources/{fundSourceId} {
+      allow read, write: if true;
+    }
+
+    match /projects/{projectId} {
+      allow read, write: if true;
     }
 
     match /receipts/{receiptId} {
-      allow read: if true;
-      allow write: if false;
+      allow read, write: if true;
 
       match /files/{fileId} {
-        allow read: if true;
-        allow write: if false;
+        allow read, write: if true;
       }
     }
 
@@ -38,22 +46,9 @@ service cloud.firestore {
 }
 
 // ----------------------------------------------------------------------------
-// โหมด "seed ข้อมูล" (ใช้ชั่วคราวตอนรัน scripts/seed-firestore.mjs เท่านั้น)
-// วางแทนเนื้อหาทั้งไฟล์ด้านบนชั่วคราว แล้วเปลี่ยนกลับทันทีหลัง seed เสร็จ:
-//
-// rules_version = '2';
-// service cloud.firestore {
-//   match /databases/{database}/documents {
-//     match /{document=**} {
-//       allow read, write: if true;
-//     }
-//   }
-// }
-// ----------------------------------------------------------------------------
-
-// ----------------------------------------------------------------------------
 // เมื่อมี Auth จริงแล้ว (Sprint ถัดไป — ดู BACKLOG.md) ให้เปลี่ยนมาใช้ owner-based
-// ตาม FR-12/NFR-05 (นักวิจัยเห็นเฉพาะใบเสร็จของตนเอง) ประมาณนี้:
+// ตาม FR-12/NFR-05 (นักวิจัยเห็น/แก้ไขเฉพาะใบเสร็จของตนเอง) ประมาณนี้ — ตอนนั้นการเขียนควร
+// ย้ายไปผ่าน backend/Cloud Functions แทนการเขียนตรงจาก client ด้วย:
 //
 // match /funds/{fundId} {
 //   allow read: if request.auth != null && resource.data.ownerUserId == request.auth.uid;
