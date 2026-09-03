@@ -1,0 +1,11 @@
+{
+  "name": "grant-receipt-assistant-seed",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "seed": "node scripts/seed-firestore.mjs"
+  },
+  "dependencies": {
+    "firebase": "^10.14.1"
+  }
+}
