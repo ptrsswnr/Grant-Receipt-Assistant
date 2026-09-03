@@ -1,0 +1,67 @@
+rules_version = '2';
+
+// ============================================================================
+// Grant Receipt Assistant — Firestore Security Rules
+//
+// สถานะปัจจุบัน (Week 6 homework): ยังไม่มีระบบ login/auth จริง และข้อมูลทั้งหมดใน
+// Firestore เป็นข้อมูลสมมติ (mock) ไม่ใช่ข้อมูลจริงของนักวิจัย — จึงยังไม่ล็อกสิทธิ์ตาม
+// เจ้าของ (requesterId) ตาม FR-12/NFR-05 ในตอนนี้ ปล่อยให้อ่านได้แบบเปิด เพื่อให้หน้า
+// รายการของแอปดึงข้อมูลจริงจาก Firestore มาแสดงได้ตามโจทย์การบ้าน
+//
+// เมื่อไหร่ก็ตามที่เริ่มใส่ข้อมูลจริงของนักวิจัยจริง (ผ่านการทำ auth จริงตาม Sprint ถัดไป)
+// ต้องเปลี่ยนมาใช้ owner-based rule ด้านล่าง (ดูส่วน "เมื่อมี Auth จริงแล้ว") ก่อนใช้งานจริงเด็ดขาด
+// ============================================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /funds/{fundId} {
+      allow read: if true;
+      allow write: if false; // เขียนได้เฉพาะผ่าน seed script (เปิดชั่วคราวตอน seed เท่านั้น — ดูด้านล่าง)
+    }
+
+    match /receipts/{receiptId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /files/{fileId} {
+        allow read: if true;
+        allow write: if false;
+      }
+    }
+
+    // กันไม่ให้ collection อื่นที่ไม่ได้ประกาศไว้ข้างบนถูกอ่าน/เขียนโดยไม่ตั้งใจ
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+
+// ----------------------------------------------------------------------------
+// โหมด "seed ข้อมูล" (ใช้ชั่วคราวตอนรัน scripts/seed-firestore.mjs เท่านั้น)
+// วางแทนเนื้อหาทั้งไฟล์ด้านบนชั่วคราว แล้วเปลี่ยนกลับทันทีหลัง seed เสร็จ:
+//
+// rules_version = '2';
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     match /{document=**} {
+//       allow read, write: if true;
+//     }
+//   }
+// }
+// ----------------------------------------------------------------------------
+
+// ----------------------------------------------------------------------------
+// เมื่อมี Auth จริงแล้ว (Sprint ถัดไป — ดู BACKLOG.md) ให้เปลี่ยนมาใช้ owner-based
+// ตาม FR-12/NFR-05 (นักวิจัยเห็นเฉพาะใบเสร็จของตนเอง) ประมาณนี้:
+//
+// match /funds/{fundId} {
+//   allow read: if request.auth != null && resource.data.ownerUserId == request.auth.uid;
+//   allow write: if false; // เขียนผ่าน backend เท่านั้น
+// }
+// match /receipts/{receiptId} {
+//   allow read: if request.auth != null
+//     && get(/databases/$(database)/documents/funds/$(resource.data.fundId)).data.ownerUserId == request.auth.uid;
+//   allow write: if false;
+// }
+// ----------------------------------------------------------------------------
