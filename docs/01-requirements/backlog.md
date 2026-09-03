@@ -21,21 +21,31 @@
 > เรื่องนิยาม "ใบเสร็จ 1 รายการ" แบบมีหลายไฟล์/แผ่น + finalize ตัวเลขจำกัดจำนวนไฟล์สูงสุด 5 ไฟล์/
 > รายการ และขนาดไฟล์สูงสุด 5 MB/ไฟล์ เดิมเป็น TBD) ยืนยันโดยผู้ใช้จากการคุยหลายรอบก่อนหน้า — ดู
 > [[20260816-01-grant-receipt-verification#10. ส่วนขยายจาก Requirement เพิ่มเติมของผู้ใช้ (2026-08-23) — นิยาม "ใบเสร็จ 1 รายการ" แบบหลายไฟล์]]
+>
+> **อัปเดต 2026-09-03:** แก้ไขโมเดลข้อมูลผิด — เดิม "Fund" ปนแนวคิดแหล่งทุนกับโครงการ ผู้ใช้เลือกทาง
+> "ปรับเต็มรูปแบบ" แยกเป็น **FundSource** (แหล่งทุน — 1 แหล่ง : หลายโครงการ), **Project** (โครงการวิจัย
+> — เจ้าของคือนักวิจัย, ใบเสร็จผูกกับ Project ไม่ใช่ FundSource), **Researcher** (นักวิจัย) เพิ่ม
+> **FR-23** (Project Setup) และแก้ไข FR-01/FR-04/FR-08/FR-11/FR-12 ให้สะท้อนโมเดลใหม่ — ดู
+> [[20260816-01-grant-receipt-verification#11. ส่วนแก้ไขจากการชี้ประเด็นของผู้ใช้ (2026-09-03) — แยกนิยาม "แหล่งทุน" ออกจาก "โครงการวิจัย"]]
+>
+> **อัปเดต 2026-09-03 (รอบ 2):** ผู้ใช้ยืนยันคำตอบ 2 ประเด็นที่ค้างไว้แล้ว — (1) 1 โครงการมีนักวิจัย
+> เจ้าของ **1 คน** และ (2) Rule Engine อ้างอิงระเบียบของแหล่งทุนเวอร์ชันที่ **active ณ วันที่ตรวจ
+> ใบเสร็จ** — ทั้งสองประเด็น **finalize แล้ว** (ดูหัวข้อ 11.1 ของเอกสารข้างต้น)
 
 ## ระดับความสำคัญ: สูง (ต้องมีใน MVP)
 
 | รหัส | หัวข้อ | เอกสารอ้างอิง | สถานะ |
 |------|--------|----------------|--------|
-| FR-01 | อัปโหลดใบเสร็จ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
+| FR-01 | อัปโหลดใบเสร็จ (ผูกกับโครงการวิจัย ไม่ใช่แหล่งทุนโดยตรง) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-02 | OCR อ่านข้อมูลใบเสร็จอัตโนมัติ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-03 | ตรวจสอบ/แก้ไขข้อมูลจาก OCR ก่อนส่งตรวจ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
-| FR-04 | ตรวจใบเสร็จด้วย Rule-based Engine | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
+| FR-04 | ตรวจใบเสร็จด้วย Rule-based Engine (อ้างอิงระเบียบของแหล่งทุนที่โครงการสังกัด) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-05 | LLM สรุปผลตรวจเป็นภาษาที่เข้าใจง่าย | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-06 | แสดงสถานะใบเสร็จรายใบพร้อมเหตุผลอ้างอิงระเบียบ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-07 | แก้ไขและอัปโหลดใบเสร็จซ้ำ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-10 | Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
-| FR-11 | นำเข้า/อัปเดตระเบียบทุนวิจัยเข้าสู่ Rule Engine | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
-| FR-12 | จำกัดสิทธิ์การเข้าถึงข้อมูลใบเสร็จตามเจ้าของ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
+| FR-11 | นำเข้า/อัปเดตระเบียบทุนวิจัยเข้าสู่ Rule Engine (ต่อแหล่งทุนแต่ละแหล่ง) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
+| FR-12 | จำกัดสิทธิ์การเข้าถึงข้อมูลใบเสร็จตามเจ้าของโครงการ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-13 | แสดง Privacy Notice ก่อนใช้งานครั้งแรก/ก่อนอัปโหลดใบเสร็จ | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
 | FR-14 | ขอความยินยอมชัดแจ้ง (Explicit Consent) ก่อนเก็บ/ประมวลผลข้อมูลใบเสร็จ | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
 | FR-15 | บันทึกหลักฐานการให้ความยินยอม (Consent Record) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
@@ -45,12 +55,13 @@
 | FR-20 | ลบข้อมูลใบเสร็จ/ผลตรวจทั้งหมดทันทีเมื่อถอนความยินยอม (Withdraw Consent — Full Immediate Erasure) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
 | FR-21 | ป้องกันการ Export รายงานเมื่อยังไม่มีใบเสร็จสถานะผ่าน | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-22 | อัปโหลดใบเสร็จแบบหลายไฟล์ต่อ 1 รายการ (Multi-file Receipt Bundle) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
+| FR-23 | จัดการข้อมูลโครงการวิจัยและผูกกับแหล่งทุน (Project Setup) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 
 ## ระดับความสำคัญ: กลาง
 
 | รหัส | หัวข้อ | เอกสารอ้างอิง | สถานะ |
 |------|--------|----------------|--------|
-| FR-08 | หน้าสรุปภาพรวมใบเสร็จของทุน (Dashboard) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
+| FR-08 | หน้าสรุปภาพรวมใบเสร็จของโครงการ (Dashboard) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-09 | แจ้งเตือนใบเสร็จที่มีปัญหายังไม่แก้ไข | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-17 | ขอเข้าถึง/ขอสำเนาข้อมูลใบเสร็จส่วนบุคคลของตนเอง (Data Subject Access & Portability) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
 
@@ -113,3 +124,20 @@ FR-22 นี้ ทำให้เกิดความไม่ตรงกั�
 - โครงสร้างข้อมูล `Receipt` ใน `db-spec.md` ปัจจุบันยังไม่รองรับ "1 รายการใบเสร็จ = หลายไฟล์" (multi-file
   bundle, สูงสุด 5 ไฟล์/รายการ) ต้องเพิ่ม entity/attribute รองรับ พร้อมทบทวน `architecture.md`/
   `api-spec.md` ที่เกี่ยวข้อง (Upload Validation ของ Backend Service, operation อัปโหลดใบเสร็จ)
+
+## Open Point จากการแก้ไขโมเดลข้อมูล Fund/Project/Researcher (2026-09-03 — ปิดแล้ว, ต้อง sync ก่อน design ถัดไป)
+
+ผู้ใช้ชี้ประเด็นว่าโมเดลข้อมูลเดิม (entity "Fund" ผูก `ownerUserId` ตรงกับนักวิจัย) ปนแนวคิด "แหล่งทุน"
+กับ "โครงการวิจัย" เข้าด้วยกัน — แก้ไขแล้วในสเปคหลัก (เพิ่ม FR-23, แก้ FR-01/FR-04/FR-08/FR-11/FR-12
+ดู [[20260816-01-grant-receipt-verification#11. ส่วนแก้ไขจากการชี้ประเด็นของผู้ใช้ (2026-09-03) — แยกนิยาม "แหล่งทุน" ออกจาก "โครงการวิจัย"]])
+
+**ปิดแล้ว 2026-09-03 (รอบ 2):** ผู้ใช้ยืนยันคำตอบทั้ง 2 ประเด็นที่เคยค้างแล้ว:
+
+- **จำนวนนักวิจัยเจ้าของต่อ 1 โครงการ** = **1 คนต่อโครงการ** (finalize แล้ว)
+- **เวอร์ชันระเบียบของแหล่งทุนที่ Rule Engine อ้างอิง** = **เวอร์ชันที่ active ณ วันที่ตรวจใบเสร็จ**
+  (finalize แล้ว)
+
+ดูรายละเอียดที่ [[20260816-01-grant-receipt-verification#11.1 ประเด็นที่ถามผู้ใช้เพิ่มเติมและคำตอบที่ยืนยันแล้ว (finalize 2026-09-03)]]
+— ยังคงต้องรัน `sync-technical-spec` ต่อไปเพื่อออกแบบ schema ของ Researcher/Project/FundSource ใน
+`db-spec.md`/`architecture.md`/`api-spec.md` ให้ตรงกับคำตอบที่ finalize แล้วนี้ (ดูหัวข้อ 11.3 ของ
+เอกสารข้างต้น) — ไม่ใช่ open point ที่บล็อกอีกต่อไป เป็นเพียงงานที่ต้องส่งต่อ

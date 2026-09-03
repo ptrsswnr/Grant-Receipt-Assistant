@@ -1,15 +1,11 @@
-// สคริปต์ใส่ข้อมูลตัวอย่างลง Firestore สำหรับการบ้าน Week 6
+// สคริปต์ใส่ข้อมูลตัวอย่างลง Firestore สำหรับการบ้าน Week 6 (ต้องมี Node.js)
 // รันด้วย: npm install && npm run seed
+// ถ้าไม่มี Node.js ในเครื่อง ใช้ app/seed.html แทนได้ (กดปุ่มจากเบราว์เซอร์ ไม่ต้องพึ่ง Node)
 //
-// ก่อนรัน ต้องตั้ง Firestore Security Rules เป็นโหมดเปิดเขียนชั่วคราว (test mode) ก่อน
-// เช่น:
-//   rules_version = '2';
-//   service cloud.firestore {
-//     match /databases/{database}/documents {
-//       match /{document=**} { allow read, write: if true; }
-//     }
-//   }
-// (เปลี่ยนกลับเป็น rule ที่รัดกุมก่อนใช้งานจริง — โหมดเปิดนี้ใช้เฉพาะช่วง seed ข้อมูลตัวอย่าง)
+// ก่อนรัน ต้องตั้ง Firestore Security Rules ให้เขียนได้ก่อน (ดู firestore.rules)
+//
+// โครงสร้างตรงกับ docs/02-design/02-technical/db-spec.md (แก้ไข 2026-09-03):
+// FundSource (แหล่งทุน, ไม่มีเจ้าของ) --< Project (โครงการวิจัย, 1 เจ้าของ/โครงการ) --< Receipt
 
 import { initializeApp } from "firebase/app";
 import {
@@ -24,19 +20,43 @@ import { firebaseConfig } from "./firebase-config.mjs";
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// ---------- ข้อมูลตัวอย่าง: funds (ประกอบ) ----------
-const funds = [
+// ---------- ข้อมูลตัวอย่าง: users ----------
+const users = [
   {
-    id: "fund001",
-    fundName: "ทุนวิจัยประเภท ก. ปี 2569",
-    fundCode: "RES-2569-001",
-    ownerUserId: "user001",
+    id: "user001",
+    fullName: "สมหญิง วิจัยดี",
+    email: "somying@example.ac.th",
+    roleType: "นักวิจัย/เจ้าของโครงการ",
+  },
+];
+
+// ---------- ข้อมูลตัวอย่าง: fundSources (แหล่งทุน — ไม่มีเจ้าของ) ----------
+const fundSources = [
+  {
+    id: "fundsource001",
+    fundSourceName: "สกว. (สำนักงานกองทุนสนับสนุนการวิจัย)",
+    fundSourceCode: "TRF",
   },
   {
-    id: "fund002",
-    fundName: "ทุนวิจัยประเภท ข. ปี 2569",
-    fundCode: "RES-2569-002",
+    id: "fundsource002",
+    fundSourceName: "ทุนภายในมหาวิทยาลัย ปี 2569",
+    fundSourceCode: "MFU-2569",
+  },
+];
+
+// ---------- ข้อมูลตัวอย่าง: projects (โครงการวิจัย — 1 เจ้าของ/โครงการ) ----------
+const projects = [
+  {
+    id: "project001",
+    projectName: "พัฒนาโมเดล AI เพื่อการเกษตร",
     ownerUserId: "user001",
+    fundSourceId: "fundsource001",
+  },
+  {
+    id: "project002",
+    projectName: "ศึกษาพฤติกรรมผู้บริโภคยุคดิจิทัล",
+    ownerUserId: "user001",
+    fundSourceId: "fundsource002",
   },
 ];
 
@@ -44,7 +64,7 @@ const funds = [
 const receipts = [
   {
     id: "receipt001",
-    fundId: "fund001",
+    projectId: "project001",
     confirmedAmount: 350,
     confirmedDate: "2026-08-20",
     confirmedCategory: "ค่าเดินทาง",
@@ -56,7 +76,7 @@ const receipts = [
   },
   {
     id: "receipt002",
-    fundId: "fund001",
+    projectId: "project001",
     confirmedAmount: 1800,
     confirmedDate: "2026-08-21",
     confirmedCategory: "ค่าวัสดุ",
@@ -68,19 +88,19 @@ const receipts = [
   },
   {
     id: "receipt003",
-    fundId: "fund001",
+    projectId: "project001",
     confirmedAmount: 500,
     confirmedDate: "2026-08-22",
     confirmedCategory: "ค่าอาหาร",
     confirmedVendorName: "ร้านอาหารครัวคุณแม่",
     status: "ไม่เข้าเงื่อนไข",
-    aiExplanation: "ระเบียบทุนนี้ไม่อนุญาตให้เบิกค่าอาหารในหมวดนี้ กรุณาตรวจสอบประเภททุนของท่านอีกครั้ง",
+    aiExplanation: "ระเบียบของแหล่งทุนนี้ไม่อนุญาตให้เบิกค่าอาหารในหมวดนี้ กรุณาตรวจสอบระเบียบของแหล่งทุนอีกครั้ง",
     isExported: false,
     file: { originalFileName: "receipt_food_01.jpg", fileType: "jpg", fileSizeBytes: 950000 },
   },
   {
     id: "receipt004",
-    fundId: "fund002",
+    projectId: "project002",
     confirmedAmount: 2500,
     confirmedDate: "2026-08-23",
     confirmedCategory: "ค่าเดินทาง",
@@ -92,7 +112,7 @@ const receipts = [
   },
   {
     id: "receipt005",
-    fundId: "fund002",
+    projectId: "project002",
     confirmedAmount: 120,
     confirmedDate: "2026-08-24",
     confirmedCategory: "ค่าวัสดุ",
@@ -105,11 +125,25 @@ const receipts = [
 ];
 
 async function seed() {
-  console.log("กำลังใส่ข้อมูล funds...");
-  for (const fund of funds) {
-    const { id, ...data } = fund;
-    await setDoc(doc(db, "funds", id), data);
-    console.log(`  + funds/${id}`);
+  console.log("กำลังใส่ข้อมูล users...");
+  for (const user of users) {
+    const { id, ...data } = user;
+    await setDoc(doc(db, "users", id), data);
+    console.log(`  + users/${id}`);
+  }
+
+  console.log("กำลังใส่ข้อมูล fundSources...");
+  for (const fundSource of fundSources) {
+    const { id, ...data } = fundSource;
+    await setDoc(doc(db, "fundSources", id), data);
+    console.log(`  + fundSources/${id}`);
+  }
+
+  console.log("กำลังใส่ข้อมูล projects...");
+  for (const project of projects) {
+    const { id, ...data } = project;
+    await setDoc(doc(db, "projects", id), data);
+    console.log(`  + projects/${id}`);
   }
 
   console.log("กำลังใส่ข้อมูล receipts + files ย่อย...");
@@ -130,7 +164,7 @@ async function seed() {
     console.log(`    + receipts/${id}/files/${fileRef.id}`);
   }
 
-  console.log("เสร็จแล้ว: seed ข้อมูลตัวอย่างครบทั้ง funds และ receipts (พร้อม sub-collection files)");
+  console.log("เสร็จแล้ว: seed ข้อมูลตัวอย่างครบทั้ง users, fundSources, projects และ receipts (พร้อม sub-collection files)");
   process.exit(0);
 }
 

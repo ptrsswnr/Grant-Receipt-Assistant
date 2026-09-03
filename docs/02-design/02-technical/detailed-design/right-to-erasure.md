@@ -6,8 +6,12 @@
 
 ## 0. สถานะเอกสารนี้
 
-สร้างครั้งแรกเมื่อ 2026-08-23 ครอบคลุม FR-18, NFR-11 ตามที่
-[[feature-list#12. ลบข้อมูลใบเสร็จของตนเองด้วยตนเอง (Right to Erasure)|ฟีเจอร์ที่ 12]] กำหนดไว้
+- สร้างครั้งแรกเมื่อ 2026-08-23 ครอบคลุม FR-18, NFR-11 ตามที่
+  [[feature-list#12. ลบข้อมูลใบเสร็จของตนเองด้วยตนเอง (Right to Erasure)|ฟีเจอร์ที่ 12]] กำหนดไว้
+- **อัปเดต 2026-09-03**: ปรับรหัส entity ให้ตรงกับ [[db-spec]] ที่จัดเรียงใหม่ (Receipt = E-04,
+  ReceiptFile = E-05, VerificationResult = E-08, VerificationRuleCitation = E-09, AuditLogEntry
+  = E-14) — เนื้อหา flow ไม่เปลี่ยนแปลง (OP-17 ไม่ได้แก้ไขในรอบ FR-23) เปลี่ยนคำเรียกบทบาทเป็น
+  "นักวิจัย/เจ้าของโครงการ"
 
 ## 1. ภาพรวม
 
@@ -23,7 +27,7 @@ Component ที่เกี่ยวข้อง: Client, Backend Service, Prim
 
 ```mermaid
 sequenceDiagram
-    actor R as นักวิจัย/เจ้าของทุน
+    actor R as นักวิจัย/เจ้าของโครงการ
     participant C as Client
     participant B as Backend Service
     participant DS as Primary Data Store
@@ -42,7 +46,7 @@ sequenceDiagram
         else isExported = เท็จ
             R->>C: ยืนยันการลบ
             C->>B: ยืนยันคำขอลบ
-            B->>DS: ลบ Receipt, ReceiptFile ทุกไฟล์ในชุด (E-13), VerificationResult/VerificationRuleCitation ที่ผูกอยู่ทั้งหมด
+            B->>DS: ลบ Receipt, ReceiptFile ทุกไฟล์ในชุด (E-05), VerificationResult/VerificationRuleCitation ที่ผูกอยู่ทั้งหมด
             DS-->>B: ยืนยันลบสำเร็จ
             B->>AT: สร้าง AuditLogEntry (eventType = "ลบใบเสร็จรายเดียว (FR-18)")
             B-->>C: แจ้งผลสำเร็จ (FR-18 AC-1)
@@ -54,10 +58,10 @@ sequenceDiagram
 
 | Operation | Entity ที่กระทบ | การกระทำ | ลำดับ/เงื่อนไข |
 |---|---|---|---|
-| [[api-spec#OP-17 ลบใบเสร็จของตนเอง\|OP-17]] | [[db-spec#E-03 ใบเสร็จ (Receipt)\|Receipt]] (E-03) | อ่าน (`isExported`) แล้วลบ (ถ้าเท็จ) | ตรวจสอบ `isExported` ก่อนทุกครั้ง — เป็นเงื่อนไขบล็อกเดียวของ operation นี้ |
-| OP-17 | [[db-spec#E-13 ไฟล์ประกอบใบเสร็จ (ReceiptFile)\|ReceiptFile]] (E-13) | ลบทั้งหมด (ทุกไฟล์ในชุด) | ลบพร้อม `Receipt` ในดำเนินการเดียวกัน — ล็อก/ลบทั้งชุด ไม่ใช่ทีละไฟล์ (db-spec กฎข้อ 10) |
-| OP-17 | [[db-spec#E-06 ผลตรวจใบเสร็จ (VerificationResult)\|VerificationResult]] (E-06) + [[db-spec#E-07 ข้อระเบียบที่อ้างอิงในผลตรวจ (VerificationRuleCitation)\|VerificationRuleCitation]] (E-07) | ลบทั้งหมด | ลบทุก record ที่ผูกกับ `receiptId` นี้ (รวมทุกรอบที่เคยส่งตรวจซ้ำ) |
-| OP-17 | [[db-spec#E-12 บันทึกเหตุการณ์ตรวจสอบย้อนหลัง (AuditLogEntry)\|AuditLogEntry]] (E-12) | สร้าง | สร้างทั้ง 2 เส้นทาง (ลบสำเร็จ หรือ ถูกปฏิเสธเพราะ export แล้ว) — คนละ `eventType` |
+| [[api-spec#OP-17 ลบใบเสร็จของตนเอง\|OP-17]] | [[db-spec#E-04 ใบเสร็จ (Receipt)\|Receipt]] (E-04) | อ่าน (`isExported`) แล้วลบ (ถ้าเท็จ) | ตรวจสอบ `isExported` ก่อนทุกครั้ง — เป็นเงื่อนไขบล็อกเดียวของ operation นี้ |
+| OP-17 | [[db-spec#E-05 ไฟล์ประกอบใบเสร็จ (ReceiptFile)\|ReceiptFile]] (E-05) | ลบทั้งหมด (ทุกไฟล์ในชุด) | ลบพร้อม `Receipt` ในดำเนินการเดียวกัน — ล็อก/ลบทั้งชุด ไม่ใช่ทีละไฟล์ (db-spec กฎข้อ 10) |
+| OP-17 | [[db-spec#E-08 ผลตรวจใบเสร็จ (VerificationResult)\|VerificationResult]] (E-08) + [[db-spec#E-09 ข้อระเบียบที่อ้างอิงในผลตรวจ (VerificationRuleCitation)\|VerificationRuleCitation]] (E-09) | ลบทั้งหมด | ลบทุก record ที่ผูกกับ `receiptId` นี้ (รวมทุกรอบที่เคยส่งตรวจซ้ำ) |
+| OP-17 | [[db-spec#E-14 บันทึกเหตุการณ์ตรวจสอบย้อนหลัง (AuditLogEntry)\|AuditLogEntry]] (E-14) | สร้าง | สร้างทั้ง 2 เส้นทาง (ลบสำเร็จ หรือ ถูกปฏิเสธเพราะ export แล้ว) — คนละ `eventType` |
 
 ## 4. State Diagram
 

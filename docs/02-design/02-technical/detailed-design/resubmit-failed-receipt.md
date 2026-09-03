@@ -1,24 +1,29 @@
 # Detailed Design — แก้ไขและส่งใบเสร็จที่ไม่ผ่านตรวจซ้ำ
 
 > การออกแบบระดับ component สำหรับ [[feature-list#4. แก้ไขและส่งใบเสร็จที่ไม่ผ่านตรวจซ้ำ|ฟีเจอร์ที่ 4]]
-> แปลงจาก [[user-journey#Journey 1: นักวิจัยอัปโหลดใบเสร็จและตรวจสอบผลจนผ่านเกณฑ์|Journey 1 ขั้นตอนที่ 10]]
+> แปลงจาก [[user-journey#Journey 1: นักวิจัยอัปโหลดใบเสร็จและตรวจสอบผลจนผ่านเกณฑ์|Journey 1 ขั้นตอนที่ 11]]
 > อ้างอิง operation จริงจาก [[api-spec#OP-06 แก้ไขข้อมูลใบเสร็จแล้วส่งตรวจซ้ำ|OP-06]] และ
 > [[api-spec#OP-07 อัปโหลดไฟล์ใบเสร็จใหม่แทนใบเดิม|OP-07]] เท่านั้น
 
 ## 0. สถานะเอกสารนี้
 
-สร้างครั้งแรกเมื่อ 2026-08-23 ครอบคลุม FR-07 ตามที่
-[[feature-list#4. แก้ไขและส่งใบเสร็จที่ไม่ผ่านตรวจซ้ำ|ฟีเจอร์ที่ 4]] กำหนดไว้
+- สร้างครั้งแรกเมื่อ 2026-08-23 ครอบคลุม FR-07 ตามที่
+  [[feature-list#4. แก้ไขและส่งใบเสร็จที่ไม่ผ่านตรวจซ้ำ|ฟีเจอร์ที่ 4]] กำหนดไว้
+- **อัปเดต 2026-09-03**: ปรับรหัส entity ให้ตรงกับ [[db-spec]] ที่จัดเรียงใหม่ (Receipt = E-04,
+  ReceiptFile = E-05, VerificationResult = E-08) — เนื้อหา flow ไม่เปลี่ยนแปลง (OP-06/OP-07 ไม่ได้
+  แก้ไขในรอบ FR-23 นอกจากอ้างอิงระเบียบผ่าน Project→FundSource ที่ [[rule-engine-verification]]
+  จัดการอยู่แล้ว) เปลี่ยนคำเรียกบทบาทเป็น "นักวิจัย/เจ้าของโครงการ"
 
 ## 1. ภาพรวม
 
 ฟีเจอร์นี้มี 2 เส้นทางที่นักวิจัยเลือกได้เมื่อใบเสร็จมีสถานะ "ต้องแก้ไข" หรือ "ไม่เข้าเงื่อนไข":
 
 1. **แก้ไขข้อมูลเดิม** ผ่าน [[api-spec#OP-06 แก้ไขข้อมูลใบเสร็จแล้วส่งตรวจซ้ำ|OP-06]] — ใช้ไฟล์เดิม
-   แก้ไขเฉพาะค่า `confirmed*` แล้วเรียกลำดับประมวลผลเดียวกับ OP-04 ซ้ำ (ไม่ผ่าน OCR ใหม่)
+   แก้ไขเฉพาะค่า `confirmed*` แล้วเรียกลำดับประมวลผลเดียวกับ OP-04 ซ้ำ (ไม่ผ่าน OCR ใหม่ — ยังคงอ้างอิง
+   ระเบียบของ FundSource ที่ Project ของใบเสร็จนี้สังกัดอยู่ เวอร์ชันที่ active ณ เวลาที่ส่งซ้ำ)
 2. **อัปโหลดไฟล์ใหม่แทนใบเดิมทั้งชุด** ผ่าน [[api-spec#OP-07 อัปโหลดไฟล์ใบเสร็จใหม่แทนใบเดิม|OP-07]]
-   — แทนที่ `ReceiptFile` ทั้งชุด ล้างค่า `ocr*`/`confirmed*` เดิม วนกลับไปที่ฟีเจอร์ 1 (OCR ใหม่) แล้ว
-   ไล่ผ่านฟีเจอร์ 2-3 อีกครั้งทั้งหมด
+   — แทนที่ `ReceiptFile` ทั้งชุด ล้างค่า `ocr*`/`confirmed*` เดิม (คง `projectId` เดิมไว้ ไม่เปลี่ยน
+   โครงการที่ผูกอยู่) วนกลับไปที่ฟีเจอร์ 1 (OCR ใหม่) แล้วไล่ผ่านฟีเจอร์ 2-3 อีกครั้งทั้งหมด
 
 Component ที่เกี่ยวข้อง: Client, Backend Service, Primary Data Store, External OCR Service (เฉพาะ
 เส้นทาง OP-07), Verification Rule Engine, External LLM Explanation Service
@@ -27,7 +32,7 @@ Component ที่เกี่ยวข้อง: Client, Backend Service, Prim
 
 ```mermaid
 sequenceDiagram
-    actor R as นักวิจัย/เจ้าของทุน
+    actor R as นักวิจัย/เจ้าของโครงการ
     participant C as Client
     participant B as Backend Service
     participant DS as Primary Data Store
@@ -58,7 +63,7 @@ sequenceDiagram
             B-->>C: ปฏิเสธทั้งคำขอ พร้อม error ภาษาไทย (FR-19, FR-22)
         else ไฟล์ใหม่ผ่านเงื่อนไขครบ
             B->>DS: ลบ ReceiptFile ชุดเดิมทั้งหมดที่ผูกกับ receiptId นี้
-            B->>DS: สร้าง ReceiptFile ใหม่ตามไฟล์ที่ส่งมา (ผูก receiptId เดิม, id เดิมของ Receipt)
+            B->>DS: สร้าง ReceiptFile ใหม่ตามไฟล์ที่ส่งมา (ผูก receiptId เดิม, id เดิมของ Receipt, projectId เดิม)
             B->>DS: ล้างค่า Receipt.ocr*/confirmed* เดิมทั้งหมด ตั้ง status = "รอ OCR"
             DS-->>B: บันทึกสำเร็จ
             Note over B,DS: วนกลับไปที่ [[receipt-upload-ocr#2. Sequence Diagram|receipt-upload-ocr — ขั้นตอน OP-02]] ต่อโดยอัตโนมัติ
@@ -71,10 +76,10 @@ sequenceDiagram
 
 | Operation | Entity ที่กระทบ | การกระทำ | ลำดับ/เงื่อนไข |
 |---|---|---|---|
-| [[api-spec#OP-06 แก้ไขข้อมูลใบเสร็จแล้วส่งตรวจซ้ำ\|OP-06]] | [[db-spec#E-03 ใบเสร็จ (Receipt)\|Receipt]] (E-03) | แก้ไข (`confirmed*` ใหม่, `status`) | เรียกได้เฉพาะ `status` ∈ {"ต้องแก้ไข","ไม่เข้าเงื่อนไข"} |
-| OP-06 | [[db-spec#E-06 ผลตรวจใบเสร็จ (VerificationResult)\|VerificationResult]] (E-06) | สร้าง (record ใหม่) | append-only — ไม่แก้ไข/ลบ record ผลตรวจเดิม (db-spec กฎข้อ 3) |
-| [[api-spec#OP-07 อัปโหลดไฟล์ใบเสร็จใหม่แทนใบเดิม\|OP-07]] | [[db-spec#E-13 ไฟล์ประกอบใบเสร็จ (ReceiptFile)\|ReceiptFile]] (E-13) | ลบ (ชุดเดิมทั้งหมด) แล้วสร้างใหม่ (1–5 records) | ลบก่อนสร้างเสมอ ผูกกับ `Receipt.id` เดิม (ไม่สร้าง Receipt ใหม่) |
-| OP-07 | Receipt (E-03) | แก้ไข (ล้าง `ocr*`/`confirmed*` ทั้งหมด, `status` → "รอ OCR") | คง `id` เดิมไว้ — วนกลับเข้า OP-02 โดยอัตโนมัติ |
+| [[api-spec#OP-06 แก้ไขข้อมูลใบเสร็จแล้วส่งตรวจซ้ำ\|OP-06]] | [[db-spec#E-04 ใบเสร็จ (Receipt)\|Receipt]] (E-04) | แก้ไข (`confirmed*` ใหม่, `status`) | เรียกได้เฉพาะ `status` ∈ {"ต้องแก้ไข","ไม่เข้าเงื่อนไข"} |
+| OP-06 | [[db-spec#E-08 ผลตรวจใบเสร็จ (VerificationResult)\|VerificationResult]] (E-08) | สร้าง (record ใหม่) | append-only — ไม่แก้ไข/ลบ record ผลตรวจเดิม (db-spec กฎข้อ 3) |
+| [[api-spec#OP-07 อัปโหลดไฟล์ใบเสร็จใหม่แทนใบเดิม\|OP-07]] | [[db-spec#E-05 ไฟล์ประกอบใบเสร็จ (ReceiptFile)\|ReceiptFile]] (E-05) | ลบ (ชุดเดิมทั้งหมด) แล้วสร้างใหม่ (1–5 records) | ลบก่อนสร้างเสมอ ผูกกับ `Receipt.id` เดิม (ไม่สร้าง Receipt ใหม่) |
+| OP-07 | Receipt (E-04) | แก้ไข (ล้าง `ocr*`/`confirmed*` ทั้งหมด, `status` → "รอ OCR") | คง `id` และ `projectId` เดิมไว้ — วนกลับเข้า OP-02 โดยอัตโนมัติ |
 
 ## 4. State Diagram
 

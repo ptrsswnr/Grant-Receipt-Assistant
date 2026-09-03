@@ -210,6 +210,51 @@ p { margin: 0 0 var(--sp-2) 0; }
   box-shadow: none;
 }
 
+.field { margin-bottom: var(--sp-3); }
+
+.field label {
+  display: block;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-content-secondary);
+  margin-bottom: 6px;
+}
+
+.field .help-text {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--color-content-tertiary);
+  margin-top: 4px;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="date"],
+input[type="number"],
+select,
+textarea {
+  width: 100%;
+  background: var(--color-surface-sunken);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  font-family: var(--font-body);
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--color-content-primary);
+  box-shadow: none;
+}
+
+input:hover, select:hover, textarea:hover { border-color: var(--color-border-strong); }
+input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--color-border-focus);
+}
+input[disabled], select[disabled] { border-color: var(--color-border-default); opacity: 0.35; }
+
 .chip-status {
   display: inline-flex;
   align-items: center;

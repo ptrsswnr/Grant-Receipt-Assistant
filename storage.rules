@@ -1,0 +1,27 @@
+rules_version = '2';
+
+// ============================================================================
+// Grant Receipt Assistant — Firebase Storage Security Rules
+// (คนละที่ตั้งค่ากับ firestore.rules — ต้องไปตั้งที่ Firebase Console → Storage → Rules)
+//
+// สถานะปัจจุบัน (Week 6 homework): ยังไม่มี auth จริง ข้อมูลทั้งหมดเป็นข้อมูลสมมติ — เปิด
+// read/write แบบไม่ต้อง auth เพื่อให้ app/new-receipt.html อัปโหลดไฟล์แนบใบเสร็จได้ตรงจาก client
+// จำกัดเฉพาะไฟล์ในโฟลเดอร์ receipts/ และชนิด/ขนาดไฟล์ตาม FR-19 (jpg/png/pdf, ≤ 5 MB/ไฟล์)
+//
+// เมื่อมี Auth จริงแล้ว (Sprint ถัดไป) ต้องเปลี่ยนมาล็อกตามเจ้าของ (FR-12/NFR-05) เหมือนกับ
+// firestore.rules
+// ============================================================================
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /receipts/{receiptId}/{fileName} {
+      allow read: if true;
+      allow write: if request.resource.size <= 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/jpeg|image/png|application/pdf');
+    }
+
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
