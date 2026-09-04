@@ -36,6 +36,20 @@ var ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "pdf"];
     return fileName.split(".").pop().toLowerCase();
   }
 
+  // หารหัสถัดไปแบบ receipt006, receipt007, ... จากรหัสเดิมที่มีอยู่จริงใน Firestore
+  // (ไม่ใช้ Firestore auto-ID เพราะจะได้รหัสสุ่มที่ไม่รันต่อกับ receipt001-005 ที่ seed ไว้)
+  // ข้ามรหัสที่ไม่ตรงรูปแบบ receiptNNN ไปเฉยๆ (เช่น ID สุ่มเก่าจากตอนทดสอบ) ไม่ให้กระทบการนับ
+  async function รหัสใบเสร็จถัดไป() {
+    var snapshot = await db.collection("receipts").get();
+    var เลขสูงสุด = 0;
+    snapshot.forEach(function (doc) {
+      var m = doc.id.match(/^receipt(\d+)$/);
+      if (m) เลขสูงสุด = Math.max(เลขสูงสุด, parseInt(m[1], 10));
+    });
+    var เลขถัดไป = เลขสูงสุด + 1;
+    return "receipt" + String(เลขถัดไป).padStart(3, "0");
+  }
+
   function ตรวจไฟล์(files) {
     if (files.length === 0) return "กรุณาแนบไฟล์หลักฐานอย่างน้อย 1 ไฟล์";
     if (files.length > MAX_FILES) return "แนบไฟล์ได้สูงสุด " + MAX_FILES + " ไฟล์ต่อใบเสร็จ 1 รายการ (ตอนนี้เลือกไว้ " + files.length + " ไฟล์)";
@@ -94,7 +108,9 @@ var ALLOWED_EXTENSIONS = ["jpg", "jpeg", "png", "pdf"];
 
     try {
       ปุ่มบันทึก.textContent = "กำลังบันทึกข้อมูลใบเสร็จ...";
-      var receiptRef = await db.collection("receipts").add(Object.assign({}, ค่า, {
+      var รหัสใหม่ = await รหัสใบเสร็จถัดไป();
+      var receiptRef = db.collection("receipts").doc(รหัสใหม่);
+      await receiptRef.set(Object.assign({}, ค่า, {
         status: ผลตรวจ.status,
         aiExplanation: ผลตรวจ.aiExplanation,
         isExported: false,
