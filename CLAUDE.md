@@ -1,84 +1,90 @@
 # CLAUDE.md
 
-ไฟล์นี้ให้คำแนะนำแก่ Claude Code (claude.ai/code) เมื่อทำงานกับโค้ดในโปรเจกต์นี้
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## สถานะของโปรเจกต์
+## Project overview
 
-โปรเจกต์นี้**ยังไม่มีซอร์สโค้ด** — เป็นพื้นที่ทำงานด้าน requirements/design สำหรับระบบจัดการงานภายในโครงการที่ยังไม่ได้เริ่มพัฒนาจริง จึงยังไม่มีคำสั่ง build, lint หรือ test ให้รัน งานทั้งหมดที่มีอยู่ตอนนี้อยู่ภายใต้โฟลเดอร์ `docs/` ความคืบหน้าของแต่ละขั้นตอน (requirements/design/testing) ไม่เท่ากัน — บางไฟล์มีเนื้อหาแล้ว บางไฟล์/โฟลเดอร์ยังว่างรอเนื้อหาอยู่ ให้ตรวจสถานะจริงของแต่ละไฟล์ก่อนอ้างอิงหรือแก้ไข อย่าเชื่อคำอธิบายสถานะที่เขียนไว้ในเอกสารฉบับเก่า **อย่าสมมติ** ว่ามี tech stack, framework หรือขั้นตอน build อยู่แล้ว จนกว่าจะปรากฏจริงในโปรเจกต์ (`docs/02-design/02-technical/technology-stack.md` คือจุดที่จะกำหนดเรื่องนี้เมื่อมีการตัดสินใจแล้ว)
+**Grant Receipt Assistant** — a plain HTML/CSS/JS web app (no framework, no bundler, no build step) backed by Firebase (Firestore + Storage). It helps a researcher upload grant-expense receipts and see a pass/needs-fix/rejected verdict before submitting to the finance office.
 
-## ภาพรวมระบบที่กำลังวางแผน
+This is a homework project (`SCOPE.md` literally calls it "Week 6 homework"). Real OCR, the Rule Engine, and the LLM explanation are **not implemented** — they're faked:
+- `app/js/data.js`'s `window.mockRuleEngine()` fakes the pass/fix/reject decision.
+- `app/new-receipt.html`'s step 2 ("ตรวจสอบข้อมูล") randomly fills in amount/date/category/vendor and pretends AI/OCR read them from an attached file.
 
-เอกสารข้อกำหนด (ไฟล์ Markdown ใน `docs/01-requirements/01-spec/` — อาจมีมากกว่า 1 ไฟล์ตามความต้องการที่ทยอยเพิ่มเข้ามา ให้ดูรายการไฟล์จริงในโฟลเดอร์นี้แทนการอ้างชื่อไฟล์เจาะจง) คือแหล่งอ้างอิงเดียวที่บอกว่าระบบที่กำลังวางแผนคือระบบอะไร มีขอบเขตแค่ไหน และมีบทบาทผู้ใช้แบบใด **ห้ามสมมติโดเมนหรือฟีเจอร์ของระบบจากความจำหรือจากตัวอย่างโปรเจกต์อื่น** ให้เปิดอ่านไฟล์ spec จริงก่อนตอบคำถามเกี่ยวกับภาพรวมระบบเสมอ (โดเมนของระบบกำหนดโดยผู้ใช้และเปลี่ยนได้ในแต่ละช่วงของโปรเจกต์ ส่วนนี้ของ CLAUDE.md จึงตั้งใจไม่ระบุเจาะจงไว้ เพื่อไม่ให้ล้าสมัยเมื่อโดเมนเปลี่ยน)
+Read `SCOPE.md` and `BACKLOG.md` before assuming a feature is real vs. mocked/deferred — they're the authoritative list of what's actually built this week vs. intentionally cut to a later sprint. Don't trust older doc prose in `docs/` about "what this system is" without checking these two files and the dated spec files in `docs/01-requirements/01-spec/` first (there can be more than one spec file; list the directory rather than assuming a filename).
 
-กติกาที่คงที่ไม่ว่าโดเมนของระบบจะเป็นอะไร (มาจากรูปแบบของเอกสารทั้งวอลต์ ไม่ใช่จากตัวระบบที่วางแผนอยู่):
-- ทุกความต้องการเชิงฟังก์ชัน/ไม่ใช่เชิงฟังก์ชันมีรหัสกำกับ (`FR-xx` / `NFR-xx`) และระดับความสำคัญ (สูง/กลาง/ต่ำ โดย "สูง" คือสิ่งที่ต้องมีใน MVP) — ดูสรุปล่าสุดที่ `docs/01-requirements/backlog.md`
-- เอกสารทุกชั้นอ้างอิงกันด้วย `[[wikilink]]` แบบ Obsidian และควรอ้างอิงกลับไปยัง spec ต้นทางเสมอ
-- ให้ตรวจสถานะจริงของ spec ก่อนอ้างอิงหรือแก้ไข อย่าเชื่อคำอธิบายภาพรวมระบบที่เคยเขียนไว้ในเอกสารฉบับเก่า (รวมถึงหัวข้อนี้เอง หากมีใครเติมรายละเอียดเจาะจงไว้ในอนาคตแล้วโดเมนถูกเปลี่ยนภายหลัง)
+## Running the app locally
 
-## โครงสร้างพื้นที่เอกสาร (`docs/`)
-
-โปรเจกต์นี้ใช้รูปแบบโฟลเดอร์แบ่งตามขั้นตอน SDLC โดยมีลำดับเลขนำหน้า เมื่อสร้างเอกสารใหม่ ให้ใส่ในโฟลเดอร์ขั้นตอนที่ตรงกัน อย่าสร้างตำแหน่งใหม่เอง:
+There's no dev server config committed for Node or Python — **check what's actually installed before assuming `npm`/`node`/`python` work** (in at least one dev environment for this repo none of them were present, only PowerShell). Fallback used previously: `scripts/static-server.ps1`, a dependency-free static file server:
 
 ```
-docs/
-  00-archived/                    เอกสารที่เลิกใช้/ถูกแทนที่แล้ว
-  01-requirements/
-    01-spec/                      เอกสารความต้องการทุกฉบับ (1 ไฟล์ต่อ 1 requirement/หัวข้อ ตั้งชื่อแบบ `YYYYMMDD-NN-<slug>.md`) — ดูรายการไฟล์จริงในโฟลเดอร์นี้เสมอ อาจมีมากกว่า 1 ไฟล์
-    02-plan/
-      release-plan.md              แผนแบ่ง phase/release ก่อนเริ่ม dev จริง (จัดกลุ่ม FR/NFR ตามลำดับที่ควรทำก่อน-หลัง พร้อมเหตุผล)
-    03-task/
-      {phase-slug}-tasks.md         การแตกงานย่อยระดับ implementation ต่อ phase (อ้างอิง release-plan.md) เขียนแบบไม่ผูก tech stack จนกว่าจะมีการตัดสินใจจริง
-    backlog.md                    Backlog รวม FR/NFR ทั้งหมดจากทุกไฟล์ใน 01-spec/ (ตรวจสถานะ/เนื้อหาจริงในไฟล์ก่อนอ้างอิง)
-  02-design/
-    01-prototypes/<date>-<n>-<version>/   โฟลเดอร์ Prototype แบบมีวันที่และเวอร์ชัน (HTML mockup, prototype.md)
-    02-technical/
-      architecture.md              สถาปัตยกรรมระดับ logical/conceptual (component, data flow) — ไม่ผูก tech stack จนกว่า technology-stack.md จะถูกตัดสินใจ
-      api-spec.md                  สัญญา API เชิง logical (resource/operation/request-response) ไม่ผูก framework
-      db-spec.md                   โมเดลข้อมูลเชิง logical (entity/attribute/ความสัมพันธ์) ไม่ผูก database engine
-      detailed-design/{feature-slug}.md   การออกแบบระดับ component ต่อฟีเจอร์ อ้างอิง api-spec.md/db-spec.md
-      nfr-review.md                ตรวจสอบว่าการออกแบบ (architecture/api-spec/db-spec/detailed-design) รองรับทุก NFR ใน backlog หรือไม่
-      technology-stack.md          ยังไม่ตัดสินใจ — รอจนกว่าจะเริ่มพัฒนาจริง
-    feature-list.md
-    user-journey.md
-    DESIGN.md                     Design System หลัก (สี, ตัวอักษร, ระยะห่าง, องค์ประกอบ UI) — อ้างอิงก่อนทำ Prototype ใน 01-prototypes/
-  03-testing/
-    01-test-plan/
-      acceptance-criteria.md      เกณฑ์ยอมรับ (Given-When-Then) ต่อ FR/NFR จัดกลุ่มตาม feature-list
-      test-plan.md                 ภาพรวมกลยุทธ์ทดสอบ 1 ไฟล์ต่อโปรเจกต์ (scope, ประเภทการทดสอบ, environment, entry/exit criteria)
-      test-cases/{feature-slug}.md Test case แบบ step-by-step ต่อฟีเจอร์ อ้างอิง acceptance-criteria.md
-    02-test-result/                ผลการรันทดสอบจริง — ยังไม่มีเอกสาร/agent ดูแล เพราะโปรเจกต์ยังไม่มีซอร์สโค้ดให้ทดสอบจริง
-  04-retrospectives/
-  05-log/
-  .obsidian/                      Vault นี้เปิด/แก้ไขด้วย Obsidian — Markdown + wikilink คือรูปแบบหลักของพื้นที่นี้เช่นกัน
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/static-server.ps1 -Port 4173
+```
+Then open `http://localhost:4173/index.html`. Opening `app/*.html` directly via `file://` also works for viewing, but the Firestore/Storage SDK is loaded as classic `<script>` tags (compat build) specifically so it *can* run over `file://` — don't switch these to ES module imports.
+
+Seeding sample data into Firestore is done exclusively from the browser: `app/seed.html`'s button, backed by `app/js/data.js` (the data) + `app/js/seed.js` (the writer). There used to be a Node-based alternative (`package.json` + `scripts/seed-firestore.mjs`) but it was removed — it wrote the old flat top-level structure and had drifted out of sync with the nested structure below; keeping two parallel sources of seed data/structure was more of a liability than a convenience given Node isn't reliably available in this repo's dev environments anyway.
+
+No lint/test/build commands exist in this repo.
+
+## Firestore data model — nested by ownership
+
+Collections are nested to mirror the ownership cardinalities in `docs/02-design/02-technical/db-spec.md`'s ER model (not a flat/FK style):
+
+```
+users/{userId}/projects/{projectId}/receipts/{receiptId}/files/{fileId}
+fundSources/{fundSourceId}/ruleVersions/{ruleVersionId}/ruleItems/{ruleItemId}
 ```
 
-ไฟล์ในโฟลเดอร์ที่มีวันที่ (เช่น prototypes) ใช้รูปแบบชื่อ `YYYYMMDD-NN-<slug>` ให้คงรูปแบบนี้ต่อไปเมื่อสร้างไฟล์ใหม่ที่มีวันที่กำกับ เพื่อให้เรียงตามลำดับเวลาได้ถูกต้อง
+`Project.fundSourceId` stays a plain reference field (not a path segment) — one fund source funds many projects owned by different users, so it isn't an ownership relationship. `db-spec.md` deliberately stays engine-agnostic (no Firestore paths in it) because `docs/02-design/02-technical/technology-stack.md` was never formally decided; the physical nesting above is an implementation detail layered on top, not something to add back into `db-spec.md`.
 
-เนื่องจาก `docs/` เป็น Obsidian vault เมื่อเพิ่มเนื้อหาใหม่ ควรใช้การอ้างอิงข้ามเอกสารแบบ `[[wikilink]]` สอดคล้องกับวิธีที่โมดูลเอกสารโครงการ (FR-48–FR-58) ถูกออกแบบไว้ในตัวระบบจริง
+Practical consequences of this nesting, all handled in `app/js/receipts.js` and `app/js/new-receipt.js`:
+- Listing "all my receipts across every project" requires `db.collectionGroup("receipts")`, not `db.collection("receipts")`.
+- `collectionGroup(...).orderBy(...)` needs a Firestore index created once via the Firebase Console (the error Firestore throws includes a direct link — that link only appears at runtime, in the browser, the first time the exact query executes).
+- The owning project for a receipt fetched via a collection-group query is `doc.ref.parent.parent` (parent of the `receipts` collection), which is `null` for a legacy top-level receipt doc — code must handle that.
 
-## เครื่องมืออัตโนมัติดูแลความสอดคล้องของเอกสาร (agents & skills)
+### Known Firestore Security Rules gotcha (already hit twice — don't reintroduce it)
 
-โปรเจกต์นี้มี custom agents ใน `.claude/agents/` และ skills ใน `.claude/skills/` สำหรับสร้าง/ตรวจสอบความสอดคล้องของเอกสารแต่ละชั้นให้ตรงกับชั้นก่อนหน้าเสมอ ตามลำดับ: spec → `backlog.md` → `feature-list.md`/`user-journey.md` → แตกแขนงขนานกัน 3 สาย (technical spec ใน `02-technical/`, test plan ใน `03-testing/`, prototype ใน `01-prototypes/`) → phase plan ใน `01-requirements/02-plan/`+`03-task/` เมื่อผู้ใช้ขอให้ทำงานที่ตรงกับหน้าที่ของ skill ใดอยู่แล้ว **ให้เรียกใช้ skill/agent นั้นแทนการแก้ไฟล์เอกสารตรงๆ เอง** เพื่อให้การตรวจสอบ cross-file consistency และการบันทึกสรุปงานลง `docs/05-log/{YYYYMMDD}-log.md` เป็นไปตามรูปแบบเดิมของโปรเจกต์
+A `match` block **nested inside** a recursive-wildcard block does not reliably grant access to that nested subcollection, even though the path is exactly what you'd expect:
 
-**มาตรฐานกลางเรื่องการถามผู้ใช้เมื่อไม่ชัดเจน**: agent ใดที่ทำการตัดสินใจเชิงออกแบบ/แนวคิด
-(architecture, api-spec/db-spec, detailed design, feature/journey grouping, test plan, phase
-plan) เมื่อพบจุดที่ตัดสินใจได้มากกว่า 1 ทางอย่างสมเหตุสมผล และเอกสารชั้นก่อนหน้าไม่ได้ให้ข้อมูล
-พอจะตัดสินใจแทนผู้ใช้ได้ **ต้องหยุดแล้วถามผู้ใช้ผ่าน `AskUserQuestion` เสมอ โดยเสนออย่างน้อย 3
-แนวทาง พร้อมข้อดี/ข้อเสียของแต่ละแนวทาง** ห้ามเดาเองแล้วเลือกทางใดทางหนึ่งเงียบๆ แม้จะตั้งใจบันทึก
-ไว้เป็น "ค่าเริ่มต้นชั่วคราว" ในเอกสารก็ตาม — เป็นมาตรฐานเดียวกันทั้งโปรเจกต์ ไม่ใช่พฤติกรรมเฉพาะ
-agent ตัวใดตัวหนึ่ง เมื่อสร้าง agent ใหม่ที่ทำงานลักษณะนี้ ให้เพิ่มกฎนี้ไว้ด้วยตั้งแต่แรก
+```
+// This does NOT work for reading receipts/{id}/files — tested against the live project:
+match /{path=**}/receipts/{receiptId} {
+  allow read, write: if true;
+  match /files/{fileId} { allow read, write: if true; }  // <- denied at runtime
+}
+```
 
-จุดเริ่มต้นที่ใช้บ่อย:
-- `/capture-requirement` — แปลง requirement ดิบจากผู้ใช้เป็นเอกสาร spec ใหม่/แก้ไขของเดิม พร้อมอัปเดต backlog
-- `/audit-backlog`, `/sync-feature-journey`, `/sync-technical-spec` (รวม architecture → api-spec/db-spec → detailed-design → nfr-review), `/sync-test-plan`, `/sync-phase-plan`, `/build-prototype` — ตรวจสอบและ sync เอกสารแต่ละชั้นให้ตรงกับชั้นก่อนหน้า
-- `/run-requirements-phase`, `/run-technical-phase`, `/run-prototype-phase` — รวมหลายขั้นตอนที่เกี่ยวข้องกันไว้ในคำสั่งเดียว
-- `/audit-pipeline` — ตรวจสอบความสอดคล้องทั้งสายงานตั้งแต่ spec ถึงปลายทางในคำสั่งเดียว
+The fix (already applied in `firestore.rules`) is to declare the full concrete path separately from the wildcard rule:
 
-## แนวทางการทำงานในโปรเจกต์นี้ตอนนี้
+```
+match /users/{userId}/projects/{projectId} {
+  match /receipts/{receiptId} {
+    allow read, write: if true;
+    match /files/{fileId} { allow read, write: if true; }
+  }
+}
+// separate rule, needed only for the collectionGroup("receipts") query itself:
+match /{path=**}/receipts/{receiptId} {
+  allow read, write: if true;
+}
+```
 
-- ให้ยึดเอกสารทั้งหมดใน `docs/01-requirements/01-spec/` (ไม่ใช่ไฟล์ใดไฟล์หนึ่งโดยเฉพาะ) เป็นแหล่งอ้างอิงหลักของความต้องการเชิงฟังก์ชัน/ไม่ใช่เชิงฟังก์ชัน (รหัส FR-xx / NFR-xx) — ใช้รหัสเหล่านี้อ้างอิงเมื่อพูดคุยหรือวางแผนฟีเจอร์ และให้ตรวจ `docs/01-requirements/backlog.md` เพื่อดูสรุป FR/NFR ล่าสุดทั้งหมดก่อนเสมอ
-- เอกสารออกแบบเชิงเทคนิคใน `docs/02-design/02-technical/` (`architecture.md`, `api-spec.md`, `db-spec.md`, `technology-stack.md` และไฟล์ใน `detailed-design/`) หากยังไม่มีไฟล์หรือยังว่างเปล่า หากถูกขอให้ช่วยออกแบบระบบ ให้สร้าง/เติมเนื้อหาลงในไฟล์เหล่านี้ตามตำแหน่งที่ระบุไว้ในโครงสร้างด้านบน ไม่ควรสร้างเอกสารคู่ขนานแยกที่อื่น
-- `docs/02-design/DESIGN.md` คือแหล่งอ้างอิงหลัก (single source of truth) ของ Design System เชิงภาพ (สี, ตัวอักษร, ระยะห่าง, องค์ประกอบ UI, accessibility) — เมื่อสร้างหรือแก้ไข Prototype ใดๆ ใน `01-prototypes/` ให้ยึด token และกติกาใน `DESIGN.md` เสมอ ห้ามกำหนดสี/สไตล์ใหม่นอกเอกสารนี้โดยไม่จำเป็น หากพบว่า Design System ต้องเปลี่ยน ให้แก้ที่ `DESIGN.md` ก่อน แล้วค่อยสะท้อนไปยัง Prototype
-  - **ไม่มี agent/skill ใดในโปรเจกต์นี้สร้าง `DESIGN.md` ให้อัตโนมัติ** (ต่างจาก `architecture.md`/`feature-list.md` ที่มี writer agent ของตัวเอง) เพราะเป็นการตัดสินใจเชิงดีไซน์ที่ต้องมาจากผู้ใช้/ทีมออกแบบโดยตรง — ถ้าไฟล์นี้ยังไม่มีเนื้อหา ต้องให้ผู้ใช้สร้าง/เติมก่อน จึงจะสั่ง `build-prototype` ต่อได้
-  - ถ้านำ design system จากภายนอกมาใช้เป็นฐาน (เช่น ผู้ใช้แนบไฟล์ design system ของโปรเจกต์อื่นมาให้) ให้คงโทนสี/typography/spacing/component เดิมไว้ได้ แต่ต้อง **remap สี/สถานะเชิงความหมาย (semantic color) ให้ตรงกับสถานะจริงของระบบนี้** และ **เพิ่ม component เฉพาะโดเมนที่ระบบนี้ต้องการแต่ต้นฉบับไม่มี** ห้ามนำมาใช้ตรงๆ ทั้งหมดโดยไม่ปรับ
-- ยังไม่มี package manifest, โครงสร้างซอร์สโค้ด หรือ CI config ใดๆ เมื่อเริ่มพัฒนาจริงแล้ว ควรกลับมาอัปเดตไฟล์นี้ให้มีคำสั่ง build/lint/test และสถาปัตยกรรมโค้ดจริง
+## Deploying rules — two separate Console pages, and edits do nothing until Published
+
+- `firestore.rules` → Firebase Console → Firestore Database → **Rules** tab.
+- `storage.rules` → Firebase Console → **Storage** → Rules tab (a different page).
+
+Editing either file locally has **zero effect** on the live database/bucket until someone manually copies the file's content into the corresponding Console editor and clicks **Publish**. There is no `firebase.json`/`.firebaserc`/Firebase CLI wired up in this repo, so this manual copy-paste is currently the only deploy path. Both rule sets intentionally allow open read/write (`if true`) for now — there's no real auth yet (see the "เมื่อมี Auth จริงแล้ว" block at the bottom of `firestore.rules` for the owner-scoped version to switch to once auth exists).
+
+## UI/shared code conventions
+
+- `app/js/nav.js` renders the top nav bar into every page's `<div id="nav"></div>`; the link list lives in that one file only — edit it there, not per-page.
+- `app/css/style.css` is a hand-maintained copy of the design tokens in `docs/02-design/DESIGN.md` (colors, type scale, spacing, component classes like `.card`, `.chip-status--*`, `.receipt-card`, `.rule-callout`, `.stepper`, `.dropzone`). There's no build step linking the two — if `DESIGN.md` changes, `style.css` must be hand-updated to match, and vice versa new components should be documented in `DESIGN.md` before/when added to `style.css`.
+- Firestore doc IDs are sequential (`receipt001`, `receipt002`, ...), not auto-IDs — `app/js/new-receipt.js` scans existing IDs (via `collectionGroup`) and increments, specifically so seeded/manually-created data stays human-readable in the Console.
+
+## The `docs/` folder is a separate concern: an Obsidian SDLC vault
+
+`docs/` follows a numbered-phase structure (`01-requirements/` → `02-design/` → `03-testing/` → `04-retrospectives/` → `05-log/`) cross-linked with Obsidian `[[wikilinks]]`, kept in sync by paired agents/skills in `.claude/agents/` and `.claude/skills/` (e.g. `sync-architecture`, `sync-api-db`, `sync-test-plan`, `audit-pipeline`). When asked to update architecture/API/DB/test-plan/prototype docs, prefer invoking the matching skill/agent over hand-editing those files directly, so cross-file consistency and the `docs/05-log/{date}-log.md` write-up stay consistent with how this vault has been maintained.
+
+`docs/02-design/01-prototypes/20260816-01-v1/` is a static clickable-HTML mockup covering the *full* planned scope (7 journeys). It is not the running app — `app/` only implements the "Journey 1" slice (upload → review → verify → my receipts) that `SCOPE.md` scoped in for this week, deliberately restyled to match the prototype's design system rather than sharing its markup.
+
+Ignore `.claude/worktrees/` — it holds stale git worktrees from earlier agent sessions, not part of the live app or docs tree. One entry there (`agent-and-agent-skill-41e4fa`) has an **uncommitted, not-yet-applied** edit to `.claude/agents/api-db-writer.md`: it adds a rule requiring that agent to stop and ask the user (with ≥3 options + tradeoffs) before making an irreversible data-modeling call it can't derive from existing docs. None of the committed `.claude/agents/*.md` files currently have this rule at all — this diff is the only place it exists. Don't delete that worktree without either applying the diff to the real file first or explicitly confirming with the user that it's no longer wanted.
