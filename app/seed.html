@@ -18,9 +18,12 @@
     <div class="section text-left-block">
       <h1>🌱 ใส่ข้อมูลตัวอย่างลง Firestore</h1>
       <p class="text-body">
-        หน้านี้ใช้ครั้งเดียวตอนตั้งค่าโปรเจกต์ — กดปุ่มด้านล่างเพื่อใส่ funds, receipts และ
-        files (sub-collection) จาก <code>js/data.js</code> ลง Firestore ของโปรเจกต์
-        grant-receipt-assistant กดซ้ำได้ ไม่เกิดข้อมูลซ้ำ (ใช้ id เดิมทุกครั้ง)
+        หน้านี้ใช้ครั้งเดียวตอนตั้งค่าโปรเจกต์ — กดปุ่มด้านล่างเพื่อใส่ข้อมูลตัวอย่างจาก
+        <code>js/data.js</code> ลง Firestore ของโปรเจกต์ grant-receipt-assistant ตามโครงสร้าง
+        ซ้อน (subcollection) ที่ตรงกับความเป็นเจ้าของใน <code>db-spec.md</code>:
+        <code>users &gt; projects &gt; receipts &gt; files</code> และ
+        <code>fundSources &gt; ruleVersions &gt; ruleItems</code> กดซ้ำได้ ไม่เกิดข้อมูลซ้ำ
+        (ใช้ id เดิมทุกครั้ง)
       </p>
     </div>
 

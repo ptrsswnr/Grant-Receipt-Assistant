@@ -1,6 +1,10 @@
 // ─────────────────────────────────────────────────────────────
 // js/receipts.js — หน้ารายการใบเสร็จของฉัน
-// อ่านข้อมูลจาก Firestore จริง (collection receipts) — ไม่ใช่ mock ในโค้ด
+// อ่านข้อมูลจาก Firestore จริง — ไม่ใช่ mock ในโค้ด
+// receipts อยู่ซ้อนใน users/{userId}/projects/{projectId}/receipts/{id} (ดูเหตุผลใน js/seed.js)
+// หน้านี้ต้องแสดงใบเสร็จของทุกโครงการรวมกัน จึงใช้ collectionGroup("receipts") แทน
+// db.collection("receipts") เดิม — ครั้งแรกที่รันอาจเจอ error ขอให้สร้าง Firestore index ก่อน
+// (ดูคำอธิบายใน catch ด้านล่าง)
 // ─────────────────────────────────────────────────────────────
 
 var STATUS_CHIP_CLASS = {
@@ -21,7 +25,9 @@ function esc(s) {
 }
 
 function filesHtml(files) {
-  if (!files || files.length === 0) return "";
+  if (!files || files.length === 0) {
+    return '<p class="text-small">ไฟล์แนบ: ไม่มี (ไม่ได้แนบไฟล์จริงตอนอัปโหลด — โหมดสาธิต)</p>';
+  }
   var links = files
     .sort(function (a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); })
     .map(function (f) {
@@ -31,14 +37,19 @@ function filesHtml(files) {
       return '<span>📎 ' + esc(f.originalFileName) + ' (mock — ยังไม่มีไฟล์จริงอัปโหลด)</span>';
     })
     .join(" · ");
-  return '<div class="text-small" style="margin-bottom:24px;">ไฟล์แนบ: ' + links + '</div>';
+  return '<p class="text-small">ไฟล์แนบ: ' + links + '</p>';
 }
 
+// การ์ดใบเสร็จ + ไฟล์แนบ + คำอธิบายผลตรวจของใบเสร็จ 1 รายการ ถูกห่อไว้ใน .receipt-entry
+// เดียวกันเสมอ (เส้นขอบล้อมรอบทั้งกลุ่ม) เพื่อไม่ให้สับสนว่าคำอธิบายไหนเป็นของใบเสร็จรายการใด
+// เวลามีหลายรายการเรียงต่อกัน
 function receiptCardHtml(receipt, files, projectName) {
   var chipClass = STATUS_CHIP_CLASS[receipt.status] || "chip-status--pending";
   var calloutKind = chipClass.indexOf("pass") > -1 ? "pass" : chipClass.indexOf("fix") > -1 ? "fix" : "reject";
-  var html =
-    '<div class="receipt-card" style="margin-bottom:12px;">' +
+
+  var html = '<div class="receipt-entry">';
+  html +=
+    '<div class="receipt-card">' +
       '<div class="receipt-card__thumb">🧾</div>' +
       '<div class="receipt-card__body">' +
         '<div class="receipt-card__amount">' + esc(formatCurrency(receipt.confirmedAmount)) + '</div>' +
@@ -53,10 +64,11 @@ function receiptCardHtml(receipt, files, projectName) {
 
   if (receipt.aiExplanation) {
     html +=
-      '<div class="rule-callout rule-callout--' + calloutKind + '" style="margin-bottom:24px;">' +
+      '<div class="rule-callout rule-callout--' + calloutKind + '">' +
         '<p class="rule-callout__explain">' + esc(receipt.aiExplanation) + '</p>' +
       '</div>';
   }
+  html += '</div>';
   return html;
 }
 
@@ -65,7 +77,7 @@ function receiptCardHtml(receipt, files, projectName) {
   var list = document.getElementById("receipt-list");
 
   try {
-    var snapshot = await db.collection("receipts").orderBy("uploadedAt", "desc").get();
+    var snapshot = await db.collectionGroup("receipts").orderBy("uploadedAt", "desc").get();
 
     if (snapshot.empty) {
       loadState.innerHTML =
@@ -76,27 +88,52 @@ function receiptCardHtml(receipt, files, projectName) {
       return;
     }
 
-    var projectsSnapshot = await db.collection("projects").get();
-    var projectNameById = {};
-    projectsSnapshot.forEach(function (p) { projectNameById[p.id] = p.data().projectName; });
-
     var htmlParts = await Promise.all(snapshot.docs.map(async function (doc) {
       var filesSnapshot = await doc.ref.collection("files").get();
       var files = filesSnapshot.docs.map(function (f) { return f.data(); });
       var receipt = doc.data();
-      return receiptCardHtml(receipt, files, projectNameById[receipt.projectId]);
+
+      // parent ของ collection "receipts" คือเอกสารโครงการ (users/{u}/projects/{p}) เสมอ
+      // ยกเว้นใบเสร็จเก่าจากโครงสร้าง flat (ก่อน 2026-09-05) ที่ไม่มี parent — เผื่อไว้กันพัง
+      var projectRef = doc.ref.parent.parent;
+      var projectName = "(ข้อมูลจากโครงสร้างเก่า — ไปที่หน้า seed.html แล้วกด \"ล้างข้อมูลโครงสร้างเก่า\")";
+      if (projectRef) {
+        var projectSnap = await projectRef.get();
+        projectName = projectSnap.exists ? projectSnap.data().projectName : "(ไม่พบโครงการ)";
+      }
+
+      return receiptCardHtml(receipt, files, projectName);
     }));
 
     list.innerHTML = htmlParts.join("");
     list.style.display = "block";
     loadState.style.display = "none";
   } catch (err) {
-    loadState.innerHTML =
-      '<div class="banner banner--error">' +
-        '<p class="text-body"><strong>โหลดข้อมูลไม่สำเร็จ:</strong> ' + esc(err.message) + '</p>' +
-        '<p class="text-small">ตรวจสอบว่า Firestore Rules อนุญาต read (<code>allow read: if true;</code>) ' +
-        'และมี collection <code>receipts</code> อยู่จริงแล้ว</p>' +
-      '</div>';
+    // Firestore query แบบ collectionGroup + orderBy ต้องมี index รองรับ — ครั้งแรกที่ query แบบ
+    // นี้มักจะยังไม่มี index จึงโยน error พร้อมลิงก์สร้าง index มาด้วยเสมอ (แกะลิงก์ออกมาทำเป็น
+    // ปุ่มคลิกได้จริง แทนที่จะโยน error message ดิบๆ เป็น plain text ให้อ่านเอง)
+    var ลิงก์สร้างIndex = String(err.message || "").match(/https:\/\/console\.firebase\.google\.com\S*/);
+
+    if (ลิงก์สร้างIndex) {
+      loadState.innerHTML =
+        '<div class="banner banner--warning">' +
+          '<p class="text-body"><strong>ยังไม่มี Firestore index สำหรับ query นี้</strong> — เกิดขึ้นเป็น ' +
+          'ปกติตอนใช้ collection group query ครั้งแรก (อ่านใบเสร็จรวมข้ามทุกโครงการ) ต้องสร้าง index ' +
+          '1 ครั้งใน Firebase Console ก่อน (ทำครั้งเดียว ไม่ต้องทำซ้ำอีก)</p>' +
+          '<p class="text-body"><a href="' + esc(ลิงก์สร้างIndex[0]) + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">' +
+            'เปิด Firebase Console เพื่อสร้าง Index' +
+          '</a></p>' +
+          '<p class="text-small">ล็อกอินด้วยบัญชีที่มีสิทธิ์ในโปรเจกต์นี้ → กด "Create Index" → รอสถานะ ' +
+          'เปลี่ยนจาก "Building" เป็น "Enabled" (ประมาณ 1-2 นาที) → กลับมาโหลดหน้านี้ใหม่</p>' +
+        '</div>';
+    } else {
+      loadState.innerHTML =
+        '<div class="banner banner--error">' +
+          '<p class="text-body"><strong>โหลดข้อมูลไม่สำเร็จ:</strong> ' + esc(err.message) + '</p>' +
+          '<p class="text-small">ตรวจสอบว่า Firestore Rules อนุญาต read ด้วย (ดู firestore.rules ว่า deploy ' +
+          'ขึ้น Firebase Console แล้วหรือยัง)</p>' +
+        '</div>';
+    }
     console.error(err);
   }
 })();

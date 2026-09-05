@@ -18,19 +18,26 @@
 
 <main class="page-shell">
 
-  <div class="section text-left-block">
-    <h1>อัปโหลดใบเสร็จใหม่</h1>
-    <p class="text-body">
-      ยังไม่มี OCR จริงเชื่อมต่อ (ดูเหตุผลใน <code>SCOPE.md</code>) จึงให้กรอกข้อมูลด้วยมือแทนไปก่อน
-      ตรงกับขั้นตอน "ตรวจสอบ/แก้ไขข้อมูลก่อนส่งตรวจ" (FR-03) — กดบันทึกแล้วระบบจะจำลองผลตรวจ
-      (mock Rule Engine) ให้ทันที ไม่ใช่ผลจากระเบียบทุนวิจัยจริง
-    </p>
+  <div class="stepper" aria-label="ขั้นตอนการอัปโหลดใบเสร็จ">
+    <div class="stepper__step is-current" id="stepDot1"><div class="stepper__dot">1</div><div class="stepper__label">อัปโหลดใบเสร็จ</div></div>
+    <div class="stepper__step" id="stepDot2"><div class="stepper__dot">2</div><div class="stepper__label">ตรวจสอบข้อมูล</div></div>
+    <div class="stepper__step" id="stepDot3"><div class="stepper__dot">3</div><div class="stepper__label">ผลตรวจ</div></div>
   </div>
 
-  <div class="section">
-    <div id="ข้อความเตือน" class="banner banner--error" style="display:none;"></div>
+  <div id="ข้อความเตือน" class="banner banner--error" style="display:none;"></div>
 
-    <form id="ฟอร์มใบเสร็จ" class="card">
+  <!-- ขั้นตอนที่ 1: อัปโหลด -->
+  <section id="step1">
+    <div class="section text-left-block">
+      <h1>อัปโหลดใบเสร็จ</h1>
+      <p class="text-body">
+        เลือกโครงการวิจัยที่ใบเสร็จนี้ผูกอยู่ แล้วแนบไฟล์หลักฐาน (ถ้ามี) — ไม่แนบไฟล์จริงตอนนี้ก็ทดลอง
+        ขั้นตอนถัดไปได้เลย เพราะสัปดาห์นี้ยังไม่มี OCR จริงเชื่อมต่อ ระบบจะ<strong>จำลองผลการอ่านข้อมูลด้วย AI</strong>
+        ให้แทน (ดูเหตุผลใน <code>SCOPE.md</code>)
+      </p>
+    </div>
+
+    <div class="section" style="max-width:640px;">
       <div class="field">
         <label for="projectId">โครงการวิจัย</label>
         <select id="projectId">
@@ -40,41 +47,87 @@
       </div>
 
       <div class="field">
-        <label for="confirmedAmount">ยอดเงิน (บาท)</label>
-        <input type="number" id="confirmedAmount" min="0" step="0.01" placeholder="เช่น 350">
+        <label>ไฟล์หลักฐาน (jpg/png/pdf — สูงสุด 5 ไฟล์, 5 MB/ไฟล์ — ไม่บังคับสำหรับโหมดสาธิตนี้)</label>
+        <label class="dropzone" for="receiptFiles" tabindex="0">
+          <input class="dropzone__input" type="file" id="receiptFiles" accept=".jpg,.jpeg,.png,.pdf" multiple>
+          <div class="dropzone__icon">⬆</div>
+          <h4 style="margin:0;">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</h4>
+          <p class="text-body" style="margin:0;">รองรับไฟล์ชนิด .jpg, .png และ .pdf เท่านั้น</p>
+        </label>
+        <div id="สถานะไฟล์" class="text-small" style="margin-top:8px;"></div>
       </div>
-
-      <div class="field">
-        <label for="confirmedDate">วันที่บนใบเสร็จ</label>
-        <input type="date" id="confirmedDate">
-      </div>
-
-      <div class="field">
-        <label for="confirmedCategory">หมวดค่าใช้จ่าย</label>
-        <select id="confirmedCategory">
-          <option value="">— เลือกหมวดค่าใช้จ่าย —</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label for="confirmedVendorName">ชื่อร้าน/ผู้ขาย (ถ้ามี)</label>
-        <input type="text" id="confirmedVendorName" placeholder="เช่น ร้านถ่ายเอกสาร ABC">
-      </div>
-
-      <div class="field">
-        <label for="receiptFiles">ไฟล์หลักฐาน (jpg/png/pdf — สูงสุด 5 ไฟล์, 5 MB/ไฟล์ — FR-19/FR-22)</label>
-        <input type="file" id="receiptFiles" accept=".jpg,.jpeg,.png,.pdf" multiple>
-        <p class="help-text">ถ้าค่าใช้จ่ายนี้มีเอกสารมากกว่า 1 แผ่น (เช่น ใบสำคัญรับเงิน + สำเนาบัตร) เลือกทุกไฟล์พร้อมกันได้เลย</p>
-      </div>
-
-      <div id="สถานะไฟล์" class="text-small" style="margin-bottom:var(--sp-3);"></div>
 
       <div class="row" style="justify-content:flex-end;">
-        <a class="btn btn-ghost btn-md" href="receipts.html">ยกเลิก</a>
-        <button type="submit" class="btn btn-primary btn-md" id="ปุ่มบันทึก">บันทึกใบเสร็จ</button>
+        <button type="button" class="btn btn-primary btn-md" id="ปุ่มขั้นที่1">อัปโหลดและอ่านข้อมูลด้วย AI</button>
       </div>
-    </form>
-  </div>
+    </div>
+  </section>
+
+  <!-- ขั้นตอนที่ 2: ตรวจสอบข้อมูลจาก AI -->
+  <section id="step2" hidden>
+    <div class="section text-left-block">
+      <h1>ตรวจสอบและแก้ไขข้อมูล</h1>
+      <p class="text-body">
+        ระบบจำลองผลการอ่านข้อมูลด้วย AI (mock OCR) ให้แล้ว — กรุณาตรวจสอบความถูกต้องและแก้ไขก่อนส่งเข้าตรวจ
+        กับ Rule Engine เพื่อป้องกันผลตรวจคลาดเคลื่อน
+      </p>
+    </div>
+
+    <div id="กำลังประมวลผลAI" class="section">
+      <div class="card">
+        <p class="text-body">🤖 กำลังจำลองการอ่านข้อมูลด้วย AI...</p>
+      </div>
+    </div>
+
+    <div id="แบบฟอร์มตรวจสอบ" class="row" style="align-items:flex-start;" hidden>
+      <div class="card" style="flex:0 0 220px;">
+        <div class="dropzone__icon" style="width:100%; height:160px; font-size:40px; border-radius:var(--radius-sm);">🧾</div>
+        <p class="text-small" id="ชื่อไฟล์แสดงผล" style="margin-top:12px;"></p>
+        <span class="chip-status chip-status--pending">รอตรวจสอบ</span>
+      </div>
+
+      <div class="card" style="flex:1 1 400px;">
+        <div class="field">
+          <label for="confirmedAmount">ยอดเงิน (บาท)</label>
+          <input type="number" id="confirmedAmount" class="input-mono" min="0" step="0.01">
+          <p class="help-text">อ่านโดย AI (ระบบจำลอง) — ตรวจสอบตัวเลขให้ตรงกับใบเสร็จจริงก่อนส่งตรวจ</p>
+        </div>
+        <div class="field">
+          <label for="confirmedDate">วันที่บนใบเสร็จ</label>
+          <input type="date" id="confirmedDate">
+        </div>
+        <div class="field">
+          <label for="confirmedCategory">หมวดค่าใช้จ่าย</label>
+          <select id="confirmedCategory"></select>
+          <p class="help-text">แก้ไขหมวดได้หากระบบจัดหมวดผิด — Rule Engine จะใช้ค่านี้เป็นหลักในการตรวจ</p>
+        </div>
+        <div class="field">
+          <label for="confirmedVendorName">ชื่อร้าน/ผู้ขาย</label>
+          <input type="text" id="confirmedVendorName">
+        </div>
+
+        <div class="row" style="justify-content:flex-end; margin-top:8px;">
+          <button type="button" class="btn btn-secondary btn-md" id="ปุ่มย้อนกลับขั้นที่1">ย้อนกลับไปอัปโหลดใหม่</button>
+          <button type="button" class="btn btn-primary btn-md" id="ปุ่มขั้นที่2">ส่งเข้าตรวจกับ Rule Engine</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ขั้นตอนที่ 3: ผลตรวจ -->
+  <section id="step3" hidden>
+    <div class="section text-left-block">
+      <h1>ผลตรวจใบเสร็จ</h1>
+      <p class="text-body">Rule Engine เป็นผู้ตัดสินผล คำอธิบายด้านล่างเป็นภาษาที่เข้าใจง่าย ไม่ใช่ศัพท์บัญชี</p>
+    </div>
+
+    <div id="ผลตรวจ" class="section"></div>
+
+    <div class="row" style="justify-content:flex-end;">
+      <button type="button" class="btn btn-secondary btn-md" id="ปุ่มอัปโหลดใหม่">อัปโหลดใบเสร็จใหม่</button>
+      <a class="btn btn-primary btn-md" href="receipts.html">ไปที่ใบเสร็จของฉัน</a>
+    </div>
+  </section>
 
 </main>
 

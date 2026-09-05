@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Grant Receipt Assistant — Week 6</title>
+<title>Grant Receipt Assistant</title>
 <link rel="stylesheet" href="css/style.css">
 <script src="js/nav.js" defer></script>
 </head>
@@ -15,29 +15,51 @@
 
   <div class="section text-left-block">
     <h1>Grant Receipt Assistant</h1>
-    <p class="text-body">ผู้ช่วยตรวจสอบใบเสร็จ/หลักฐานการเบิกจ่ายเงินทุนวิจัย ก่อนส่งเจ้าหน้าที่การเงินตรวจจริง</p>
-  </div>
-
-  <div class="card" style="margin-bottom:24px;">
-    <h3>หน้าจอของระบบ (Week 6)</h3>
-    <div class="row">
-      <a class="btn btn-primary btn-md" href="receipts.html">ใบเสร็จของฉัน</a>
-      <a class="btn btn-secondary btn-md" href="new-receipt.html">อัปโหลดใบเสร็จใหม่</a>
-      <a class="btn btn-ghost btn-md" href="seed.html">🌱 ใส่ข้อมูลตัวอย่าง</a>
+    <p class="text-body">
+      ผู้ช่วยตรวจสอบใบเสร็จ/หลักฐานการเบิกจ่ายเงินทุนวิจัย สำหรับนักวิจัยที่ไม่มีพื้นฐานด้านการเงิน —
+      อัปโหลดใบเสร็จ ระบบตรวจตามเงื่อนไขทุนให้ทันที พร้อมคำอธิบายผลที่เข้าใจง่าย ก่อนส่งเจ้าหน้าที่การเงินตรวจจริง
+    </p>
+    <div class="row" style="margin-top:var(--sp-3);">
+      <a class="btn btn-primary btn-lg" href="new-receipt.html">อัปโหลดใบเสร็จใหม่</a>
+      <a class="btn btn-secondary btn-lg" href="receipts.html">ดูใบเสร็จของฉัน</a>
     </div>
   </div>
 
-  <div class="card">
+  <div class="section">
+    <h3>ขั้นตอนการใช้งาน</h3>
+    <div class="grid-3">
+      <a class="card" href="new-receipt.html" style="text-decoration:none;">
+        <h4>1. อัปโหลดใบเสร็จ</h4>
+        <p class="text-small">แนบไฟล์หลักฐาน แล้วกรอก/ยืนยันยอดเงิน วันที่ และหมวดค่าใช้จ่ายก่อนส่งตรวจ</p>
+      </a>
+      <a class="card" href="new-receipt.html" style="text-decoration:none;">
+        <h4>2. ระบบตรวจตามเงื่อนไขทุน</h4>
+        <p class="text-small">ระบบประมวลผลตามกฎของทุนวิจัยทันที แล้วสรุปผลเป็นภาษาที่เข้าใจง่าย</p>
+      </a>
+      <a class="card" href="receipts.html" style="text-decoration:none;">
+        <h4>3. ดูผลตรวจ</h4>
+        <p class="text-small">ตรวจสอบสถานะและคำอธิบายผลของใบเสร็จแต่ละรายการที่หน้าใบเสร็จของฉัน</p>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
     <h3>สถานะของใบเสร็จมี 3 ค่า</h3>
-    <p class="text-body">
-      <span class="chip-status chip-status--pass">ผ่าน</span> ·
-      <span class="chip-status chip-status--fix">ต้องแก้ไข</span> ·
-      <span class="chip-status chip-status--reject">ไม่เข้าเงื่อนไข</span>
-    </p>
-    <p class="text-small">สัปดาห์นี้สถานะมาจาก mock Rule Engine ใน <code>js/data.js</code> ไม่ใช่ระเบียบทุนวิจัยจริง — ดูเหตุผลใน <code>SCOPE.md</code>/<code>BACKLOG.md</code></p>
+    <div class="card">
+      <p class="text-body">
+        <span class="chip-status chip-status--pass">ผ่าน</span> ·
+        <span class="chip-status chip-status--fix">ต้องแก้ไข</span> ·
+        <span class="chip-status chip-status--reject">ไม่เข้าเงื่อนไข</span>
+      </p>
+      <p class="text-small">ใบเสร็จแต่ละรายการจะได้หนึ่งในสามสถานะนี้ พร้อมคำอธิบายเหตุผลประกอบทุกครั้ง</p>
+    </div>
   </div>
 
 </main>
+
+<footer class="page-footer">
+  <p><a href="seed.html">🌱 ใส่ข้อมูลตัวอย่าง</a> — สำหรับเตรียมข้อมูลทดลองใช้งานเท่านั้น</p>
+</footer>
 
 </body>
 </html>

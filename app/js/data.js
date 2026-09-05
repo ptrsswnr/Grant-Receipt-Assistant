@@ -1,9 +1,14 @@
 // ─────────────────────────────────────────────────────────────
 // js/data.js — ข้อมูลตัวอย่างสำหรับ seed.html และตัวเลือกในฟอร์ม new-receipt.html
-// โครงสร้างตรงกับ docs/02-design/02-technical/db-spec.md (แก้ไข 2026-09-03):
+// โครงสร้างเชิงตรรกะตรงกับ docs/02-design/02-technical/db-spec.md (แก้ไข 2026-09-03):
 // FundSource (แหล่งทุน, ไม่มีเจ้าของ) --< Project (โครงการวิจัย, 1 เจ้าของ/โครงการ) --< Receipt
-// ยังไม่มี Rule Engine/OCR/LLM จริง (ดูเหตุผลใน SCOPE.md) — ค่า status/aiExplanation
-// ในชุดข้อมูลนี้เป็นค่าที่ "สมมติว่า Rule Engine ตัดสินไปแล้ว" ไม่ใช่ผลจากการตรวจจริง
+// FundSource --< RuleVersion --< RuleItem
+// (การจัดเก็บจริงใน Firestore เป็น subcollection ซ้อนตามความเป็นเจ้าของ — ดู js/seed.js ที่ path
+// จริง เอกสารนี้เก็บแค่รายการข้อมูลตัวอย่างแบบ flat ไว้ก่อน ยังไม่ผูก path)
+// ยังไม่มี Rule Engine/OCR/LLM จริง (ดูเหตุผลใน SCOPE.md) — ค่า status/aiExplanation ของ receipts
+// และรายการ ruleVersions/ruleItems ด้านล่างเป็นข้อมูลตัวอย่าง (mock) ทั้งหมด window.mockRuleEngine
+// (โค้ด JS ท้ายไฟล์นี้) ยังไม่ได้อ่านค่าจาก ruleItems จริงๆ — เป็นแค่ข้อมูลสาธิตให้เห็นโครงสร้างใน
+// Firebase Console ตามที่ db-spec.md ออกแบบไว้ (FundSource ||--o{ RuleVersion ||--o{ RuleItem)
 // ─────────────────────────────────────────────────────────────
 
 window.RECEIPT_DATA = {
@@ -22,6 +27,24 @@ window.RECEIPT_DATA = {
   ],
 
   categories: ["ค่าเดินทาง", "ค่าวัสดุ", "ค่าอาหาร", "ค่าตอบแทนวิทยากร", "ค่าจ้างเหมาบริการ"],
+
+  // ระเบียบตัวอย่าง (mock) ต่อแหล่งทุน — "ค่าอาหาร" ไม่มีอยู่ใน ruleItems ของแหล่งทุนใดเลย
+  // เพื่อสื่อว่าไม่ใช่หมวดที่อนุญาตให้เบิก (ตรงกับที่ mockRuleEngine ปฏิเสธหมวดนี้เสมอ)
+  ruleVersions: [
+    { id: "ruleversion001", fundSourceId: "fundsource001", versionLabel: "2568.1", isActive: true, importedByUserId: "user001" },
+    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2568.1", isActive: true, importedByUserId: "user001" },
+  ],
+
+  ruleItems: [
+    { id: "ruleitem001", ruleVersionId: "ruleversion001", categoryName: "ค่าเดินทาง", maxAmount: 5000 },
+    { id: "ruleitem002", ruleVersionId: "ruleversion001", categoryName: "ค่าวัสดุ", maxAmount: 2000 },
+    { id: "ruleitem003", ruleVersionId: "ruleversion001", categoryName: "ค่าตอบแทนวิทยากร", maxAmount: 3000 },
+    { id: "ruleitem004", ruleVersionId: "ruleversion001", categoryName: "ค่าจ้างเหมาบริการ", maxAmount: 10000 },
+    { id: "ruleitem005", ruleVersionId: "ruleversion002", categoryName: "ค่าเดินทาง", maxAmount: 4000 },
+    { id: "ruleitem006", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุ", maxAmount: 1500 },
+    { id: "ruleitem007", ruleVersionId: "ruleversion002", categoryName: "ค่าตอบแทนวิทยากร", maxAmount: 2500 },
+    { id: "ruleitem008", ruleVersionId: "ruleversion002", categoryName: "ค่าจ้างเหมาบริการ", maxAmount: 8000 },
+  ],
 
   receipts: [
     {
