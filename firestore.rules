@@ -3,48 +3,51 @@ rules_version = '2';
 // ============================================================================
 // Grant Receipt Assistant — Firestore Security Rules
 //
-// สถานะปัจจุบัน (Week 6 homework): ยังไม่มีระบบ login/auth จริง และข้อมูลทั้งหมดใน
-// Firestore เป็นข้อมูลสมมติ (mock) ไม่ใช่ข้อมูลจริงของนักวิจัย — จึงยังไม่ล็อกสิทธิ์ตาม
-// เจ้าของ (requesterId) ตาม FR-12/NFR-05 ในตอนนี้
+// สถานะปัจจุบัน (2026-09-05): มี Firebase Auth (Email/Password) จริงแล้ว — บังคับสิทธิ์ตามเจ้าของ
+// (owner-based) ตาม FR-12/NFR-05 ทุก path ที่ผูกกับผู้ใช้คนใดคนหนึ่ง ดู app/login.html,
+// app/signup.html, app/js/auth-guard.js สำหรับฝั่ง client และ ACL.md สำหรับที่มาของกฎชุดนี้
 //
-// เปิดทั้ง read และ write แบบไม่ต้อง auth เพราะมี 2 หน้าที่ต้องเขียนจากฝั่ง client ตรงๆ
-// โดยเจตนา: app/seed.html (ปุ่มใส่ข้อมูลตัวอย่าง) และ app/new-receipt.html (ฟอร์มกรอกใบเสร็จ
-// ด้วยมือแทน OCR ที่ยังไม่มี) — ทั้งสองหน้าไม่มี backend คั่นกลาง จึงต้องพึ่ง rule นี้ชั่วคราว
-//
-// โครงสร้าง collection (แก้ไข 2026-09-05 — nest ตามความเป็นเจ้าของ):
+// โครงสร้าง collection (nest ตามความเป็นเจ้าของ):
 //   users/{userId}/projects/{projectId}/receipts/{receiptId}/files/{fileId}
 //   fundSources/{fundSourceId}/ruleVersions/{ruleVersionId}/ruleItems/{ruleItemId}
 // รูปแบบ rule ของ receipts/files ใช้ 2 ชุดคู่กัน (ทดสอบจริงกับ Firestore แล้วจำเป็นต้องมีทั้งคู่):
 //   1) concrete path เต็มเส้นทาง (users/.../projects/.../receipts/.../files/...) สำหรับ
 //      อ่าน/เขียนไฟล์แนบจริง — nest match /files ใต้ match ที่ใช้ wildcard (`{path=**}`) แล้ว
 //      อ่าน subcollection files ไม่ได้ (permission-denied) แม้ path จะตรงตามที่ตั้งใจ จึงต้อง
-//      ประกาศแบบ concrete ทั้งเส้นเท่านั้น
+//      ประกาศแบบ concrete ทั้งเส้นเท่านั้น — ที่นี่เช็คสิทธิ์จาก path variable {userId} ได้ตรงๆ
 //   2) recursive wildcard (`{path=**}/receipts/{receiptId}`) แยกต่างหาก สำหรับ collection group
 //      query ข้ามโครงการ (db.collectionGroup("receipts")) ที่ app/js/receipts.js กับ
-//      app/js/new-receipt.js ใช้ — ดูเหตุผลเต็มของโครงสร้างนี้ใน app/js/seed.js
+//      app/js/new-receipt.js ใช้ — ตรง path ไม่มีตัวแปร {userId} ให้เช็คตรงๆ (path=** กลืนไปหมด)
+//      จึงต้องเช็คจาก field ownerUserId ที่ denormalize ไว้บนเอกสาร receipt เอง (ทุกจุดที่เขียน
+//      receipt ต้องใส่ field นี้เสมอ — ดู app/js/seed.js, app/js/new-receipt.js) แทน และทั้งสอง
+//      หน้าที่ query แบบ collectionGroup ต้องมี .where("ownerUserId", "==", uid) กำกับเสมอ เพราะ
+//      Firestore บังคับให้ query ที่จะผ่าน field-based rule ได้ต้องมี where เท่ากับ field นั้นจริง
+//      (ไม่ใช่แค่ rule filter ผลลัพธ์ทีหลัง — query ทั้งชุดจะถูกปฏิเสธถ้าไม่มี where กำกับ)
 //
-// เมื่อไหร่ก็ตามที่เริ่มใส่ข้อมูลจริงของนักวิจัยจริง (ผ่านการทำ auth จริงตาม Sprint ถัดไป)
-// ต้องเปลี่ยนมาใช้ owner-based rule ด้านล่าง (ดูส่วน "เมื่อมี Auth จริงแล้ว") ก่อนใช้งานจริงเด็ดขาด
+// fundSources/ruleVersions/ruleItems เป็นข้อมูลระดับองค์กร ไม่มีเจ้าของเป็นนักวิจัยคนใดคนหนึ่ง
+// (ตาม docs/02-design/02-technical/detailed-design/access-control.md กฎข้อ 3) จึงอนุญาตผู้ใช้ที่
+// ล็อกอินแล้วทุกคนอ่าน/เขียนได้ — ยังไม่มี role Admin แยกต่างหากในแอปนี้
 // ============================================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     match /users/{userId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null && request.auth.uid == userId;
 
       match /projects/{projectId} {
-        allow read, write: if true;
+        allow read, write: if request.auth != null && request.auth.uid == userId;
 
         // ประกาศ receipts/files แบบ concrete (ไม่ใช้ wildcard) ตรงนี้ เพราะทดสอบจริงแล้วพบว่า
         // การ nest match /files ไว้ใต้ match /{path=**}/receipts/{receiptId} (แบบ wildcard)
         // ใช้อ่าน subcollection files ไม่ได้ (permission-denied) แม้ path จะตรงตามที่ตั้งใจ —
-        // ประกาศแบบ concrete ตรงๆ ทั้งเส้นทางแบบนี้ทำงานถูกต้อง
+        // ประกาศแบบ concrete ตรงๆ ทั้งเส้นทางแบบนี้ทำงานถูกต้อง — ที่นี่ {userId} ยังอยู่ใน scope
+        // จาก match ด้านบน จึงเช็คตรงกับ auth.uid ได้เลย ไม่ต้องพึ่ง field ownerUserId
         match /receipts/{receiptId} {
-          allow read, write: if true;
+          allow read, write: if request.auth != null && request.auth.uid == userId;
 
           match /files/{fileId} {
-            allow read, write: if true;
+            allow read, write: if request.auth != null && request.auth.uid == userId;
           }
         }
       }
@@ -54,19 +57,25 @@ service cloud.firestore {
     // ที่ app/js/receipts.js กับ app/js/new-receipt.js ใช้) — ต้องมี rule รูปแบบ recursive wildcard
     // นี้เพิ่มอีกชุด ถึงจะอนุญาต query แบบข้าม path ได้ (rule concrete ข้างบนอนุญาตแค่ query ตรงต่อ
     // 1 โครงการ ไม่ครอบคลุม query ข้ามโครงการ) ไม่ต้อง nest match /files ซ้ำใต้อันนี้อีก เพราะ
-    // rule concrete ด้านบนดูแล path files ให้ครบแล้ว
+    // rule concrete ด้านบนดูแล path files ให้ครบแล้ว — เช็คจาก resource.data.ownerUserId เพราะ
+    // path=** ไม่มีตัวแปร {userId} ให้ใช้ตรงๆ (ต้องคู่กับ .where("ownerUserId", "==", uid) ฝั่ง client)
     match /{path=**}/receipts/{receiptId} {
-      allow read, write: if true;
+      allow read: if request.auth != null && resource.data.ownerUserId == request.auth.uid;
+      allow write: if request.auth != null
+        && request.resource.data.ownerUserId == request.auth.uid;
     }
 
+    // fundSources/ruleVersions/ruleItems เป็นข้อมูลอ้างอิงกลาง (ระเบียบแหล่งทุน) ไม่มีเจ้าของ
+    // เฉพาะราย — ทุกบัญชีที่ล็อกอินอยู่อ่าน/เขียนได้เหมือนกัน (ยังไม่มีบทบาท admin แยกต่างหาก
+    // ตอนนี้ — ดู BACKLOG.md ถ้าต้องจำกัดเฉพาะ admin ในอนาคต)
     match /fundSources/{fundSourceId} {
-      allow read, write: if true;
+      allow read, write: if request.auth != null;
 
       match /ruleVersions/{ruleVersionId} {
-        allow read, write: if true;
+        allow read, write: if request.auth != null;
 
         match /ruleItems/{ruleItemId} {
-          allow read, write: if true;
+          allow read, write: if request.auth != null;
         }
       }
     }
@@ -77,18 +86,3 @@ service cloud.firestore {
     }
   }
 }
-
-// ----------------------------------------------------------------------------
-// เมื่อมี Auth จริงแล้ว (Sprint ถัดไป — ดู BACKLOG.md) ให้เปลี่ยนมาใช้ owner-based
-// ตาม FR-12/NFR-05 (นักวิจัยเห็น/แก้ไขเฉพาะใบเสร็จของตนเอง) ประมาณนี้ — ตอนนั้นการเขียนควร
-// ย้ายไปผ่าน backend/Cloud Functions แทนการเขียนตรงจาก client ด้วย โครงสร้างที่ nest ตาม
-// users/{userId}/... อยู่แล้วทำให้เขียน rule แบบนี้ตรงไปตรงมากว่าตอนเป็น flat collection:
-//
-// match /users/{userId} {
-//   allow read, write: if request.auth != null && request.auth.uid == userId;
-//
-//   match /projects/{projectId}/receipts/{receiptId=**} {
-//     allow read, write: if request.auth != null && request.auth.uid == userId;
-//   }
-// }
-// ----------------------------------------------------------------------------

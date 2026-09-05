@@ -3,8 +3,8 @@
 // ใช้ Firebase JS SDK แบบ "compat" (โหลดด้วย <script> ธรรมดา ไม่ใช่ module)
 // เพราะเว็บนี้เปิดตรงจากไฟล์ (file://) ได้ — เบราว์เซอร์บล็อก type="module" บน file://
 // apiKey ของเว็บแอปไม่ใช่ความลับ — ความปลอดภัยจริงมาจาก Firestore Security Rules
-// ต้องโหลดหลัง firebase-app-compat.js, firebase-firestore-compat.js และ
-// firebase-storage-compat.js (เฉพาะหน้าที่อัปโหลดไฟล์) เท่านั้น
+// ต้องโหลดหลัง firebase-app-compat.js, firebase-auth-compat.js (ทุกหน้า), firebase-firestore-compat.js
+// และ firebase-storage-compat.js (เฉพาะหน้าที่ต้องใช้ SDK นั้นๆ) เท่านั้น
 // ─────────────────────────────────────────────────────────────
 
 var firebaseConfig = {
@@ -18,8 +18,12 @@ var firebaseConfig = {
 };
 
 firebase.initializeApp(firebaseConfig);
-window.db = firebase.firestore();
-// firebase.storage() ใช้ได้เฉพาะหน้าที่โหลด firebase-storage-compat.js ไว้ด้วย
+// firebase.firestore()/firebase.storage() ใช้ได้เฉพาะหน้าที่โหลด firebase-firestore-compat.js /
+// firebase-storage-compat.js ไว้ด้วย (บางหน้า เช่น index.html/login.html/signup.html ใช้แค่ auth
+// ไม่ต้องโหลด firestore SDK มาเปล่าๆ)
+if (firebase.firestore) {
+  window.db = firebase.firestore();
+}
 if (firebase.storage) {
   window.storage = firebase.storage();
 }

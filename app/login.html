@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เข้าสู่ระบบ — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
+<script src="js/firebase-config.js" defer></script>
+</head>
+<body>
+
+<main class="page-shell" style="max-width:420px;">
+
+  <div class="section text-left-block">
+    <h1>🧾 เข้าสู่ระบบ</h1>
+    <p class="text-body">Grant Receipt Assistant — ผู้ช่วยตรวจสอบใบเสร็จเงินทุนวิจัย</p>
+  </div>
+
+  <div class="card">
+    <div id="ข้อความเตือน" class="banner banner--error" style="display:none;"></div>
+
+    <div class="field">
+      <label for="email">อีเมล</label>
+      <input type="email" id="email" autocomplete="email">
+    </div>
+    <div class="field">
+      <label for="password">รหัสผ่าน</label>
+      <input type="password" id="password" autocomplete="current-password">
+    </div>
+
+    <div class="row" style="justify-content:flex-end;">
+      <button type="button" class="btn btn-primary btn-md" id="ปุ่มเข้าสู่ระบบ">เข้าสู่ระบบ</button>
+    </div>
+
+    <p class="text-small" style="margin-top:var(--sp-3);">
+      ยังไม่มีบัญชี? <a href="signup.html">สมัครสมาชิก</a>
+    </p>
+  </div>
+
+</main>
+
+<script src="js/login.js" defer></script>
+
+</body>
+</html>

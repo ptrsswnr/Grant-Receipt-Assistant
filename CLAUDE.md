@@ -70,16 +70,30 @@ match /{path=**}/receipts/{receiptId} {
 
 ## Deploying rules — two separate Console pages, and edits do nothing until Published
 
-- `firestore.rules` → Firebase Console → Firestore Database → **Rules** tab.
-- `storage.rules` → Firebase Console → **Storage** → Rules tab (a different page).
+Editing `firestore.rules`/`storage.rules` locally has **zero effect** on the live database/bucket until they're actually deployed — there are two ways to do that:
 
-Editing either file locally has **zero effect** on the live database/bucket until someone manually copies the file's content into the corresponding Console editor and clicks **Publish**. There is no `firebase.json`/`.firebaserc`/Firebase CLI wired up in this repo, so this manual copy-paste is currently the only deploy path. Both rule sets intentionally allow open read/write (`if true`) for now — there's no real auth yet (see the "เมื่อมี Auth จริงแล้ว" block at the bottom of `firestore.rules` for the owner-scoped version to switch to once auth exists).
+- **Manual (always works, no setup):** copy `firestore.rules` into Firebase Console → Firestore Database → **Rules** tab → Publish, and `storage.rules` into Console → **Storage** → Rules tab (a different page) → Publish.
+- **CLI (`firebase deploy --only firestore:rules,storage:rules`):** `firebase.json` + `.firebaserc` (project `grant-receipt-assistant`) are already committed, wired to deploy exactly these two rule files. Requires Node.js + `npm install -g firebase-tools` + an interactive `firebase login` once (opens a browser against the developer's own Google account — not something an agent can do unattended) — none of that is guaranteed to be present in every dev environment for this repo (see "Running the app locally" above), so treat the manual path as the reliable fallback.
+
+Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `userId`/`uid` path segment) now that Firebase Auth (email/password) is wired in — but check which deploy method above was actually used before assuming the live rules match what's in the repo:
+
+- **`firestore.rules` is deployed and live** (via `firebase deploy --only firestore:rules`, 2026-09-05) — Firestore genuinely enforces owner-based access now.
+- **`storage.rules` is NOT deployed** — Firebase Storage itself was never provisioned on this project (Console → Storage now requires upgrading to the Blaze billing plan first, a deliberate user decision involving a credit card, not something to do as a side effect of a rules deploy). File attachment in `new-receipt.html` is optional/demo-only anyway (see `SCOPE.md`), so this was deferred rather than blocking on it — `receipts.js` already renders a "no real file attached — demo mode" fallback when a receipt has no `fileReference`. Revisit if/when Storage is actually set up.
+
+`ACL.md` documents the design/reasoning behind this rule set. Every collection-group `receipts` query/rule additionally relies on a denormalized `ownerUserId` field on the receipt doc itself (see below) — a query without a matching `.where("ownerUserId", "==", uid)` clause gets rejected outright, not silently filtered.
+
+## Auth (Firebase email/password) — added 2026-09-05
+
+- `app/login.html`/`app/js/login.js` and `app/signup.html`/`app/js/signup.js` are standalone pages (no `nav.js`/app chrome). Signup writes the new user's own `users/{uid}` doc, then redirects to `seed.html` (a fresh account owns zero projects — there's still no "create project" UI, see `BACKLOG.md` FR-23).
+- `app/js/auth-guard.js` is loaded after `js/nav.js` on every other page in `app/`. It redirects to `login.html` if there's no signed-in user, injects the signed-in email + a logout control into the nav bar's `#navUser` badge, and resolves `window.AUTH_READY` with the current user — **every page script that calls Firestore must `await window.AUTH_READY` first** (see `app/js/receipts.js`, `app/js/new-receipt.js`) since `onAuthStateChanged` resolves asynchronously even for an already-signed-in session.
+- `app/js/seed.js` seeds `app/js/data.js`'s template data under `firebase.auth().currentUser.uid` (safe to read synchronously there — the button can't be reached without `auth-guard.js` already having let the page through) instead of the old hardcoded `user001`. `app/js/data.js` itself is unchanged and still just template data.
+- **`ownerUserId` convention**: any code that writes a `receipts` doc (`new-receipt.js`, `seed.js`) must set an `ownerUserId` field equal to the owning uid — this is what the collection-group Firestore rule checks, since a wildcard `{path=**}/receipts/{receiptId}` rule has no `{userId}` path variable to compare against. Adding a new collection-group query on another nested collection later will need the same pattern (a denormalized owner field + a matching `.where(...)` + a matching wildcard rule).
 
 ## UI/shared code conventions
 
-- `app/js/nav.js` renders the top nav bar into every page's `<div id="nav"></div>`; the link list lives in that one file only — edit it there, not per-page.
+- `app/js/nav.js` renders the top nav bar into every page's `<div id="nav"></div>`; the link list lives in that one file only — edit it there, not per-page. The `#navUser` badge it renders is overwritten by `app/js/auth-guard.js` once auth state resolves (see above) — don't hardcode role/user text there anymore.
 - `app/css/style.css` is a hand-maintained copy of the design tokens in `docs/02-design/DESIGN.md` (colors, type scale, spacing, component classes like `.card`, `.chip-status--*`, `.receipt-card`, `.rule-callout`, `.stepper`, `.dropzone`). There's no build step linking the two — if `DESIGN.md` changes, `style.css` must be hand-updated to match, and vice versa new components should be documented in `DESIGN.md` before/when added to `style.css`.
-- Firestore doc IDs are sequential (`receipt001`, `receipt002`, ...), not auto-IDs — `app/js/new-receipt.js` scans existing IDs (via `collectionGroup`) and increments, specifically so seeded/manually-created data stays human-readable in the Console.
+- Firestore doc IDs are sequential (`receipt001`, `receipt002`, ...), not auto-IDs, **scoped per owner** — `app/js/new-receipt.js` scans existing IDs of the current user only (via `collectionGroup` + `.where("ownerUserId", ...)`) and increments, specifically so seeded/manually-created data stays human-readable in the Console.
 
 ## The `docs/` folder is a separate concern: an Obsidian SDLC vault
 

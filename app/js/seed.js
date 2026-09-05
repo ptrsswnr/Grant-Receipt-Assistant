@@ -3,6 +3,12 @@
 // ใช้ .set() กับ id เดิมของแต่ละรายการ (ไม่ใช่ .add()) เพื่อให้กดซ้ำได้อย่างปลอดภัย
 // กดกี่ครั้งก็ได้ ข้อมูลจะถูกเขียนทับด้วยชุดเดิม ไม่มีรายการซ้ำ
 //
+// ตั้งแต่มี Firebase Auth จริงแล้ว: users/projects/receipts/files ทั้งหมดถูก seed ลงบัญชีที่
+// ล็อกอินอยู่ ณ ตอนกดปุ่ม (firebase.auth().currentUser.uid) แทน data.users[0].id ("user001") ที่
+// hardcode ไว้เดิม — data.js ยังเก็บ id/ownerUserId แบบ mock ไว้เหมือนเดิม แต่ค่าพวกนั้นถูกละเว้น
+// ตอนเขียนจริง (ใช้แค่เป็น "แม่แบบ" ของ field อื่นๆ เช่น projectName/fundSourceId) เพื่อให้ auth-guard.js
+// การันตีว่ามีคนล็อกอินอยู่แล้วก่อนปุ่มนี้กดได้ (ไม่ต้อง await window.AUTH_READY ในนี้ซ้ำ)
+//
 // โครงสร้าง Firestore จริง (นับจาก 2026-09-05 — nest ตามความเป็นเจ้าของใน db-spec.md):
 //   users/{userId}
 //   users/{userId}/projects/{projectId}                (Project เจ้าของเดียวคือ User)
@@ -29,11 +35,13 @@ async function ใส่ข้อมูลตัวอย่าง() {
 
   try {
     var data = window.RECEIPT_DATA;
+    var currentUser = firebase.auth().currentUser;
+    var uid = currentUser.uid;
 
-    for (var u of data.users) {
-      var { id, ...ฟิลด์ } = u;
-      await db.collection("users").doc(id).set(ฟิลด์);
-    }
+    // เขียนเอกสาร users/{uid} ของบัญชีที่ล็อกอินอยู่จริง (ไม่ใช่ user001 จาก data.js) — ใช้ fullName/
+    // roleType จากแม่แบบ แต่ email ใช้ค่าจริงจากบัญชีที่ล็อกอินอยู่
+    var { id: _mockUserId, ...ฟิลด์ผู้ใช้ } = data.users[0];
+    await db.collection("users").doc(uid).set(Object.assign({}, ฟิลด์ผู้ใช้, { email: currentUser.email }));
 
     for (var fs of data.fundSources) {
       var { id: fsId, ...fsฟิลด์ } = fs;
@@ -59,13 +67,14 @@ async function ใส่ข้อมูลตัวอย่าง() {
         .set(Object.assign({}, riฟิลด์, { ruleVersionId: riRuleVersionId }));
     }
 
-    var เจ้าของโครงการ = {}; // projectId -> ownerUserId (ไว้ใช้ต่อ path ของ receipts/files)
+    var เจ้าของโครงการ = {}; // projectId -> uid (ไว้ใช้ต่อ path ของ receipts/files) — ทุกโครงการ
+    // seed ลงบัญชีที่ล็อกอินอยู่เสมอ ไม่ใช้ ownerUserId (user001) จาก data.js อีกต่อไป
     for (var p of data.projects) {
-      var { id: projectId, ownerUserId, ...pฟิลด์ } = p;
-      เจ้าของโครงการ[projectId] = ownerUserId;
-      await db.collection("users").doc(ownerUserId)
+      var { id: projectId, ownerUserId: _mockOwnerUserId, ...pฟิลด์ } = p;
+      เจ้าของโครงการ[projectId] = uid;
+      await db.collection("users").doc(uid)
         .collection("projects").doc(projectId)
-        .set(Object.assign({}, pฟิลด์, { ownerUserId }));
+        .set(Object.assign({}, pฟิลด์, { ownerUserId: uid }));
     }
 
     for (var r of data.receipts) {
@@ -76,6 +85,7 @@ async function ใส่ข้อมูลตัวอย่าง() {
         .collection("receipts").doc(receiptId)
         .set(Object.assign({}, rฟิลด์, {
           projectId: rProjectId,
+          ownerUserId: เจ้าของ,
           uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
         }));
     }

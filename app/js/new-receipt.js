@@ -3,8 +3,10 @@
 // ยังไม่มี OCR/Rule Engine/LLM จริงเชื่อมต่อ (ดูเหตุผลใน SCOPE.md) ขั้นตอน "ตรวจสอบข้อมูล" จึง
 // สุ่มค่าขึ้นมาเอง สมมติว่าเป็นผลจาก AI อ่านใบเสร็จให้แล้ว ส่วนผลตรวจใช้ mock Rule Engine จาก data.js
 // การแนบไฟล์จริงเป็นออปชัน (ไม่บังคับ) เพื่อให้ทดลองขั้นตอนได้ทันทีโดยไม่ต้องมีไฟล์จริง
-// บันทึกลง Firestore ที่ users/{ownerUserId}/projects/{projectId}/receipts/{id} (ดูเหตุผลของ
-// โครงสร้างซ้อนนี้ใน js/seed.js)
+// บันทึกลง Firestore ที่ users/{uid ของผู้ใช้ที่ล็อกอินอยู่}/projects/{projectId}/receipts/{id}
+// (ดูเหตุผลของโครงสร้างซ้อนนี้ใน js/seed.js) — ต้อง await window.AUTH_READY (จาก js/auth-guard.js)
+// ก่อนเรียก Firestore ทุกครั้ง เอกสาร receipt เขียน field ownerUserId ไว้ด้วยเสมอ เพราะ
+// firestore.rules ต้องอ้าง field นี้เช็คสิทธิ์ตอนอ่านผ่าน collectionGroup("receipts")
 // ─────────────────────────────────────────────────────────────
 
 var MAX_FILES = 5;
@@ -16,7 +18,7 @@ var ผู้ขายตัวอย่าง = [
   "ห้างหุ้นส่วนจำกัด รุ่งเรืองพาณิชย์",
 ];
 
-(function () {
+(async function () {
   var ช่องโครงการ = document.getElementById("projectId");
   var ช่องหมวด = document.getElementById("confirmedCategory");
   var ช่องไฟล์ = document.getElementById("receiptFiles");
@@ -26,12 +28,25 @@ var ผู้ขายตัวอย่าง = [
   var stepEl = { 1: document.getElementById("step1"), 2: document.getElementById("step2"), 3: document.getElementById("step3") };
   var dotEl = { 1: document.getElementById("stepDot1"), 2: document.getElementById("stepDot2"), 3: document.getElementById("stepDot3") };
 
-  window.RECEIPT_DATA.projects.forEach(function (project) {
-    var ตัวเลือก = document.createElement("option");
-    ตัวเลือก.value = project.id;
-    ตัวเลือก.textContent = project.projectName;
-    ช่องโครงการ.appendChild(ตัวเลือก);
-  });
+  var user = await window.AUTH_READY;
+
+  // ดรอปดาวน์โครงการวิจัยต้องดึงเฉพาะโครงการของผู้ใช้ที่ล็อกอินอยู่ (users/{uid}/projects) — ไม่ใช้
+  // window.RECEIPT_DATA.projects ตรงๆ อีกต่อไป เพราะไฟล์นั้นเป็นแค่ข้อมูลตัวอย่างสำหรับ seed.html
+  var โครงการของผู้ใช้ = await db.collection("users").doc(user.uid).collection("projects").get();
+  if (โครงการของผู้ใช้.empty) {
+    var ไม่มีโครงการ = document.createElement("option");
+    ไม่มีโครงการ.value = "";
+    ไม่มีโครงการ.textContent = "ยังไม่มีโครงการวิจัย — ไปที่หน้า \"ใส่ข้อมูลตัวอย่าง\" ก่อน";
+    ไม่มีโครงการ.disabled = true;
+    ช่องโครงการ.appendChild(ไม่มีโครงการ);
+  } else {
+    โครงการของผู้ใช้.forEach(function (doc) {
+      var ตัวเลือก = document.createElement("option");
+      ตัวเลือก.value = doc.id;
+      ตัวเลือก.textContent = doc.data().projectName;
+      ช่องโครงการ.appendChild(ตัวเลือก);
+    });
+  }
 
   window.RECEIPT_DATA.categories.forEach(function (category) {
     var ตัวเลือก = document.createElement("option");
@@ -44,11 +59,12 @@ var ผู้ขายตัวอย่าง = [
     return fileName.split(".").pop().toLowerCase();
   }
 
-  // หารหัสถัดไปแบบ receipt006, receipt007, ... จากรหัสเดิมที่มีอยู่จริงใน Firestore
-  // receipts อยู่ซ้อนใน users/{u}/projects/{p}/receipts/{id} จึงต้องใช้ collectionGroup
-  // เพื่อสแกนหาเลขสูงสุดข้ามทุกโครงการ (ไม่ใช่แค่โครงการที่กำลังเลือกอยู่)
+  // หารหัสถัดไปแบบ receipt006, receipt007, ... จากรหัสเดิมที่มีอยู่จริงใน Firestore ของผู้ใช้คนนี้
+  // receipts อยู่ซ้อนใน users/{u}/projects/{p}/receipts/{id} จึงต้องใช้ collectionGroup เพื่อสแกนหา
+  // เลขสูงสุดข้ามทุกโครงการของผู้ใช้คนนี้ (ไม่ใช่แค่โครงการที่กำลังเลือกอยู่) — กรองด้วย ownerUserId
+  // เพื่อไม่ให้ปนกับรหัสใบเสร็จของผู้ใช้คนอื่น (แต่ละคนมีลำดับ receipt001, 002, ... ของตัวเอง)
   async function รหัสใบเสร็จถัดไป() {
-    var snapshot = await db.collectionGroup("receipts").get();
+    var snapshot = await db.collectionGroup("receipts").where("ownerUserId", "==", user.uid).get();
     var เลขสูงสุด = 0;
     snapshot.forEach(function (doc) {
       var m = doc.id.match(/^receipt(\d+)$/);
@@ -185,16 +201,16 @@ var ผู้ขายตัวอย่าง = [
     try {
       ปุ่มบันทึก.textContent = "กำลังบันทึกข้อมูลใบเสร็จ...";
       var รหัสใหม่ = await รหัสใบเสร็จถัดไป();
-      // receipts อยู่ซ้อนใน users/{u}/projects/{p}/receipts/{id} — ต้องหา ownerUserId ของ
-      // โครงการที่เลือกก่อน (ยังไม่มี auth จริง จึงอ้างจาก RECEIPT_DATA.projects ในเครื่อง)
-      var โครงการที่เลือก = window.RECEIPT_DATA.projects.find(function (p) { return p.id === ค่า.projectId; });
-      var receiptRef = db.collection("users").doc(โครงการที่เลือก.ownerUserId)
+      // receipts อยู่ซ้อนใน users/{u}/projects/{p}/receipts/{id} — เจ้าของคือผู้ใช้ที่ล็อกอินอยู่เสมอ
+      // (โครงการในดรอปดาวน์ดึงมาจาก users/{uid}/projects ของผู้ใช้คนนี้อยู่แล้ว)
+      var receiptRef = db.collection("users").doc(user.uid)
         .collection("projects").doc(ค่า.projectId)
         .collection("receipts").doc(รหัสใหม่);
       await receiptRef.set(Object.assign({}, ค่า, {
         status: ผลตรวจ.status,
         aiExplanation: ผลตรวจ.aiExplanation,
         isExported: false,
+        ownerUserId: user.uid,
         uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
       }));
 
@@ -202,7 +218,7 @@ var ผู้ขายตัวอย่าง = [
         var file = files[i];
         ปุ่มบันทึก.textContent = "กำลังอัปโหลดไฟล์ " + (i + 1) + "/" + files.length + "...";
 
-        var storagePath = "receipts/" + receiptRef.id + "/" + Date.now() + "_" + file.name;
+        var storagePath = "receipts/" + user.uid + "/" + receiptRef.id + "/" + Date.now() + "_" + file.name;
         var storageRef = storage.ref(storagePath);
         await storageRef.put(file);
         var downloadUrl = await storageRef.getDownloadURL();
@@ -217,7 +233,7 @@ var ผู้ขายตัวอย่าง = [
         });
       }
 
-      var projectName = window.RECEIPT_DATA.projects.find(function (p) { return p.id === ค่า.projectId; }).projectName;
+      var projectName = ช่องโครงการ.options[ช่องโครงการ.selectedIndex].textContent;
       แสดงผลตรวจ(ค่า, ผลตรวจ, projectName);
       ไปขั้นตอน(3);
     } catch (err) {

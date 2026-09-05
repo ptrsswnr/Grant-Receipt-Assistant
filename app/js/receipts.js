@@ -2,9 +2,11 @@
 // js/receipts.js — หน้ารายการใบเสร็จของฉัน
 // อ่านข้อมูลจาก Firestore จริง — ไม่ใช่ mock ในโค้ด
 // receipts อยู่ซ้อนใน users/{userId}/projects/{projectId}/receipts/{id} (ดูเหตุผลใน js/seed.js)
-// หน้านี้ต้องแสดงใบเสร็จของทุกโครงการรวมกัน จึงใช้ collectionGroup("receipts") แทน
-// db.collection("receipts") เดิม — ครั้งแรกที่รันอาจเจอ error ขอให้สร้าง Firestore index ก่อน
-// (ดูคำอธิบายใน catch ด้านล่าง)
+// หน้านี้ต้องแสดงใบเสร็จของทุกโครงการของผู้ใช้ที่ล็อกอินอยู่รวมกัน จึงใช้ collectionGroup("receipts")
+// แทน db.collection("receipts") เดิม กรองด้วย .where("ownerUserId", "==", uid) เพื่อไม่ให้เห็นข้อมูล
+// ของผู้ใช้คนอื่น (ownerUserId เป็น field ที่ denormalize ไว้บนเอกสาร receipt เอง — ดู firestore.rules
+// ที่ต้องอิง field นี้เช็คสิทธิ์การอ่านของ collectionGroup query แบบนี้ด้วย) — ครั้งแรกที่รันอาจเจอ
+// error ขอให้สร้าง Firestore composite index ก่อน (ดูคำอธิบายใน catch ด้านล่าง)
 // ─────────────────────────────────────────────────────────────
 
 var STATUS_CHIP_CLASS = {
@@ -77,7 +79,11 @@ function receiptCardHtml(receipt, files, projectName) {
   var list = document.getElementById("receipt-list");
 
   try {
-    var snapshot = await db.collectionGroup("receipts").orderBy("uploadedAt", "desc").get();
+    var user = await window.AUTH_READY;
+    var snapshot = await db.collectionGroup("receipts")
+      .where("ownerUserId", "==", user.uid)
+      .orderBy("uploadedAt", "desc")
+      .get();
 
     if (snapshot.empty) {
       loadState.innerHTML =

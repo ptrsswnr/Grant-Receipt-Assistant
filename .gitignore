@@ -1,3 +1,31 @@
 .obsidian/workspace.json
 .obsidian/workspace-mobile.json
 .trash/
+
+# ─── Secrets / local config — never commit ───
+# Env files (none tracked today, but guard against future ones)
+.env
+.env.*
+!.env.example
+
+# Firebase/GCP service account keys — real secrets if this repo ever adds server-side
+# admin access (Cloud Functions, scripts using firebase-admin). The Web SDK apiKey in
+# app/js/firebase-config.js is NOT a secret (see that file's own comment) and stays committed —
+# real access control is Firestore/Storage Security Rules, not that key.
+*serviceAccountKey*.json
+*firebase-adminsdk*.json
+google-credentials*.json
+*.pem
+*.key
+
+# Firebase CLI local artifacts (debug logs, hosting/emulator cache) — machine-specific, not secret
+# by themselves, but noisy and sometimes embed local file paths
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+.firebase/
+
+# In case a local npm install ever happens in this repo (firebase-tools is installed globally
+# for this project, not locally — see CLAUDE.md)
+node_modules/
