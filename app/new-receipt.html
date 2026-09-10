@@ -52,9 +52,9 @@
         <label>ไฟล์หลักฐาน (jpg/png/pdf — สูงสุด 5 ไฟล์, 5 MB/ไฟล์ — ไม่บังคับสำหรับโหมดสาธิตนี้)</label>
         <label class="dropzone" for="receiptFiles" tabindex="0">
           <input class="dropzone__input" type="file" id="receiptFiles" accept=".jpg,.jpeg,.png,.pdf" multiple>
-          <div class="dropzone__icon">⬆</div>
+          <div class="dropzone__icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.7A4 4 0 0 0 6.5 15"></path><polyline points="12 12 12 21"></polyline><polyline points="8.5 15.5 12 12 15.5 15.5"></polyline></svg></div>
           <h4 style="margin:0;">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</h4>
-          <p class="text-body" style="margin:0;">รองรับไฟล์ชนิด .jpg, .png และ .pdf เท่านั้น</p>
+          <p class="text-body" style="margin:0;text-align:center;">รองรับไฟล์ชนิด .jpg, .png และ .pdf เท่านั้น</p>
         </label>
         <div id="fileStatus" class="text-small" style="margin-top:8px;"></div>
       </div>
@@ -93,7 +93,7 @@
 
     <div id="reviewForm" class="row" style="align-items:flex-start;" hidden>
       <div class="card" style="flex:0 0 220px;">
-        <div class="dropzone__icon" style="width:100%; height:160px; font-size:40px; border-radius:var(--radius-sm);">🧾</div>
+        <div class="dropzone__icon" style="width:100%; height:160px; border:1px solid var(--color-divider); border-radius:var(--radius-sm);"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8.5" y1="13" x2="15.5" y2="13"></line><line x1="8.5" y1="17" x2="13" y2="17"></line></svg></div>
         <p class="text-small" id="fileNameDisplay" style="margin-top:12px;"></p>
         <span class="chip-status chip-status--pending">รอตรวจสอบ</span>
       </div>
