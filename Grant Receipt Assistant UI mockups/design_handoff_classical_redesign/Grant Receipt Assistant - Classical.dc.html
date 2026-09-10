@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="design_doc_mode" content="canvas">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;600&family=Lora:wght@400;600&display=swap');
+:root{
+  --color-bg:#f3f2f2;--color-surface:#eae9e9;--color-text:#201f1d;
+  --color-accent:#b68235;--color-accent-2:#ac803e;
+  --color-divider:color-mix(in srgb, #201f1d 16%, transparent);
+  --color-neutral-100:#f8f4f4;--color-neutral-200:#eae7e7;--color-neutral-300:#d7d3d3;
+  --color-neutral-400:#bab6b6;--color-neutral-500:#9b9797;--color-neutral-600:#7d7979;
+  --color-neutral-700:#605d5d;--color-neutral-800:#444141;--color-neutral-900:#2d2b2b;
+  --color-accent-100:#fff3e4;--color-accent-200:#ffe3bf;--color-accent-300:#facb8d;
+  --color-accent-400:#e1ad66;--color-accent-500:#c28d41;--color-accent-600:#a06f24;
+  --color-accent-700:#7d5411;--color-accent-800:#5a3b0a;--color-accent-900:#3a270d;
+  --font-heading:'Cormorant Garamond',serif;--font-heading-weight:600;--font-body:'Lora',serif;
+  --space-1:4.6px;--space-2:9.2px;--space-3:13.8px;--space-4:18.4px;--space-6:27.6px;--space-8:36.8px;
+  --radius-sm:2px;--radius-md:4px;--radius-lg:7px;
+  --shadow-sm:0 1px 2px color-mix(in srgb, #2d2b2b 14%, transparent);
+  --shadow-md:0 3px 10px color-mix(in srgb, #2d2b2b 16%, transparent);
+  --shadow-lg:0 12px 32px color-mix(in srgb, #2d2b2b 22%, transparent);
+  --color-success:oklch(58% 0.10 148);--color-success-bg:oklch(94% 0.02 148);--color-success-text:oklch(33% 0.07 148);
+  --color-error:oklch(56% 0.15 25);--color-error-bg:oklch(94% 0.02 25);--color-error-text:oklch(35% 0.11 25);
+  --color-pending-text:var(--color-neutral-700);--color-pending-bg:var(--color-neutral-200);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--color-neutral-300);color:var(--color-text);font-family:var(--font-body);}
+h1,h2,h3,h4{font-family:var(--font-heading);font-weight:var(--font-heading-weight);margin:0;letter-spacing:-0.015em;}
+::selection{background:color-mix(in srgb, var(--color-accent) 30%, transparent);}
+a{color:var(--color-accent);text-underline-offset:3px;}
+a:hover{color:var(--color-accent-700);}
+</style>
+</helmet>
+
+<div style="min-height:100vh;padding:44px 28px 96px;">
+
+  <div style="max-width:900px;margin:0 auto 40px;">
+    <div style="font-size:11px;letter-spacing:0.14em;text-transform:uppercase;color:var(--color-accent-700);margin-bottom:6px;">Design mockups &middot; Classical system</div>
+    <h1 style="font-size:30px;">Grant Receipt Assistant</h1>
+    <p style="font-size:14px;max-width:64ch;color:color-mix(in srgb, var(--color-text) 65%, transparent);margin:10px 0 18px;">แปลงหน้าจอทั้งหมดของแอปเป็นทิศทางภาพแบบ Classical — editorial, serif, เส้นบาง, สีเน้นเดียว (gold) ใช้เป็นเส้นขอบมากกว่าพื้นเติม สถานะใบเสร็จ (ผ่าน/ต้องแก้ไข/ไม่เข้าเงื่อนไข/รอตรวจสอบ) ยังคงความหมายเดิมด้วยสี success/error ที่เพิ่มเข้ามาให้เข้ากับโทนสีระบบ</p>
+    <nav style="display:flex;flex-wrap:wrap;gap:6px 4px;padding:10px 14px;border:1px solid var(--color-divider);border-radius:var(--radius-md);background:var(--color-bg);">
+      <a href="#s-home" style="font-size:12px;text-decoration:none;padding:4px 9px;border-radius:3px;color:var(--color-text);">หน้าแรก</a>
+      <a href="#s-login" style="font-size:12px;text-decoration:none;padding:4px 9px;border-radius:3px;color:var(--color-text);">เข้าสู่ระบบ</a>
+      <a href="#s-signup" style="font-size:12px;text-decoration:none;padding:4px 9px;border-radius:3px;color:var(--color-text);">สมัครสมาชิก</a>
+      <a href="#s-upload" style="font-size:12px;text-decoration:none;padding:4px 9px;border-radius:3px;color:var(--color-text);">อัปโหลดใบเสร็จ</a>
+      <a href="#s-receipts" style="font-size:12px;text-decoration:none;padding:4px 9px;border-radius:3px;color:var(--color-text);">ใบเสร็จของฉัน</a>
+      <a href="#s-admin" style="font-size:12px;text-decoration:none;padding:4px 9px;border-radius:3px;color:var(--color-text);">Admin Dashboard</a>
+      <a href="#s-fund" style="font-size:12px;text-decoration:none;padding:4px 9px;border-radius:3px;color:var(--color-text);">จัดการแหล่งทุน</a>
+      <a href="#s-projects" style="font-size:12px;text-decoration:none;padding:4px 9px;border-radius:3px;color:var(--color-text);">โครงการของฉัน</a>
+    </nav>
+  </div>
+
+  <!-- ============ HOME ============ -->
+  <div id="s-home" data-screen-label="หน้าแรก" style="max-width:900px;margin:0 auto 12px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent);">Screen &middot; หน้าแรก</div>
+  <div style="max-width:900px;margin:0 auto 64px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);">
+    <div style="display:flex;align-items:center;gap:18.4px;padding:13.8px 18.4px;border-bottom:1px solid var(--color-divider);">
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:18px;margin-right:auto;">Grant Receipt Assistant</span>
+      <a href="#" style="color:var(--color-accent);text-decoration:none;font-size:14px;">หน้าแรก</a>
+      <a href="#" style="color:var(--color-text);text-decoration:none;font-size:14px;">อัปโหลดใบเสร็จ</a>
+      <a href="#" style="color:var(--color-text);text-decoration:none;font-size:14px;">ใบเสร็จของฉัน</a>
+      <a href="#" style="color:var(--color-text);text-decoration:none;font-size:14px;">โครงการ</a>
+      <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);padding:9.2px 16.5px;border-radius:4px;" style-hover="background:color-mix(in srgb, var(--color-text) 7%, transparent)">เข้าสู่ระบบ</button>
+    </div>
+    <div style="padding:36.8px 44px 44px;max-width:640px;">
+      <h1 style="font-size:42px;margin-bottom:13.8px;">Grant Receipt Assistant</h1>
+      <p style="font-size:16px;line-height:1.65;text-align:justify;color:color-mix(in srgb, var(--color-text) 85%, transparent);margin-bottom:27.6px;">ผู้ช่วยตรวจสอบใบเสร็จ/หลักฐานการเบิกจ่ายเงินทุนวิจัย สำหรับนักวิจัยที่ไม่มีพื้นฐานด้านการเงิน — อัปโหลดใบเสร็จ ระบบตรวจตามเงื่อนไขทุนให้ทันที พร้อมคำอธิบายผลที่เข้าใจง่าย ก่อนส่งเจ้าหน้าที่การเงินตรวจจริง</p>
+      <div style="display:flex;gap:13.8px;flex-wrap:wrap;">
+        <a href="#s-upload" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;text-decoration:none;font-family:var(--font-heading);font-weight:600;font-size:15px;color:var(--color-accent);background:transparent;border:1px solid var(--color-accent);padding:12.5px 24px;border-radius:4px;" style-hover="background:color-mix(in srgb, var(--color-accent) 12%, transparent)">อัปโหลดใบเสร็จใหม่<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m12 5 7 7-7 7"></path></svg></a>
+        <a href="#s-receipts" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;text-decoration:none;font-family:var(--font-heading);font-weight:600;font-size:15px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);padding:12.5px 24px;border-radius:4px;" style-hover="background:color-mix(in srgb, var(--color-text) 7%, transparent)">ดูใบเสร็จของฉัน</a>
+      </div>
+    </div>
+    <div style="padding:0 44px 44px;">
+      <h3 style="font-size:22px;margin-bottom:18.4px;">ขั้นตอนการใช้งาน</h3>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13.8px;">
+        <div style="display:flex;flex-direction:column;gap:9.2px;padding:18.4px;border-radius:4px;border:1px solid var(--color-divider);">
+          <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent);">ขั้นตอนที่ 1</div>
+          <div style="font-family:var(--font-heading);font-weight:600;font-size:18px;">อัปโหลดใบเสร็จ</div>
+          <p style="margin:0;font-size:13px;opacity:0.75;">แนบไฟล์หลักฐาน แล้วกรอก/ยืนยันยอดเงิน วันที่ และหมวดค่าใช้จ่ายก่อนส่งตรวจ</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9.2px;padding:18.4px;border-radius:4px;border:1px solid var(--color-divider);">
+          <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent);">ขั้นตอนที่ 2</div>
+          <div style="font-family:var(--font-heading);font-weight:600;font-size:18px;">ระบบตรวจตามเงื่อนไขทุน</div>
+          <p style="margin:0;font-size:13px;opacity:0.75;">ระบบประมวลผลตามกฎของทุนวิจัยทันที แล้วสรุปผลเป็นภาษาที่เข้าใจง่าย</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:9.2px;padding:18.4px;border-radius:4px;border:1px solid var(--color-divider);">
+          <div style="font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--color-accent);">ขั้นตอนที่ 3</div>
+          <div style="font-family:var(--font-heading);font-weight:600;font-size:18px;">ดูผลตรวจ</div>
+          <p style="margin:0;font-size:13px;opacity:0.75;">ตรวจสอบสถานะและคำอธิบายผลของใบเสร็จแต่ละรายการที่หน้าใบเสร็จของฉัน</p>
+        </div>
+      </div>
+    </div>
+    <div style="padding:0 44px 44px;">
+      <h3 style="font-size:22px;margin-bottom:18.4px;">สถานะของใบเสร็จมี 4 ค่า</h3>
+      <div style="border:1px solid var(--color-divider);border-radius:4px;padding:18.4px;display:flex;flex-direction:column;gap:9.2px;">
+        <div style="display:flex;gap:9.2px;flex-wrap:wrap;">
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-success-bg);color:var(--color-success-text);">ผ่าน</span>
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-accent-100);color:var(--color-accent-800);">ต้องแก้ไข</span>
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-error-bg);color:var(--color-error-text);">ไม่เข้าเงื่อนไข</span>
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-pending-bg);color:var(--color-pending-text);">รอตรวจสอบ</span>
+        </div>
+        <p style="margin:0;font-size:14px;opacity:0.8;">ใบเสร็จแต่ละรายการจะได้หนึ่งในสี่สถานะนี้ พร้อมคำอธิบายเหตุผลประกอบทุกครั้ง</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ LOGIN ============ -->
+  <div id="s-login" data-screen-label="เข้าสู่ระบบ" style="max-width:900px;margin:0 auto 12px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent);">Screen &middot; เข้าสู่ระบบ</div>
+  <div style="max-width:900px;margin:0 auto 64px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);display:flex;justify-content:center;padding:64px 28px;">
+    <div style="width:100%;max-width:380px;">
+      <div style="text-align:center;margin-bottom:27.6px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-accent);margin:0 auto 9px;"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8.5" y1="13" x2="15.5" y2="13"></line><line x1="8.5" y1="17" x2="13" y2="17"></line></svg>
+        <h1 style="font-size:28px;">เข้าสู่ระบบ</h1>
+        <p style="font-size:13px;color:color-mix(in srgb, var(--color-text) 60%, transparent);margin-top:6px;">Grant Receipt Assistant — ผู้ช่วยตรวจสอบใบเสร็จเงินทุนวิจัย</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:13.8px;padding:18.4px;border-radius:4px;border:1px solid var(--color-divider);">
+        <div>
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">อีเมล</label>
+          <input type="email" value="somying@example.ac.th" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;" style-focus="border-color:var(--color-accent)">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">รหัสผ่าน</label>
+          <input type="password" value="********" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;" style-focus="border-color:var(--color-accent)">
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:14px;color:var(--color-accent);background:transparent;border:1px solid var(--color-accent);padding:9.2px 16.5px;border-radius:4px;" style-hover="background:color-mix(in srgb, var(--color-accent) 12%, transparent)">เข้าสู่ระบบ</button>
+        </div>
+        <p style="font-size:13px;margin:9.2px 0 0;text-align:center;">ยังไม่มีบัญชี? <a href="#s-signup">สมัครสมาชิก</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ SIGNUP ============ -->
+  <div id="s-signup" data-screen-label="สมัครสมาชิก" style="max-width:900px;margin:0 auto 12px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent);">Screen &middot; สมัครสมาชิก</div>
+  <div style="max-width:900px;margin:0 auto 64px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);display:flex;justify-content:center;padding:56px 28px;">
+    <div style="width:100%;max-width:380px;">
+      <div style="text-align:center;margin-bottom:27.6px;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-accent);margin:0 auto 9px;"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8.5" y1="13" x2="15.5" y2="13"></line><line x1="8.5" y1="17" x2="13" y2="17"></line></svg>
+        <h1 style="font-size:28px;">สมัครสมาชิก</h1>
+        <p style="font-size:13px;color:color-mix(in srgb, var(--color-text) 60%, transparent);margin-top:6px;">Grant Receipt Assistant — ผู้ช่วยตรวจสอบใบเสร็จเงินทุนวิจัย</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:13.8px;padding:18.4px;border-radius:4px;border:1px solid var(--color-divider);">
+        <div>
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">ชื่อ-นามสกุล</label>
+          <input type="text" value="สมหญิง วิจัยดี" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;" style-focus="border-color:var(--color-accent)">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">อีเมล</label>
+          <input type="email" value="somying@example.ac.th" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;" style-focus="border-color:var(--color-accent)">
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">รหัสผ่าน</label>
+          <input type="password" value="" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;" style-focus="border-color:var(--color-accent)">
+          <p style="font-size:11px;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin:4px 0 0;">อย่างน้อย 6 ตัวอักษร</p>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">ยืนยันรหัสผ่าน</label>
+          <input type="password" value="" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;" style-focus="border-color:var(--color-accent)">
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:14px;color:var(--color-accent);background:transparent;border:1px solid var(--color-accent);padding:9.2px 16.5px;border-radius:4px;" style-hover="background:color-mix(in srgb, var(--color-accent) 12%, transparent)">สมัครสมาชิก</button>
+        </div>
+        <p style="font-size:13px;margin:9.2px 0 0;text-align:center;">มีบัญชีอยู่แล้ว? <a href="#s-login">เข้าสู่ระบบ</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ UPLOAD FLOW ============ -->
+  <div id="s-upload" data-screen-label="อัปโหลดใบเสร็จ" style="max-width:900px;margin:0 auto 12px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent);">Screen &middot; อัปโหลดใบเสร็จ — 3 ขั้นตอน</div>
+  <div style="max-width:1400px;margin:0 auto 64px;display:flex;gap:24px;flex-wrap:wrap;justify-content:center;">
+
+    <div style="width:420px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);">
+      <div style="padding:24px 28px 28px;">
+        <div style="display:flex;align-items:flex-start;margin-bottom:27.6px;">
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">1</div>
+            <div style="font-size:11px;margin-top:6px;">อัปโหลดใบเสร็จ</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--color-divider);color:var(--color-neutral-600);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">2</div>
+            <div style="font-size:11px;margin-top:6px;color:var(--color-neutral-600);">ตรวจสอบข้อมูล</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--color-divider);color:var(--color-neutral-600);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">3</div>
+            <div style="font-size:11px;margin-top:6px;color:var(--color-neutral-600);">ผลตรวจ</div>
+          </div>
+        </div>
+        <h1 style="font-size:24px;margin-bottom:9.2px;">อัปโหลดใบเสร็จ</h1>
+        <p style="font-size:13px;line-height:1.6;opacity:0.8;margin-bottom:18.4px;">เลือกโครงการวิจัยที่ใบเสร็จนี้ผูกอยู่ แล้วแนบไฟล์หลักฐาน (ถ้ามี) — ระบบจะจำลองผลการอ่านข้อมูลด้วย AI ให้แทน</p>
+        <div style="margin-bottom:13.8px;">
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">โครงการวิจัย</label>
+          <select style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;"><option>พัฒนาโมเดล AI เพื่อการเกษตร</option></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">ไฟล์หลักฐาน (jpg/png/pdf — สูงสุด 5 ไฟล์)</label>
+          <div style="border:1.5px dashed var(--color-divider);border-radius:4px;padding:27.6px 18px;display:flex;flex-direction:column;align-items:center;gap:9.2px;text-align:center;color:var(--color-neutral-600);">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-accent);"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.7A4 4 0 0 0 6.5 15"></path><polyline points="12 12 12 21"></polyline><polyline points="8.5 15.5 12 12 15.5 15.5"></polyline></svg>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:15px;color:var(--color-text);">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</div>
+            <div style="font-size:12px;">รองรับไฟล์ชนิด .jpg, .png และ .pdf เท่านั้น</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;margin-top:18.4px;">
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:14px;color:var(--color-accent);background:transparent;border:1px solid var(--color-accent);padding:9.2px 16.5px;border-radius:4px;" style-hover="background:color-mix(in srgb, var(--color-accent) 12%, transparent)">อัปโหลดและอ่านข้อมูลด้วย AI</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="width:420px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);">
+      <div style="padding:24px 28px 28px;">
+        <div style="display:flex;align-items:flex-start;margin-bottom:27.6px;">
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">&#10003;</div>
+            <div style="font-size:11px;margin-top:6px;">อัปโหลดใบเสร็จ</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;border:2px solid var(--color-accent);color:var(--color-accent);background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">2</div>
+            <div style="font-size:11px;margin-top:6px;">ตรวจสอบข้อมูล</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--color-divider);color:var(--color-neutral-600);display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">3</div>
+            <div style="font-size:11px;margin-top:6px;color:var(--color-neutral-600);">ผลตรวจ</div>
+          </div>
+        </div>
+        <h1 style="font-size:24px;margin-bottom:9.2px;">ตรวจสอบและแก้ไขข้อมูล</h1>
+        <p style="font-size:13px;line-height:1.6;opacity:0.8;margin-bottom:18.4px;">ระบบจำลองผลการอ่านข้อมูลด้วย AI (mock OCR) ให้แล้ว — กรุณาตรวจสอบความถูกต้องก่อนส่งเข้าตรวจ</p>
+        <div style="display:flex;gap:13.8px;align-items:flex-start;margin-bottom:18.4px;">
+          <div style="width:88px;height:88px;flex:none;border-radius:4px;border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-600);"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8.5" y1="13" x2="15.5" y2="13"></line><line x1="8.5" y1="17" x2="13" y2="17"></line></svg></div>
+          <div>
+            <div style="font-size:12px;opacity:0.7;margin-bottom:6px;">receipt_material_01.pdf</div>
+            <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-pending-bg);color:var(--color-pending-text);">รอตรวจสอบ</span>
+          </div>
+        </div>
+        <div style="margin-bottom:13.8px;">
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">ยอดเงิน (บาท)</label>
+          <input value="1,800.00" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:15px;font-variant-numeric:tabular-nums;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;" style-focus="border-color:var(--color-accent)">
+        </div>
+        <div style="margin-bottom:13.8px;">
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">วันที่บนใบเสร็จ</label>
+          <input value="21/08/2026" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;">
+        </div>
+        <div style="margin-bottom:13.8px;">
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">หมวดค่าใช้จ่าย</label>
+          <select style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;"><option>ค่าวัสดุ</option></select>
+        </div>
+        <div>
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">ชื่อร้าน/ผู้ขาย</label>
+          <input value="ร้านเครื่องเขียนสยาม" style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;">
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:9.2px;margin-top:18.4px;">
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:13px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);padding:8px 14px;border-radius:4px;">ย้อนกลับ</button>
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:13px;color:var(--color-accent);background:transparent;border:1px solid var(--color-accent);padding:8px 14px;border-radius:4px;">ส่งเข้าตรวจกับ Rule Engine</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="width:420px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);">
+      <div style="padding:24px 28px 28px;">
+        <div style="display:flex;align-items:flex-start;margin-bottom:27.6px;">
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">&#10003;</div>
+            <div style="font-size:11px;margin-top:6px;">อัปโหลดใบเสร็จ</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;background:var(--color-accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">&#10003;</div>
+            <div style="font-size:11px;margin-top:6px;">ตรวจสอบข้อมูล</div>
+          </div>
+          <div style="flex:1;text-align:center;">
+            <div style="width:26px;height:26px;border-radius:50%;border:2px solid var(--color-accent);color:var(--color-accent);background:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-family:var(--font-heading);font-weight:600;margin:0 auto;">3</div>
+            <div style="font-size:11px;margin-top:6px;">ผลตรวจ</div>
+          </div>
+        </div>
+        <h1 style="font-size:24px;margin-bottom:9.2px;">ผลตรวจใบเสร็จ</h1>
+        <p style="font-size:13px;line-height:1.6;opacity:0.8;margin-bottom:18.4px;">Rule Engine เป็นผู้ตัดสินผล คำอธิบายด้านล่างเป็นภาษาที่เข้าใจง่าย</p>
+
+        <div style="display:flex;align-items:center;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;margin-bottom:13.8px;">
+          <div style="width:44px;height:44px;flex:none;border-radius:3px;border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-600);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></div>
+          <div style="flex:1;">
+            <div style="font-size:18px;font-variant-numeric:tabular-nums;">&#3647;1,800.00</div>
+            <div style="font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);">พัฒนาโมเดล AI เพื่อการเกษตร &middot; 2026-08-21 &middot; ค่าวัสดุ</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-accent-100);color:var(--color-accent-800);">ต้องแก้ไข</span>
+        </div>
+        <div style="border:1px solid var(--color-divider);border-left:4px solid var(--color-accent);border-radius:4px;padding:16px;background:var(--color-neutral-100);box-shadow:var(--shadow-sm);">
+          <p style="font-size:14px;line-height:1.65;margin:0 0 10px;">ยอดเงินที่ระบุ (&#3647;1,800.00) เกินเพดานของหมวด &ldquo;ค่าวัสดุ&rdquo; ซึ่งกำหนดไว้ไม่เกิน &#3647;1,500.00 กรุณาตรวจสอบว่ามีเอกสารประกอบครบตามระเบียบของแหล่งทุนหรือไม่</p>
+          <div style="display:flex;gap:6px;align-items:flex-start;font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);padding-top:10px;border-top:1px solid var(--color-divider);">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="margin-top:2px;flex:none;"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path></svg>
+            <span>อ้างอิง: ระเบียบทุนภายในมหาวิทยาลัย ปี 2569 &middot; หมวดค่าวัสดุ &middot; เพดานตามจริงไม่เกิน &#3647;1,500.00 ต่อรายการ</span>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:9.2px;margin-top:18.4px;">
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:13px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);padding:8px 14px;border-radius:4px;">อัปโหลดใบเสร็จใหม่</button>
+          <a href="#s-receipts" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;text-decoration:none;font-family:var(--font-heading);font-weight:600;font-size:13px;color:var(--color-accent);background:transparent;border:1px solid var(--color-accent);padding:8px 14px;border-radius:4px;">ไปที่ใบเสร็จของฉัน</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MY RECEIPTS ============ -->
+  <div id="s-receipts" data-screen-label="ใบเสร็จของฉัน" style="max-width:900px;margin:0 auto 12px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent);">Screen &middot; ใบเสร็จของฉัน</div>
+  <div style="max-width:900px;margin:0 auto 64px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);">
+    <div style="display:flex;align-items:center;gap:18.4px;padding:13.8px 18.4px;border-bottom:1px solid var(--color-divider);">
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:18px;margin-right:auto;">Grant Receipt Assistant</span>
+      <a href="#" style="color:var(--color-text);text-decoration:none;font-size:14px;">หน้าแรก</a>
+      <a href="#" style="color:var(--color-text);text-decoration:none;font-size:14px;">อัปโหลดใบเสร็จ</a>
+      <a href="#" style="color:var(--color-accent);text-decoration:none;font-size:14px;">ใบเสร็จของฉัน</a>
+      <a href="#" style="color:var(--color-text);text-decoration:none;font-size:14px;">โครงการ</a>
+    </div>
+    <div style="padding:36.8px 44px 44px;">
+      <h1 style="font-size:28px;margin-bottom:9.2px;">ใบเสร็จของฉัน</h1>
+      <p style="font-size:14px;opacity:0.75;margin-bottom:27.6px;max-width:60ch;">รายการใบเสร็จทั้งหมดที่คุณอัปโหลด พร้อมสถานะและคำอธิบายผลตรวจ</p>
+      <div style="display:flex;flex-direction:column;gap:9.2px;">
+
+        <div style="display:flex;align-items:center;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="width:48px;height:48px;flex:none;border-radius:3px;border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-600);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></div>
+          <div style="flex:1;">
+            <div style="font-size:18px;font-variant-numeric:tabular-nums;">&#3647;350.00</div>
+            <div style="font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);">พัฒนาโมเดล AI เพื่อการเกษตร &middot; 2026-08-20 &middot; ค่าเดินทาง</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-success-bg);color:var(--color-success-text);">ผ่าน</span>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="width:48px;height:48px;flex:none;border-radius:3px;border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-600);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></div>
+          <div style="flex:1;">
+            <div style="font-size:18px;font-variant-numeric:tabular-nums;">&#3647;1,800.00</div>
+            <div style="font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);">พัฒนาโมเดล AI เพื่อการเกษตร &middot; 2026-08-21 &middot; ค่าวัสดุ</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-accent-100);color:var(--color-accent-800);">ต้องแก้ไข</span>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="width:48px;height:48px;flex:none;border-radius:3px;border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-600);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></div>
+          <div style="flex:1;">
+            <div style="font-size:18px;font-variant-numeric:tabular-nums;">&#3647;500.00</div>
+            <div style="font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);">พัฒนาโมเดล AI เพื่อการเกษตร &middot; 2026-08-22 &middot; ค่าอาหาร</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-error-bg);color:var(--color-error-text);">ไม่เข้าเงื่อนไข</span>
+        </div>
+
+        <div style="display:flex;align-items:center;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="width:48px;height:48px;flex:none;border-radius:3px;border:1px solid var(--color-divider);display:flex;align-items:center;justify-content:center;color:var(--color-neutral-600);"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline></svg></div>
+          <div style="flex:1;">
+            <div style="font-size:18px;font-variant-numeric:tabular-nums;">&#3647;2,500.00</div>
+            <div style="font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);">ศึกษาพฤติกรรมผู้บริโภคยุคดิจิทัล &middot; 2026-08-23 &middot; ค่าเดินทาง</div>
+          </div>
+          <span style="display:inline-flex;align-items:center;font-size:11px;letter-spacing:0.02em;padding:3px 10px;border-radius:3px;background:var(--color-pending-bg);color:var(--color-pending-text);">รอตรวจสอบ</span>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ ADMIN DASHBOARD ============ -->
+  <div id="s-admin" data-screen-label="Admin Dashboard" style="max-width:900px;margin:0 auto 12px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent);">Screen &middot; Admin Dashboard</div>
+  <div style="max-width:900px;margin:0 auto 64px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);">
+    <div style="display:flex;align-items:center;gap:18.4px;padding:13.8px 18.4px;border-bottom:1px solid var(--color-divider);">
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:18px;margin-right:auto;">Grant Receipt Assistant</span>
+      <a href="#" style="color:var(--color-accent);text-decoration:none;font-size:14px;">Admin Dashboard</a>
+      <a href="#s-fund" style="color:var(--color-text);text-decoration:none;font-size:14px;">จัดการแหล่งทุน</a>
+      <span style="font-size:11px;padding:3px 10px;border-radius:2px;border:1px solid var(--color-divider);color:color-mix(in srgb, var(--color-text) 65%, transparent);">admin</span>
+    </div>
+    <div style="padding:36.8px 44px 44px;">
+      <h1 style="font-size:28px;margin-bottom:9.2px;">Admin Dashboard</h1>
+      <p style="font-size:14px;opacity:0.75;margin-bottom:27.6px;max-width:64ch;">แสดงใบเสร็จของนักวิจัยทุกคนในระบบ สำหรับใช้เป็นข้อมูลรายงานผู้บริหารและแนวทางปรับปรุงระบบ</p>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13.8px;margin-bottom:13.8px;">
+        <div style="padding:18.4px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="font-size:30px;font-variant-numeric:tabular-nums;font-family:var(--font-body);font-weight:600;">18</div>
+          <div style="font-size:13px;opacity:0.7;margin-top:4px;">ใบเสร็จทั้งหมด</div>
+        </div>
+        <div style="padding:18.4px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="font-size:30px;font-variant-numeric:tabular-nums;font-family:var(--font-body);font-weight:600;">&#3647;38,240</div>
+          <div style="font-size:13px;opacity:0.7;margin-top:4px;">ยอดเงินรวม (บาท)</div>
+        </div>
+        <div style="padding:18.4px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="font-size:30px;font-variant-numeric:tabular-nums;font-family:var(--font-body);font-weight:600;">7</div>
+          <div style="font-size:13px;opacity:0.7;margin-top:4px;">นักวิจัย / โครงการที่มีใบเสร็จ</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:13.8px;margin-bottom:27.6px;">
+        <div style="padding:18.4px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="font-size:30px;font-variant-numeric:tabular-nums;font-family:var(--font-body);font-weight:600;color:var(--color-success-text);">11</div>
+          <div style="font-size:13px;opacity:0.7;margin-top:4px;">ผ่าน</div>
+        </div>
+        <div style="padding:18.4px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="font-size:30px;font-variant-numeric:tabular-nums;font-family:var(--font-body);font-weight:600;color:var(--color-accent-700);">4</div>
+          <div style="font-size:13px;opacity:0.7;margin-top:4px;">ต้องแก้ไข</div>
+        </div>
+        <div style="padding:18.4px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div style="font-size:30px;font-variant-numeric:tabular-nums;font-family:var(--font-body);font-weight:600;color:var(--color-error-text);">3</div>
+          <div style="font-size:13px;opacity:0.7;margin-top:4px;">ไม่เข้าเงื่อนไข</div>
+        </div>
+      </div>
+
+      <h3 style="font-size:18px;margin-bottom:13.8px;">แยกตามสถานะ</h3>
+      <div style="border:1px solid var(--color-divider);border-radius:4px;padding:16px;margin-bottom:27.6px;">
+        <div style="display:flex;align-items:center;gap:9.2px;margin-bottom:9.2px;">
+          <div style="flex:0 0 130px;font-size:13px;opacity:0.75;">ผ่าน</div>
+          <div style="flex:1;background:var(--color-neutral-200);border-radius:2px;height:20px;overflow:hidden;"><div style="height:100%;width:61%;background:var(--color-success);"></div></div>
+          <div style="flex:0 0 30px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;">11</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:9.2px;margin-bottom:9.2px;">
+          <div style="flex:0 0 130px;font-size:13px;opacity:0.75;">ต้องแก้ไข</div>
+          <div style="flex:1;background:var(--color-neutral-200);border-radius:2px;height:20px;overflow:hidden;"><div style="height:100%;width:22%;background:var(--color-accent);"></div></div>
+          <div style="flex:0 0 30px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;">4</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:9.2px;">
+          <div style="flex:0 0 130px;font-size:13px;opacity:0.75;">ไม่เข้าเงื่อนไข</div>
+          <div style="flex:1;background:var(--color-neutral-200);border-radius:2px;height:20px;overflow:hidden;"><div style="height:100%;width:17%;background:var(--color-error);"></div></div>
+          <div style="flex:0 0 30px;text-align:right;font-size:13px;font-variant-numeric:tabular-nums;">3</div>
+        </div>
+      </div>
+
+      <h3 style="font-size:18px;margin-bottom:13.8px;">รายละเอียดใบเสร็จทั้งหมด</h3>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead><tr>
+            <th style="text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 60%, transparent);padding:9.2px;border-bottom:1px solid var(--color-divider);">วันที่</th>
+            <th style="text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 60%, transparent);padding:9.2px;border-bottom:1px solid var(--color-divider);">นักวิจัย</th>
+            <th style="text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 60%, transparent);padding:9.2px;border-bottom:1px solid var(--color-divider);">โครงการ</th>
+            <th style="text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 60%, transparent);padding:9.2px;border-bottom:1px solid var(--color-divider);">หมวด</th>
+            <th style="text-align:right;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 60%, transparent);padding:9.2px;border-bottom:1px solid var(--color-divider);">ยอดเงิน</th>
+            <th style="text-align:left;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 60%, transparent);padding:9.2px;border-bottom:1px solid var(--color-divider);">สถานะ</th>
+          </tr></thead>
+          <tbody>
+            <tr><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">2026-08-24</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">สมหญิง วิจัยดี</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">ศึกษาพฤติกรรมผู้บริโภคฯ</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">ค่าวัสดุ</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);text-align:right;font-variant-numeric:tabular-nums;">&#3647;120.00</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);"><span style="display:inline-flex;align-items:center;font-size:11px;padding:3px 10px;border-radius:3px;background:var(--color-success-bg);color:var(--color-success-text);">ผ่าน</span></td></tr>
+            <tr><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">2026-08-23</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">สมหญิง วิจัยดี</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">ศึกษาพฤติกรรมผู้บริโภคฯ</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">ค่าเดินทาง</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);text-align:right;font-variant-numeric:tabular-nums;">&#3647;2,500.00</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);"><span style="display:inline-flex;align-items:center;font-size:11px;padding:3px 10px;border-radius:3px;background:var(--color-pending-bg);color:var(--color-pending-text);">รอตรวจสอบ</span></td></tr>
+            <tr><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">2026-08-22</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">สมหญิง วิจัยดี</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">พัฒนาโมเดล AI เพื่อการเกษตร</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);">ค่าอาหาร</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);text-align:right;font-variant-numeric:tabular-nums;">&#3647;500.00</td><td style="padding:9.2px;border-bottom:1px solid var(--color-divider);"><span style="display:inline-flex;align-items:center;font-size:11px;padding:3px 10px;border-radius:3px;background:var(--color-error-bg);color:var(--color-error-text);">ไม่เข้าเงื่อนไข</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ FUND SOURCES ============ -->
+  <div id="s-fund" data-screen-label="จัดการแหล่งทุน" style="max-width:900px;margin:0 auto 12px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent);">Screen &middot; จัดการแหล่งทุน (Admin)</div>
+  <div style="max-width:900px;margin:0 auto 64px;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);">
+    <div style="display:flex;align-items:center;gap:18.4px;padding:13.8px 18.4px;border-bottom:1px solid var(--color-divider);">
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:18px;margin-right:auto;">Grant Receipt Assistant</span>
+      <a href="#s-admin" style="color:var(--color-text);text-decoration:none;font-size:14px;">Admin Dashboard</a>
+      <a href="#" style="color:var(--color-accent);text-decoration:none;font-size:14px;">จัดการแหล่งทุน</a>
+      <span style="font-size:11px;padding:3px 10px;border-radius:2px;border:1px solid var(--color-divider);color:color-mix(in srgb, var(--color-text) 65%, transparent);">admin</span>
+    </div>
+    <div style="padding:36.8px 44px 44px;max-width:640px;">
+      <h1 style="font-size:28px;margin-bottom:9.2px;">จัดการแหล่งทุน</h1>
+      <p style="font-size:14px;opacity:0.75;margin-bottom:27.6px;">แหล่งทุนที่เพิ่มที่นี่จะไปปรากฏเป็นตัวเลือกตอนนักวิจัยสร้างโครงการที่หน้าโครงการของฉัน</p>
+
+      <div style="border:1px solid var(--color-divider);border-radius:4px;padding:18.4px;margin-bottom:27.6px;">
+        <h3 style="font-size:17px;margin-bottom:13.8px;">เพิ่มแหล่งทุนใหม่</h3>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:13.8px;margin-bottom:13.8px;">
+          <div>
+            <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">ชื่อแหล่งทุน</label>
+            <input style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;">
+          </div>
+          <div>
+            <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">รหัสแหล่งทุน</label>
+            <input style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;font-variant-numeric:tabular-nums;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:13px;color:var(--color-accent);background:transparent;border:1px solid var(--color-accent);padding:8px 14px;border-radius:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>เพิ่มแหล่งทุน</button>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:9.2px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:16px;">สกว. (สำนักงานกองทุนสนับสนุนการวิจัย)</div>
+            <div style="font-size:12px;font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin-top:2px;">TRF</div>
+          </div>
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--color-accent);background:transparent;border:none;padding:4.6px;">แก้ไขระเบียบ</button>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:16px;">ทุนภายในมหาวิทยาลัย ปี 2569</div>
+            <div style="font-size:12px;font-variant-numeric:tabular-nums;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin-top:2px;">MFU-2569</div>
+          </div>
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;color:var(--color-accent);background:transparent;border:none;padding:4.6px;">แก้ไขระเบียบ</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PROJECTS ============ -->
+  <div id="s-projects" data-screen-label="โครงการของฉัน" style="max-width:900px;margin:0 auto 12px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:color-mix(in srgb, var(--color-text) 55%, transparent);">Screen &middot; โครงการของฉัน</div>
+  <div style="max-width:900px;margin:0 auto;background:var(--color-bg);border:1px solid var(--color-divider);border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-md);">
+    <div style="display:flex;align-items:center;gap:18.4px;padding:13.8px 18.4px;border-bottom:1px solid var(--color-divider);">
+      <span style="font-family:var(--font-heading);font-weight:600;font-size:18px;margin-right:auto;">Grant Receipt Assistant</span>
+      <a href="#" style="color:var(--color-text);text-decoration:none;font-size:14px;">หน้าแรก</a>
+      <a href="#" style="color:var(--color-text);text-decoration:none;font-size:14px;">ใบเสร็จของฉัน</a>
+      <a href="#" style="color:var(--color-accent);text-decoration:none;font-size:14px;">โครงการ</a>
+    </div>
+    <div style="padding:36.8px 44px 44px;max-width:640px;">
+      <h1 style="font-size:28px;margin-bottom:9.2px;">โครงการของฉัน</h1>
+      <p style="font-size:14px;opacity:0.75;margin-bottom:27.6px;">สร้างโครงการวิจัยของตัวเองไว้ผูกกับแหล่งทุน แล้วเลือกใช้ตอนอัปโหลดใบเสร็จ</p>
+
+      <div style="border:1px solid var(--color-divider);border-radius:4px;padding:18.4px;margin-bottom:27.6px;">
+        <h3 style="font-size:17px;margin-bottom:13.8px;">เพิ่มโครงการใหม่</h3>
+        <div style="margin-bottom:13.8px;">
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">ชื่อโครงการวิจัย</label>
+          <input style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;">
+        </div>
+        <div style="margin-bottom:13.8px;">
+          <label style="display:block;font-size:12px;margin-bottom:5px;color:color-mix(in srgb, var(--color-text) 70%, transparent);">แหล่งทุน</label>
+          <select style="width:100%;min-height:36px;padding:6px 10px;font-family:var(--font-body);font-size:14px;color:var(--color-text);background:transparent;border:1px solid var(--color-divider);border-radius:4px;"><option>สกว. (สำนักงานกองทุนสนับสนุนการวิจัย)</option></select>
+        </div>
+        <div style="display:flex;justify-content:flex-end;">
+          <button type="button" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font-heading);font-weight:600;font-size:13px;color:var(--color-accent);background:transparent;border:1px solid var(--color-accent);padding:8px 14px;border-radius:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>เพิ่มโครงการ</button>
+        </div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:9.2px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:16px;">พัฒนาโมเดล AI เพื่อการเกษตร</div>
+            <div style="font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin-top:2px;">สกว. (สำนักงานกองทุนสนับสนุนการวิจัย) &middot; TRF</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-neutral-500);"><path d="M9 18l6-6-6-6"></path></svg>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:13.8px;padding:13.8px;border:1px solid var(--color-divider);border-radius:4px;">
+          <div>
+            <div style="font-family:var(--font-heading);font-weight:600;font-size:16px;">ศึกษาพฤติกรรมผู้บริโภคยุคดิจิทัล</div>
+            <div style="font-size:12px;color:color-mix(in srgb, var(--color-text) 55%, transparent);margin-top:2px;">ทุนภายในมหาวิทยาลัย ปี 2569 &middot; MFU-2569</div>
+          </div>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-neutral-500);"><path d="M9 18l6-6-6-6"></path></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</x-dc>
+</body>
+</html>

@@ -12,6 +12,13 @@
 // เฉพาะใบเสร็จของโครงการนั้นฝั่ง client (ยังคง fetch ทุกใบของผู้ใช้เหมือนเดิม แค่กรองผลลัพธ์ก่อนแสดง
 // ไม่ต้อง query ใหม่/ไม่ต้องมี index เพิ่ม) พร้อมเปลี่ยนหัวข้อหน้าให้ระบุชื่อโครงการและมีปุ่ม
 // "อัปโหลดใบเสร็จในโครงการนี้" ต่อไปยัง new-receipt.html?projectId=xxx
+//
+// ปุ่ม "ลบ" ต่อใบเสร็จ — ลบได้เฉพาะใบเสร็จของตัวเอง อาศัย firestore.rules เดิมที่อนุญาตให้เจ้าของ
+// (request.auth.uid == userId ใน path users/{userId}/...) write (ซึ่งครอบคลุม delete ด้วย) เอกสาร
+// receipt ของตัวเองอยู่แล้ว — ไม่ต้องแก้ rules เพิ่ม ลบผ่าน doc.ref ตรงๆ (path มี uid ของเจ้าของ
+// อยู่แล้ว คนอื่นเดา path มาลบใบเสร็จของเราไม่ได้อยู่ดีเพราะ rules เช็คจาก path จริง ไม่ใช่แค่ซ่อนปุ่ม)
+// cascade ลบ subcollection "files" (เอกสารอ้างอิงไฟล์แนบใน Firestore) ไปด้วย — ไม่ลบไฟล์จริงใน
+// Storage เพราะ Storage ยังไม่ได้ provision ในโปรเจกต์นี้ (ดู CLAUDE.md หัวข้อ Deploying rules)
 // ─────────────────────────────────────────────────────────────
 
 var STATUS_CHIP_CLASS = {
@@ -49,12 +56,12 @@ function filesHtml(files) {
 
 // การ์ดใบเสร็จ + ไฟล์แนบ + คำอธิบายผลตรวจของใบเสร็จ 1 รายการ ถูกห่อไว้ใน .receipt-entry
 // เดียวกันเสมอ (เส้นขอบล้อมรอบทั้งกลุ่ม) เพื่อไม่ให้สับสนว่าคำอธิบายไหนเป็นของใบเสร็จรายการใด
-// เวลามีหลายรายการเรียงต่อกัน
-function receiptCardHtml(receipt, files, projectName) {
+// เวลามีหลายรายการเรียงต่อกัน — data-receipt-path ใช้ระบุตัวใบเสร็จให้ปุ่มลบ (event delegation)
+function receiptCardHtml(receiptPath, receipt, files, projectName) {
   var chipClass = STATUS_CHIP_CLASS[receipt.status] || "chip-status--pending";
   var calloutKind = chipClass.indexOf("pass") > -1 ? "pass" : chipClass.indexOf("fix") > -1 ? "fix" : "reject";
 
-  var html = '<div class="receipt-entry">';
+  var html = '<div class="receipt-entry" data-receipt-path="' + esc(receiptPath) + '">';
   html +=
     '<div class="receipt-card">' +
       '<div class="receipt-card__thumb">🧾</div>' +
@@ -65,6 +72,7 @@ function receiptCardHtml(receipt, files, projectName) {
       '<div class="receipt-card__status">' +
         '<span class="chip-status ' + chipClass + '">' + esc(receipt.status || "ไม่ทราบสถานะ") + '</span>' +
       '</div>' +
+      '<button type="button" class="btn btn-ghost btn-sm" data-action="delete-receipt">ลบ</button>' +
     '</div>';
 
   html += filesHtml(files);
@@ -79,97 +87,136 @@ function receiptCardHtml(receipt, files, projectName) {
   return html;
 }
 
-(async function loadReceipts() {
+(function () {
   var loadState = document.getElementById("load-state");
   var list = document.getElementById("receipt-list");
   var pageIntro = document.getElementById("pageIntro");
 
   var filterProjectId = new URLSearchParams(location.search).get("projectId");
 
-  try {
-    var user = await window.AUTH_READY;
+  function showEmptyState() {
+    loadState.innerHTML = filterProjectId
+      ? '<div class="banner banner--info"><p class="text-body">โครงการนี้ยังไม่มีใบเสร็จ — ' +
+        '<a href="new-receipt.html?projectId=' + esc(filterProjectId) + '">อัปโหลดใบเสร็จแรก</a></p></div>'
+      : '<div class="banner banner--warning">' +
+        '<p class="text-body">ยังไม่มีข้อมูลใน collection <code>receipts</code> — ไปที่หน้า ' +
+        '<a href="projects.html">โครงการของฉัน</a> เพื่อสร้างโครงการแล้วอัปโหลดใบเสร็จก่อน</p>' +
+        '</div>';
+    loadState.style.display = "block";
+    list.style.display = "none";
+  }
 
-    if (filterProjectId) {
-      var projectDoc = await db.collection("users").doc(user.uid).collection("projects").doc(filterProjectId).get();
-      var filterProjectName = projectDoc.exists ? projectDoc.data().projectName : "(ไม่พบโครงการ)";
-      pageIntro.innerHTML =
-        '<h1>ใบเสร็จของโครงการ: ' + esc(filterProjectName) + '</h1>' +
-        '<p class="text-body">' +
-          '<a href="projects.html">← กลับไปโครงการของฉัน</a> · ' +
-          '<a href="new-receipt.html?projectId=' + esc(filterProjectId) + '" class="btn btn-primary btn-sm">อัปโหลดใบเสร็จในโครงการนี้</a>' +
-        '</p>';
-    }
+  async function loadReceipts() {
+    try {
+      var user = await window.AUTH_READY;
 
-    var snapshot = await db.collectionGroup("receipts")
-      .where("ownerUserId", "==", user.uid)
-      .orderBy("uploadedAt", "desc")
-      .get();
-
-    var docs = snapshot.docs;
-    if (filterProjectId) {
-      docs = docs.filter(function (doc) {
-        var projectRef = doc.ref.parent.parent;
-        return projectRef && projectRef.id === filterProjectId;
-      });
-    }
-
-    if (docs.length === 0) {
-      loadState.innerHTML = filterProjectId
-        ? '<div class="banner banner--info"><p class="text-body">โครงการนี้ยังไม่มีใบเสร็จ — ' +
-          '<a href="new-receipt.html?projectId=' + esc(filterProjectId) + '">อัปโหลดใบเสร็จแรก</a></p></div>'
-        : '<div class="banner banner--warning">' +
-          '<p class="text-body">ยังไม่มีข้อมูลใน collection <code>receipts</code> — ไปที่หน้า ' +
-          '<a href="projects.html">โครงการของฉัน</a> เพื่อสร้างโครงการแล้วอัปโหลดใบเสร็จก่อน</p>' +
-          '</div>';
-      return;
-    }
-
-    var htmlParts = await Promise.all(docs.map(async function (doc) {
-      var filesSnapshot = await doc.ref.collection("files").get();
-      var files = filesSnapshot.docs.map(function (f) { return f.data(); });
-      var receipt = doc.data();
-
-      // parent ของ collection "receipts" คือเอกสารโครงการ (users/{u}/projects/{p}) เสมอ
-      // ยกเว้นใบเสร็จเก่าจากโครงสร้าง flat (ก่อน 2026-09-05) ที่ไม่มี parent — เผื่อไว้กันพัง
-      var projectRef = doc.ref.parent.parent;
-      var projectName = "(ข้อมูลจากโครงสร้างเก่า — ไม่มีโครงการอ้างอิง)";
-      if (projectRef) {
-        var projectSnap = await projectRef.get();
-        projectName = projectSnap.exists ? projectSnap.data().projectName : "(ไม่พบโครงการ)";
+      if (filterProjectId) {
+        var projectDoc = await db.collection("users").doc(user.uid).collection("projects").doc(filterProjectId).get();
+        var filterProjectName = projectDoc.exists ? projectDoc.data().projectName : "(ไม่พบโครงการ)";
+        pageIntro.innerHTML =
+          '<h1>ใบเสร็จของโครงการ: ' + esc(filterProjectName) + '</h1>' +
+          '<p class="text-body">' +
+            '<a href="projects.html">← กลับไปโครงการของฉัน</a> · ' +
+            '<a href="new-receipt.html?projectId=' + esc(filterProjectId) + '" class="btn btn-primary btn-sm">อัปโหลดใบเสร็จในโครงการนี้</a>' +
+          '</p>';
       }
 
-      return receiptCardHtml(receipt, files, projectName);
-    }));
+      var snapshot = await db.collectionGroup("receipts")
+        .where("ownerUserId", "==", user.uid)
+        .orderBy("uploadedAt", "desc")
+        .get();
 
-    list.innerHTML = htmlParts.join("");
-    list.style.display = "block";
-    loadState.style.display = "none";
-  } catch (err) {
-    // Firestore query แบบ collectionGroup + orderBy ต้องมี index รองรับ — ครั้งแรกที่ query แบบ
-    // นี้มักจะยังไม่มี index จึงโยน error พร้อมลิงก์สร้าง index มาด้วยเสมอ (แกะลิงก์ออกมาทำเป็น
-    // ปุ่มคลิกได้จริง แทนที่จะโยน error message ดิบๆ เป็น plain text ให้อ่านเอง)
-    var createIndexLink = String(err.message || "").match(/https:\/\/console\.firebase\.google\.com\S*/);
+      var docs = snapshot.docs;
+      if (filterProjectId) {
+        docs = docs.filter(function (doc) {
+          var projectRef = doc.ref.parent.parent;
+          return projectRef && projectRef.id === filterProjectId;
+        });
+      }
 
-    if (createIndexLink) {
-      loadState.innerHTML =
-        '<div class="banner banner--warning">' +
-          '<p class="text-body"><strong>ยังไม่มี Firestore index สำหรับ query นี้</strong> — เกิดขึ้นเป็น ' +
-          'ปกติตอนใช้ collection group query ครั้งแรก (อ่านใบเสร็จรวมข้ามทุกโครงการ) ต้องสร้าง index ' +
-          '1 ครั้งใน Firebase Console ก่อน (ทำครั้งเดียว ไม่ต้องทำซ้ำอีก)</p>' +
-          '<p class="text-body"><a href="' + esc(createIndexLink[0]) + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">' +
-            'เปิด Firebase Console เพื่อสร้าง Index' +
-          '</a></p>' +
-          '<p class="text-small">ล็อกอินด้วยบัญชีที่มีสิทธิ์ในโปรเจกต์นี้ → กด "Create Index" → รอสถานะ ' +
-          'เปลี่ยนจาก "Building" เป็น "Enabled" (ประมาณ 1-2 นาที) → กลับมาโหลดหน้านี้ใหม่</p>' +
-        '</div>';
-    } else {
-      loadState.innerHTML =
-        '<div class="banner banner--error">' +
-          '<p class="text-body"><strong>โหลดข้อมูลไม่สำเร็จ:</strong> ' + esc(err.message) + '</p>' +
-          '<p class="text-small">ตรวจสอบว่า Firestore Rules อนุญาต read ด้วย (ดู firestore.rules ว่า deploy ' +
-          'ขึ้น Firebase Console แล้วหรือยัง)</p>' +
-        '</div>';
+      if (docs.length === 0) {
+        showEmptyState();
+        return;
+      }
+
+      var htmlParts = await Promise.all(docs.map(async function (doc) {
+        var filesSnapshot = await doc.ref.collection("files").get();
+        var files = filesSnapshot.docs.map(function (f) { return f.data(); });
+        var receipt = doc.data();
+
+        // parent ของ collection "receipts" คือเอกสารโครงการ (users/{u}/projects/{p}) เสมอ
+        // ยกเว้นใบเสร็จเก่าจากโครงสร้าง flat (ก่อน 2026-09-05) ที่ไม่มี parent — เผื่อไว้กันพัง
+        var projectRef = doc.ref.parent.parent;
+        var projectName = "(ข้อมูลจากโครงสร้างเก่า — ไม่มีโครงการอ้างอิง)";
+        if (projectRef) {
+          var projectSnap = await projectRef.get();
+          projectName = projectSnap.exists ? projectSnap.data().projectName : "(ไม่พบโครงการ)";
+        }
+
+        return receiptCardHtml(doc.ref.path, receipt, files, projectName);
+      }));
+
+      list.innerHTML = htmlParts.join("");
+      list.style.display = "block";
+      loadState.style.display = "none";
+    } catch (err) {
+      // Firestore query แบบ collectionGroup + orderBy ต้องมี index รองรับ — ครั้งแรกที่ query แบบ
+      // นี้มักจะยังไม่มี index จึงโยน error พร้อมลิงก์สร้าง index มาด้วยเสมอ (แกะลิงก์ออกมาทำเป็น
+      // ปุ่มคลิกได้จริง แทนที่จะโยน error message ดิบๆ เป็น plain text ให้อ่านเอง)
+      var createIndexLink = String(err.message || "").match(/https:\/\/console\.firebase\.google\.com\S*/);
+
+      if (createIndexLink) {
+        loadState.innerHTML =
+          '<div class="banner banner--warning">' +
+            '<p class="text-body"><strong>ยังไม่มี Firestore index สำหรับ query นี้</strong> — เกิดขึ้นเป็น ' +
+            'ปกติตอนใช้ collection group query ครั้งแรก (อ่านใบเสร็จรวมข้ามทุกโครงการ) ต้องสร้าง index ' +
+            '1 ครั้งใน Firebase Console ก่อน (ทำครั้งเดียว ไม่ต้องทำซ้ำอีก)</p>' +
+            '<p class="text-body"><a href="' + esc(createIndexLink[0]) + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">' +
+              'เปิด Firebase Console เพื่อสร้าง Index' +
+            '</a></p>' +
+            '<p class="text-small">ล็อกอินด้วยบัญชีที่มีสิทธิ์ในโปรเจกต์นี้ → กด "Create Index" → รอสถานะ ' +
+            'เปลี่ยนจาก "Building" เป็น "Enabled" (ประมาณ 1-2 นาที) → กลับมาโหลดหน้านี้ใหม่</p>' +
+          '</div>';
+      } else {
+        loadState.innerHTML =
+          '<div class="banner banner--error">' +
+            '<p class="text-body"><strong>โหลดข้อมูลไม่สำเร็จ:</strong> ' + esc(err.message) + '</p>' +
+            '<p class="text-small">ตรวจสอบว่า Firestore Rules อนุญาต read ด้วย (ดู firestore.rules ว่า deploy ' +
+            'ขึ้น Firebase Console แล้วหรือยัง)</p>' +
+          '</div>';
+      }
+      console.error(err);
     }
-    console.error(err);
   }
+
+  // เดลิเกตคลิกปุ่มลบทั้งหมดที่ #receipt-list เดียว (แต่ละใบเสร็จมีปุ่มซ้ำกัน ใช้ id ซ้ำไม่ได้)
+  list.addEventListener("click", async function (e) {
+    var button = e.target.closest('button[data-action="delete-receipt"]');
+    if (!button) return;
+
+    var entry = button.closest("[data-receipt-path]");
+    var receiptPath = entry.dataset.receiptPath;
+
+    if (!confirm("ลบใบเสร็จนี้? การลบนี้ย้อนกลับไม่ได้")) return;
+
+    button.disabled = true;
+    button.textContent = "กำลังลบ...";
+    try {
+      var receiptRef = db.doc(receiptPath);
+      var filesSnapshot = await receiptRef.collection("files").get();
+      for (var i = 0; i < filesSnapshot.docs.length; i++) {
+        await filesSnapshot.docs[i].ref.delete();
+      }
+      await receiptRef.delete();
+
+      entry.remove();
+      if (list.children.length === 0) showEmptyState();
+    } catch (err) {
+      alert("ลบใบเสร็จไม่สำเร็จ: " + err.message);
+      button.disabled = false;
+      button.textContent = "ลบ";
+    }
+  });
+
+  loadReceipts();
 })();
