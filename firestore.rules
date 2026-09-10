@@ -25,15 +25,27 @@ rules_version = '2';
 //      (ไม่ใช่แค่ rule filter ผลลัพธ์ทีหลัง — query ทั้งชุดจะถูกปฏิเสธถ้าไม่มี where กำกับ)
 //
 // fundSources/ruleVersions/ruleItems เป็นข้อมูลระดับองค์กร ไม่มีเจ้าของเป็นนักวิจัยคนใดคนหนึ่ง
-// (ตาม docs/02-design/02-technical/detailed-design/access-control.md กฎข้อ 3) จึงอนุญาตผู้ใช้ที่
-// ล็อกอินแล้วทุกคนอ่าน/เขียนได้ — ยังไม่มี role Admin แยกต่างหากในแอปนี้
+// (ตาม docs/02-design/02-technical/detailed-design/access-control.md กฎข้อ 3) — อ่านได้ทุกบัญชีที่
+// ล็อกอินแล้ว (นักวิจัยต้องเห็นรายชื่อแหล่งทุนตอนสร้างโครงการที่ app/projects.html) แต่เขียนได้
+// เฉพาะบัญชีที่มี field isAdmin == true บนเอกสาร users/{uid} ของตัวเองเท่านั้น (เพิ่มเมื่อ
+// app/fund-sources.html ถูกสร้างขึ้นให้ admin เพิ่มแหล่งทุนเอง — ไม่มี UI ตั้ง admin คนแรก ต้องตั้ง
+// isAdmin: true ผ่าน Firebase Console ด้วยมือ ดู CLAUDE.md หัวข้อ Auth)
 // ============================================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+
+      // create/update แยกจาก read/delete เพราะต้องกันไม่ให้เจ้าของบัญชีตั้ง isAdmin ให้ตัวเองผ่าน
+      // client SDK ได้ (เจอจริงระหว่างตั้งบัญชี admin คนแรก — ถ้าใช้ allow write เฉยๆ เหมือนเดิม
+      // ผู้ใช้ทุกคนเขียน isAdmin: true ให้ตัวเองได้เลย ทำให้กฎ admin-only ของ fundSources ไร้ความหมาย)
+      // isAdmin จึงตั้งได้เฉพาะผ่าน Firebase Console/Admin SDK เท่านั้น (ข้าม rules ได้โดยตรง)
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.get('isAdmin', false) == false;
+      allow update: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false);
 
       match /projects/{projectId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -66,16 +78,22 @@ service cloud.firestore {
     }
 
     // fundSources/ruleVersions/ruleItems เป็นข้อมูลอ้างอิงกลาง (ระเบียบแหล่งทุน) ไม่มีเจ้าของ
-    // เฉพาะราย — ทุกบัญชีที่ล็อกอินอยู่อ่าน/เขียนได้เหมือนกัน (ยังไม่มีบทบาท admin แยกต่างหาก
-    // ตอนนี้ — ดู BACKLOG.md ถ้าต้องจำกัดเฉพาะ admin ในอนาคต)
+    // เฉพาะราย — อ่านได้ทุกบัญชีที่ล็อกอินอยู่ แต่เขียนได้เฉพาะ admin (isAdmin == true) เท่านั้น
+    // (ดูหัวข้อ fundSources ด้านบนของไฟล์นี้)
     match /fundSources/{fundSourceId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
 
       match /ruleVersions/{ruleVersionId} {
-        allow read, write: if request.auth != null;
+        allow read: if request.auth != null;
+        allow write: if request.auth != null
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
 
         match /ruleItems/{ruleItemId} {
-          allow read, write: if request.auth != null;
+          allow read: if request.auth != null;
+          allow write: if request.auth != null
+            && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
         }
       }
     }

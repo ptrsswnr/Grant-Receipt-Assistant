@@ -27,9 +27,9 @@
       if (navUser) {
         navUser.innerHTML =
           esc(user.email) +
-          ' · <a href="#" id="ปุ่มออกจากระบบ">ออกจากระบบ</a>';
-        var ปุ่มออกจากระบบ = document.getElementById("ปุ่มออกจากระบบ");
-        ปุ่มออกจากระบบ.addEventListener("click", function (e) {
+          ' · <a href="#" id="logoutButton">ออกจากระบบ</a>';
+        var logoutButton = document.getElementById("logoutButton");
+        logoutButton.addEventListener("click", function (e) {
           e.preventDefault();
           firebase.auth().signOut().then(function () {
             location.href = "login.html";

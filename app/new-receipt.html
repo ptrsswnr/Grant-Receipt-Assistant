@@ -26,7 +26,7 @@
     <div class="stepper__step" id="stepDot3"><div class="stepper__dot">3</div><div class="stepper__label">ผลตรวจ</div></div>
   </div>
 
-  <div id="ข้อความเตือน" class="banner banner--error" style="display:none;"></div>
+  <div id="warningBox" class="banner banner--error" style="display:none;"></div>
 
   <!-- ขั้นตอนที่ 1: อัปโหลด -->
   <section id="step1">
@@ -56,11 +56,11 @@
           <h4 style="margin:0;">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</h4>
           <p class="text-body" style="margin:0;">รองรับไฟล์ชนิด .jpg, .png และ .pdf เท่านั้น</p>
         </label>
-        <div id="สถานะไฟล์" class="text-small" style="margin-top:8px;"></div>
+        <div id="fileStatus" class="text-small" style="margin-top:8px;"></div>
       </div>
 
       <div class="row" style="justify-content:flex-end;">
-        <button type="button" class="btn btn-primary btn-md" id="ปุ่มขั้นที่1">อัปโหลดและอ่านข้อมูลด้วย AI</button>
+        <button type="button" class="btn btn-primary btn-md" id="step1Button">อัปโหลดและอ่านข้อมูลด้วย AI</button>
       </div>
     </div>
   </section>
@@ -75,16 +75,16 @@
       </p>
     </div>
 
-    <div id="กำลังประมวลผลAI" class="section">
+    <div id="aiProcessing" class="section">
       <div class="card">
         <p class="text-body">🤖 กำลังจำลองการอ่านข้อมูลด้วย AI...</p>
       </div>
     </div>
 
-    <div id="แบบฟอร์มตรวจสอบ" class="row" style="align-items:flex-start;" hidden>
+    <div id="reviewForm" class="row" style="align-items:flex-start;" hidden>
       <div class="card" style="flex:0 0 220px;">
         <div class="dropzone__icon" style="width:100%; height:160px; font-size:40px; border-radius:var(--radius-sm);">🧾</div>
-        <p class="text-small" id="ชื่อไฟล์แสดงผล" style="margin-top:12px;"></p>
+        <p class="text-small" id="fileNameDisplay" style="margin-top:12px;"></p>
         <span class="chip-status chip-status--pending">รอตรวจสอบ</span>
       </div>
 
@@ -109,8 +109,8 @@
         </div>
 
         <div class="row" style="justify-content:flex-end; margin-top:8px;">
-          <button type="button" class="btn btn-secondary btn-md" id="ปุ่มย้อนกลับขั้นที่1">ย้อนกลับไปอัปโหลดใหม่</button>
-          <button type="button" class="btn btn-primary btn-md" id="ปุ่มขั้นที่2">ส่งเข้าตรวจกับ Rule Engine</button>
+          <button type="button" class="btn btn-secondary btn-md" id="backToStep1Button">ย้อนกลับไปอัปโหลดใหม่</button>
+          <button type="button" class="btn btn-primary btn-md" id="step2Button">ส่งเข้าตรวจกับ Rule Engine</button>
         </div>
       </div>
     </div>
@@ -123,10 +123,10 @@
       <p class="text-body">Rule Engine เป็นผู้ตัดสินผล คำอธิบายด้านล่างเป็นภาษาที่เข้าใจง่าย ไม่ใช่ศัพท์บัญชี</p>
     </div>
 
-    <div id="ผลตรวจ" class="section"></div>
+    <div id="checkResult" class="section"></div>
 
     <div class="row" style="justify-content:flex-end;">
-      <button type="button" class="btn btn-secondary btn-md" id="ปุ่มอัปโหลดใหม่">อัปโหลดใบเสร็จใหม่</button>
+      <button type="button" class="btn btn-secondary btn-md" id="uploadAgainButton">อัปโหลดใบเสร็จใหม่</button>
       <a class="btn btn-primary btn-md" href="receipts.html">ไปที่ใบเสร็จของฉัน</a>
     </div>
   </section>

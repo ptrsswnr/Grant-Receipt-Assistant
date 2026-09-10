@@ -6,26 +6,28 @@
 // ─────────────────────────────────────────────────────────────
 
 (function () {
-  var เมนู = [
-    { href: "index.html", ชื่อ: "หน้าแรก" },
-    { href: "receipts.html", ชื่อ: "ใบเสร็จของฉัน" },
-    { href: "new-receipt.html", ชื่อ: "อัปโหลดใบเสร็จใหม่" },
-    { href: "seed.html", ชื่อ: "🌱 ใส่ข้อมูลตัวอย่าง" },
+  var menuItems = [
+    { href: "index.html", label: "หน้าแรก" },
+    { href: "projects.html", label: "โครงการของฉัน" },
+    { href: "receipts.html", label: "ใบเสร็จของฉัน" },
+    { href: "new-receipt.html", label: "อัปโหลดใบเสร็จใหม่" },
+    { href: "fund-sources.html", label: "แหล่งทุน (Admin)" },
+    { href: "seed.html", label: "🌱 ใส่ข้อมูลตัวอย่าง" },
   ];
 
-  var หน้าปัจจุบัน = location.pathname.split("/").pop() || "index.html";
+  var currentPage = location.pathname.split("/").pop() || "index.html";
 
   var html = '<header class="proto-bar">';
   html += '<div class="proto-bar__brand">🧾 Grant Receipt Assistant</div>';
   html += '<nav class="proto-bar__nav">';
-  เมนู.forEach(function (m) {
-    var active = m.href === หน้าปัจจุบัน ? ' class="active"' : "";
-    html += '<a href="' + m.href + '"' + active + ">" + m.ชื่อ + "</a>";
+  menuItems.forEach(function (m) {
+    var active = m.href === currentPage ? ' class="active"' : "";
+    html += '<a href="' + m.href + '"' + active + ">" + m.label + "</a>";
   });
   html += '</nav>';
   html += '<div class="proto-bar__meta"><span class="role-badge" id="navUser">นักวิจัย/เจ้าของทุน</span></div>';
   html += '</header>';
 
-  var ที่วาง = document.getElementById("nav");
-  if (ที่วาง) ที่วาง.innerHTML = html;
+  var navContainer = document.getElementById("nav");
+  if (navContainer) navContainer.innerHTML = html;
 })();

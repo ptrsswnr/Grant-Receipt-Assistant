@@ -118,15 +118,15 @@ function receiptCardHtml(receipt, files, projectName) {
     // Firestore query แบบ collectionGroup + orderBy ต้องมี index รองรับ — ครั้งแรกที่ query แบบ
     // นี้มักจะยังไม่มี index จึงโยน error พร้อมลิงก์สร้าง index มาด้วยเสมอ (แกะลิงก์ออกมาทำเป็น
     // ปุ่มคลิกได้จริง แทนที่จะโยน error message ดิบๆ เป็น plain text ให้อ่านเอง)
-    var ลิงก์สร้างIndex = String(err.message || "").match(/https:\/\/console\.firebase\.google\.com\S*/);
+    var createIndexLink = String(err.message || "").match(/https:\/\/console\.firebase\.google\.com\S*/);
 
-    if (ลิงก์สร้างIndex) {
+    if (createIndexLink) {
       loadState.innerHTML =
         '<div class="banner banner--warning">' +
           '<p class="text-body"><strong>ยังไม่มี Firestore index สำหรับ query นี้</strong> — เกิดขึ้นเป็น ' +
           'ปกติตอนใช้ collection group query ครั้งแรก (อ่านใบเสร็จรวมข้ามทุกโครงการ) ต้องสร้าง index ' +
           '1 ครั้งใน Firebase Console ก่อน (ทำครั้งเดียว ไม่ต้องทำซ้ำอีก)</p>' +
-          '<p class="text-body"><a href="' + esc(ลิงก์สร้างIndex[0]) + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">' +
+          '<p class="text-body"><a href="' + esc(createIndexLink[0]) + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">' +
             'เปิด Firebase Console เพื่อสร้าง Index' +
           '</a></p>' +
           '<p class="text-small">ล็อกอินด้วยบัญชีที่มีสิทธิ์ในโปรเจกต์นี้ → กด "Create Index" → รอสถานะ ' +

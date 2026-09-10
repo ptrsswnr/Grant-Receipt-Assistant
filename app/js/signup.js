@@ -1,66 +1,77 @@
 // ─────────────────────────────────────────────────────────────
 // js/signup.js — สมัครสมาชิกด้วยอีเมล/รหัสผ่านของ Firebase Auth
 // สร้างบัญชีแล้วเขียนเอกสาร users/{uid} ของตัวเอง (ได้รับอนุญาตตาม firestore.rules เพราะ
-// request.auth.uid == userId) แล้วเด้งไป seed.html เพราะบัญชีใหม่ยังไม่มีโครงการวิจัยเป็นของตัวเอง
-// (ยังไม่มีฟอร์มสร้างโครงการเอง — ดู BACKLOG.md FR-23)
+// request.auth.uid == userId) แล้วเด้งไป projects.html ให้สร้างโครงการวิจัยแรกของตัวเอง (FR-23)
+// isAdmin ตั้งเป็น false เสมอตอนสมัคร — ไม่มี UI ให้ผู้ใช้ตั้งตัวเองเป็น admin, ต้องเปลี่ยนค่านี้เป็น
+// true ผ่าน Firebase Console เอง (ดู CLAUDE.md หัวข้อ Auth) ถึงจะเข้าหน้า fund-sources.html ได้
 // ─────────────────────────────────────────────────────────────
 
 (function () {
-  var ช่องอีเมล = document.getElementById("email");
-  var ช่องรหัสผ่าน = document.getElementById("password");
-  var ช่องยืนยันรหัสผ่าน = document.getElementById("confirmPassword");
-  var กล่องเตือน = document.getElementById("ข้อความเตือน");
-  var ปุ่ม = document.getElementById("ปุ่มสมัครสมาชิก");
+  var fullNameInput = document.getElementById("fullName");
+  var emailInput = document.getElementById("email");
+  var passwordInput = document.getElementById("password");
+  var confirmPasswordInput = document.getElementById("confirmPassword");
+  var warningBox = document.getElementById("warningBox");
+  var signupButton = document.getElementById("signupButton");
 
-  function เตือน(ข้อความ) {
-    กล่องเตือน.textContent = "⚠️ " + ข้อความ;
-    กล่องเตือน.style.display = "block";
+  function warn(message) {
+    warningBox.textContent = "⚠️ " + message;
+    warningBox.style.display = "block";
   }
 
-  function ล้างคำเตือน() {
-    กล่องเตือน.style.display = "none";
+  function clearWarning() {
+    warningBox.style.display = "none";
   }
 
+  // ล็อกอินอยู่แล้ว (เช่น session ค้างจากรอบก่อน) → เด้งเข้า index.html เลย — แต่ต้องข้ามเช็คนี้ระหว่าง
+  // กำลังสมัครสมาชิกอยู่ (ตัวแปร signingUp ด้านล่าง) เพราะ createUserWithEmailAndPassword ก็ทำให้
+  // auth state เปลี่ยนเหมือนกัน ถ้าไม่กันไว้จะแย่งกันเปลี่ยนหน้ากับ location.href = "projects.html"
+  // ในตัวจัดการปุ่มด้านล่าง (เจอจริงตอนทดสอบ — เด้งไป index.html แทน projects.html ทุกครั้ง)
+  var signingUp = false;
   firebase.auth().onAuthStateChanged(function (user) {
-    if (user) location.href = "index.html";
+    if (user && !signingUp) location.href = "index.html";
   });
 
-  var ข้อความError = {
+  var errorMessages = {
     "auth/email-already-in-use": "อีเมลนี้มีผู้ใช้งานแล้ว",
     "auth/invalid-email": "รูปแบบอีเมลไม่ถูกต้อง",
     "auth/weak-password": "รหัสผ่านสั้นเกินไป (ต้องอย่างน้อย 6 ตัวอักษร)",
   };
 
-  ปุ่ม.addEventListener("click", async function () {
-    ล้างคำเตือน();
+  signupButton.addEventListener("click", async function () {
+    clearWarning();
 
-    var อีเมล = ช่องอีเมล.value.trim();
-    var รหัสผ่าน = ช่องรหัสผ่าน.value;
-    var ยืนยันรหัสผ่าน = ช่องยืนยันรหัสผ่าน.value;
+    var fullName = fullNameInput.value.trim();
+    var email = emailInput.value.trim();
+    var password = passwordInput.value;
+    var confirmPassword = confirmPasswordInput.value;
 
-    if (!อีเมล || !รหัสผ่าน || !ยืนยันรหัสผ่าน) {
-      เตือน("กรุณากรอกข้อมูลให้ครบ");
+    if (!fullName || !email || !password || !confirmPassword) {
+      warn("กรุณากรอกข้อมูลให้ครบ");
       return;
     }
-    if (รหัสผ่าน !== ยืนยันรหัสผ่าน) {
-      เตือน("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
+    if (password !== confirmPassword) {
+      warn("รหัสผ่านและการยืนยันรหัสผ่านไม่ตรงกัน");
       return;
     }
 
-    ปุ่ม.disabled = true;
-    ปุ่ม.textContent = "กำลังสมัครสมาชิก...";
+    signingUp = true;
+    signupButton.disabled = true;
+    signupButton.textContent = "กำลังสมัครสมาชิก...";
     try {
-      var ผลลัพธ์ = await firebase.auth().createUserWithEmailAndPassword(อีเมล, รหัสผ่าน);
-      await db.collection("users").doc(ผลลัพธ์.user.uid).set({
-        fullName: อีเมล,
-        email: อีเมล,
+      var result = await firebase.auth().createUserWithEmailAndPassword(email, password);
+      await db.collection("users").doc(result.user.uid).set({
+        fullName: fullName,
+        email: email,
         roleType: "นักวิจัย/เจ้าของโครงการ",
+        isAdmin: false,
       });
-      location.href = "seed.html";
+      location.href = "projects.html";
     } catch (err) {
-      เตือน(ข้อความError[err.code] || err.message);
-      ปุ่ม.disabled = false;
-      ปุ่ม.textContent = "สมัครสมาชิก";
+      signingUp = false;
+      warn(errorMessages[err.code] || err.message);
+      signupButton.disabled = false;
+      signupButton.textContent = "สมัครสมาชิก";
     }
   });
 })();

@@ -4,18 +4,18 @@
 // ─────────────────────────────────────────────────────────────
 
 (function () {
-  var ช่องอีเมล = document.getElementById("email");
-  var ช่องรหัสผ่าน = document.getElementById("password");
-  var กล่องเตือน = document.getElementById("ข้อความเตือน");
-  var ปุ่ม = document.getElementById("ปุ่มเข้าสู่ระบบ");
+  var emailInput = document.getElementById("email");
+  var passwordInput = document.getElementById("password");
+  var warningBox = document.getElementById("warningBox");
+  var loginButton = document.getElementById("loginButton");
 
-  function เตือน(ข้อความ) {
-    กล่องเตือน.textContent = "⚠️ " + ข้อความ;
-    กล่องเตือน.style.display = "block";
+  function warn(message) {
+    warningBox.textContent = "⚠️ " + message;
+    warningBox.style.display = "block";
   }
 
-  function ล้างคำเตือน() {
-    กล่องเตือน.style.display = "none";
+  function clearWarning() {
+    warningBox.style.display = "none";
   }
 
   // ล็อกอินอยู่แล้ว (เช่น session ค้างจากรอบก่อน) → ไม่ต้องแสดงฟอร์มซ้ำ เด้งเข้า index.html เลย
@@ -23,7 +23,7 @@
     if (user) location.href = "index.html";
   });
 
-  var ข้อความError = {
+  var errorMessages = {
     "auth/invalid-credential": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
     "auth/user-not-found": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
     "auth/wrong-password": "อีเมลหรือรหัสผ่านไม่ถูกต้อง",
@@ -32,26 +32,26 @@
     "auth/user-disabled": "บัญชีนี้ถูกระงับการใช้งาน",
   };
 
-  ปุ่ม.addEventListener("click", async function () {
-    ล้างคำเตือน();
+  loginButton.addEventListener("click", async function () {
+    clearWarning();
 
-    var อีเมล = ช่องอีเมล.value.trim();
-    var รหัสผ่าน = ช่องรหัสผ่าน.value;
+    var email = emailInput.value.trim();
+    var password = passwordInput.value;
 
-    if (!อีเมล || !รหัสผ่าน) {
-      เตือน("กรุณากรอกอีเมลและรหัสผ่าน");
+    if (!email || !password) {
+      warn("กรุณากรอกอีเมลและรหัสผ่าน");
       return;
     }
 
-    ปุ่ม.disabled = true;
-    ปุ่ม.textContent = "กำลังเข้าสู่ระบบ...";
+    loginButton.disabled = true;
+    loginButton.textContent = "กำลังเข้าสู่ระบบ...";
     try {
-      await firebase.auth().signInWithEmailAndPassword(อีเมล, รหัสผ่าน);
+      await firebase.auth().signInWithEmailAndPassword(email, password);
       location.href = "index.html";
     } catch (err) {
-      เตือน(ข้อความError[err.code] || err.message);
-      ปุ่ม.disabled = false;
-      ปุ่ม.textContent = "เข้าสู่ระบบ";
+      warn(errorMessages[err.code] || err.message);
+      loginButton.disabled = false;
+      loginButton.textContent = "เข้าสู่ระบบ";
     }
   });
 })();

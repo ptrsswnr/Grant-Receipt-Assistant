@@ -13,11 +13,15 @@
 | ใบเสร็จ — เปิดดูทีละใบ/ในโครงการเดียว (`.../receipts/{receiptId}`) | เจ้าของเท่านั้น | เจ้าของเท่านั้น | `uid` ที่ล็อกอิน = `userId` ใน path |
 | ไฟล์แนบใบเสร็จ (`.../files/{fileId}`) | เจ้าของเท่านั้น | เจ้าของเท่านั้น | `uid` ที่ล็อกอิน = `userId` ใน path |
 | ใบเสร็จ — ดูรวมข้ามทุกโครงการ (หน้า "ใบเสร็จของฉัน") | เจ้าของเท่านั้น | เจ้าของเท่านั้น | field `ownerUserId` ในตัวเอกสาร = `uid` ที่ล็อกอิน |
-| ระเบียบแหล่งทุน (`fundSources`, `ruleVersions`, `ruleItems`) | ผู้ล็อกอินทุกคน | ผู้ล็อกอินทุกคน | แค่เช็คว่าล็อกอินอยู่ (ยังไม่มีสิทธิ์ admin แยก) |
+| ระเบียบแหล่งทุน (`fundSources`, `ruleVersions`, `ruleItems`) | ผู้ล็อกอินทุกคน | เฉพาะ admin เท่านั้น | อ่าน: แค่เช็คว่าล็อกอินอยู่ · เขียน: field `isAdmin == true` บน `users/{uid}` ของตัวเอง |
 | ไฟล์แนบใน Storage (`receipts/{userId}/...`) | เจ้าของเท่านั้น | เจ้าของเท่านั้น + ต้องเป็น jpg/png/pdf และ ≤ 5 MB | `uid` ที่ล็อกอิน = `userId` ใน path ของไฟล์ |
 | อย่างอื่นที่ไม่อยู่ในตารางนี้ | ไม่มีใครอ่านได้ | ไม่มีใครเขียนได้ | ปิดหมด (deny by default) |
 
-สรุปสั้นๆ: **ใครก็เห็นได้แค่ข้อมูลของตัวเอง** ยกเว้น "ระเบียบแหล่งทุน" ที่เป็นข้อมูลกลางให้ทุกคนใช้ร่วมกัน เพราะยังไม่มีระบบสิทธิ์ผู้ดูแลระบบ (admin)
+สรุปสั้นๆ: **ใครก็เห็นได้แค่ข้อมูลของตัวเอง** ยกเว้น "ระเบียบแหล่งทุน" ที่เป็นข้อมูลกลางให้ทุกคน**อ่าน**ร่วมกันได้ แต่**เขียน**ได้เฉพาะ admin (เพิ่มเมื่อสร้าง `app/fund-sources.html` — ก่อนหน้านี้ผู้ล็อกอินทุกคนเขียนได้หมดเพราะยังไม่มีระบบสิทธิ์ผู้ดูแลระบบ)
+
+**ยังไม่มี UI ตั้ง admin คนแรก** — ต้องเปิด Firebase Console → Firestore Database → เอกสาร `users/{uid}` ของบัญชีที่จะให้เป็น admin → เพิ่ม/แก้ field `isAdmin` เป็น `true` ด้วยมือ บัญชีสมัครใหม่ทุกบัญชีได้ `isAdmin: false` เป็นค่าเริ่มต้นเสมอ (ดู `app/js/signup.js`)
+
+**⚠️ เจอช่องโหว่ระหว่างตั้ง admin คนแรกจริง (แก้แล้ว 2026-09-10):** กฎเดิมของ `users/{userId}` เป็น `allow read, write` เดียวเช็คแค่ `uid == userId` — แปลว่าผู้ใช้ทุกคนเขียน `isAdmin: true` ให้ตัวเองผ่าน client SDK ได้ตรงๆ ทำให้การจำกัดสิทธิ์เขียน `fundSources` เฉพาะ admin ไม่มีความหมาย ตอนนี้แก้แล้วโดยแยก `create`/`update` ออกจาก `read`/`delete` และบังคับว่า field `isAdmin` ต้องเท่าเดิมเสมอในทุกการเขียนจาก client (ดูโค้ดรูลด้านล่าง) — จะเปลี่ยน `isAdmin` ได้เฉพาะผ่าน Firebase Console/Admin SDK เท่านั้น
 
 ## ทำไมใบเสร็จถึงมี 2 แถวในตาราง (เช็คคนละแบบ)
 
@@ -30,7 +34,13 @@
 
 ```
 match /users/{userId} {
-  allow read, write: if request.auth != null && request.auth.uid == userId;
+  allow read, delete: if request.auth != null && request.auth.uid == userId;
+
+  // create/update แยกจาก read/delete เพื่อกันไม่ให้เจ้าของบัญชีเปลี่ยน isAdmin ของตัวเองได้
+  allow create: if request.auth != null && request.auth.uid == userId
+    && request.resource.data.get('isAdmin', false) == false;
+  allow update: if request.auth != null && request.auth.uid == userId
+    && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false);
 
   match /projects/{projectId} {
     allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -54,15 +64,21 @@ match /{path=**}/receipts/{receiptId} {
     && request.resource.data.ownerUserId == request.auth.uid;
 }
 
-// ระเบียบแหล่งทุน — ข้อมูลกลาง เปิดให้ผู้ล็อกอินทุกคน
+// ระเบียบแหล่งทุน — ข้อมูลกลาง อ่านได้ทุกคนที่ล็อกอิน เขียนได้เฉพาะ admin (isAdmin == true)
 match /fundSources/{fundSourceId} {
-  allow read, write: if request.auth != null;
+  allow read: if request.auth != null;
+  allow write: if request.auth != null
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
 
   match /ruleVersions/{ruleVersionId} {
-    allow read, write: if request.auth != null;
+    allow read: if request.auth != null;
+    allow write: if request.auth != null
+      && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
 
     match /ruleItems/{ruleItemId} {
-      allow read, write: if request.auth != null;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
   }
 }

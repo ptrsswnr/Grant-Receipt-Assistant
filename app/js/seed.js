@@ -9,6 +9,12 @@
 // ตอนเขียนจริง (ใช้แค่เป็น "แม่แบบ" ของ field อื่นๆ เช่น projectName/fundSourceId) เพื่อให้ auth-guard.js
 // การันตีว่ามีคนล็อกอินอยู่แล้วก่อนปุ่มนี้กดได้ (ไม่ต้อง await window.AUTH_READY ในนี้ซ้ำ)
 //
+// users/{uid} เขียนด้วย { merge: true } เสมอ — ไม่ใช้ .set() เขียนทับทั้งเอกสารเหมือนเดิมอีกต่อไป
+// เพราะจะลบ field isAdmin ของบัญชี admin ทิ้งโดยไม่ได้ตั้งใจ (data.users[0] ใน data.js ไม่มี field
+// นี้) fundSources/ruleVersions/ruleItems ตอนนี้เขียนได้เฉพาะบัญชีที่มี isAdmin: true เท่านั้น (ดู
+// firestore.rules) ผู้ใช้ทั่วไปกดปุ่มนี้จะข้ามส่วนนั้นไปเงียบๆ แล้ว seed เฉพาะ projects/receipts/
+// files ของตัวเอง โดยอ้างอิง fundSourceId ที่ (สมมติว่า) admin เพิ่มไว้แล้วผ่าน fund-sources.html
+//
 // โครงสร้าง Firestore จริง (นับจาก 2026-09-05 — nest ตามความเป็นเจ้าของใน db-spec.md):
 //   users/{userId}
 //   users/{userId}/projects/{projectId}                (Project เจ้าของเดียวคือ User)
@@ -24,14 +30,14 @@
 // technology-stack.md ยังไม่ตัดสินใจ — path จริงข้างบนนี้เป็นรายละเอียดระดับ implementation เท่านั้น)
 // ─────────────────────────────────────────────────────────────
 
-var ปุ่ม = document.getElementById("ปุ่มใส่ข้อมูล");
-var กล่องผล = document.getElementById("ผลลัพธ์การใส่ข้อมูล");
+var seedButton = document.getElementById("seedButton");
+var resultBox = document.getElementById("seedResult");
 
-ปุ่ม.addEventListener("click", ใส่ข้อมูลตัวอย่าง);
+seedButton.addEventListener("click", seedData);
 
-async function ใส่ข้อมูลตัวอย่าง() {
-  ปุ่ม.disabled = true;
-  แสดงผล("กำลังใส่ข้อมูล…");
+async function seedData() {
+  seedButton.disabled = true;
+  showResult("กำลังใส่ข้อมูล…");
 
   try {
     var data = window.RECEIPT_DATA;
@@ -39,87 +45,95 @@ async function ใส่ข้อมูลตัวอย่าง() {
     var uid = currentUser.uid;
 
     // เขียนเอกสาร users/{uid} ของบัญชีที่ล็อกอินอยู่จริง (ไม่ใช่ user001 จาก data.js) — ใช้ fullName/
-    // roleType จากแม่แบบ แต่ email ใช้ค่าจริงจากบัญชีที่ล็อกอินอยู่
-    var { id: _mockUserId, ...ฟิลด์ผู้ใช้ } = data.users[0];
-    await db.collection("users").doc(uid).set(Object.assign({}, ฟิลด์ผู้ใช้, { email: currentUser.email }));
+    // roleType จากแม่แบบ แต่ email ใช้ค่าจริงจากบัญชีที่ล็อกอินอยู่ — merge: true เพื่อไม่ลบ isAdmin เดิม
+    var { id: _mockUserId, ...userFields } = data.users[0];
+    await db.collection("users").doc(uid).set(Object.assign({}, userFields, { email: currentUser.email }), { merge: true });
 
-    for (var fs of data.fundSources) {
-      var { id: fsId, ...fsฟิลด์ } = fs;
-      await db.collection("fundSources").doc(fsId).set(fsฟิลด์);
+    // fundSources/ruleVersions/ruleItems เขียนได้เฉพาะบัญชี admin (isAdmin: true) — ผู้ใช้ทั่วไปจะ
+    // โดน permission-denied ที่นี่ ข้ามไปเงียบๆ แล้วเดินหน้า seed projects/receipts/files ของตัวเองต่อ
+    var fundSourcesSeeded = true;
+    try {
+      for (var fs of data.fundSources) {
+        var { id: fsId, ...fsFields } = fs;
+        await db.collection("fundSources").doc(fsId).set(fsFields);
+      }
+
+      for (var rv of data.ruleVersions) {
+        var { id: rvId, fundSourceId: rvFundSourceId, ...rvFields } = rv;
+        await db.collection("fundSources").doc(rvFundSourceId)
+          .collection("ruleVersions").doc(rvId)
+          .set(Object.assign({}, rvFields, {
+            fundSourceId: rvFundSourceId,
+            importedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          }));
+      }
+
+      for (var ri of data.ruleItems) {
+        var { id: riId, ruleVersionId: riRuleVersionId, ...riFields } = ri;
+        var versionForThisItem = data.ruleVersions.find(function (x) { return x.id === riRuleVersionId; });
+        await db.collection("fundSources").doc(versionForThisItem.fundSourceId)
+          .collection("ruleVersions").doc(riRuleVersionId)
+          .collection("ruleItems").doc(riId)
+          .set(Object.assign({}, riFields, { ruleVersionId: riRuleVersionId }));
+      }
+    } catch (fsErr) {
+      fundSourcesSeeded = false;
     }
 
-    for (var rv of data.ruleVersions) {
-      var { id: rvId, fundSourceId: rvFundSourceId, ...rvฟิลด์ } = rv;
-      await db.collection("fundSources").doc(rvFundSourceId)
-        .collection("ruleVersions").doc(rvId)
-        .set(Object.assign({}, rvฟิลด์, {
-          fundSourceId: rvFundSourceId,
-          importedAt: firebase.firestore.FieldValue.serverTimestamp(),
-        }));
-    }
-
-    for (var ri of data.ruleItems) {
-      var { id: riId, ruleVersionId: riRuleVersionId, ...riฟิลด์ } = ri;
-      var เวอร์ชันของข้อนี้ = data.ruleVersions.find(function (x) { return x.id === riRuleVersionId; });
-      await db.collection("fundSources").doc(เวอร์ชันของข้อนี้.fundSourceId)
-        .collection("ruleVersions").doc(riRuleVersionId)
-        .collection("ruleItems").doc(riId)
-        .set(Object.assign({}, riฟิลด์, { ruleVersionId: riRuleVersionId }));
-    }
-
-    var เจ้าของโครงการ = {}; // projectId -> uid (ไว้ใช้ต่อ path ของ receipts/files) — ทุกโครงการ
+    var projectOwner = {}; // projectId -> uid (ไว้ใช้ต่อ path ของ receipts/files) — ทุกโครงการ
     // seed ลงบัญชีที่ล็อกอินอยู่เสมอ ไม่ใช้ ownerUserId (user001) จาก data.js อีกต่อไป
     for (var p of data.projects) {
-      var { id: projectId, ownerUserId: _mockOwnerUserId, ...pฟิลด์ } = p;
-      เจ้าของโครงการ[projectId] = uid;
+      var { id: projectId, ownerUserId: _mockOwnerUserId, ...pFields } = p;
+      projectOwner[projectId] = uid;
       await db.collection("users").doc(uid)
         .collection("projects").doc(projectId)
-        .set(Object.assign({}, pฟิลด์, { ownerUserId: uid }));
+        .set(Object.assign({}, pFields, { ownerUserId: uid }));
     }
 
     for (var r of data.receipts) {
-      var { id: receiptId, projectId: rProjectId, ...rฟิลด์ } = r;
-      var เจ้าของ = เจ้าของโครงการ[rProjectId];
-      await db.collection("users").doc(เจ้าของ)
+      var { id: receiptId, projectId: rProjectId, ...rFields } = r;
+      var owner = projectOwner[rProjectId];
+      await db.collection("users").doc(owner)
         .collection("projects").doc(rProjectId)
         .collection("receipts").doc(receiptId)
-        .set(Object.assign({}, rฟิลด์, {
+        .set(Object.assign({}, rFields, {
           projectId: rProjectId,
-          ownerUserId: เจ้าของ,
+          ownerUserId: owner,
           uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
         }));
     }
 
     for (var file of data.files) {
-      var { receiptId: fReceiptId, ...fฟิลด์ } = file;
-      var ใบเสร็จของไฟล์นี้ = data.receipts.find(function (x) { return x.id === fReceiptId; });
-      var เจ้าของไฟล์ = เจ้าของโครงการ[ใบเสร็จของไฟล์นี้.projectId];
+      var { receiptId: fReceiptId, ...fFields } = file;
+      var receiptForThisFile = data.receipts.find(function (x) { return x.id === fReceiptId; });
+      var fileOwner = projectOwner[receiptForThisFile.projectId];
       // ใช้ originalFileName เป็น doc id เพื่อให้กดซ้ำแล้วไม่เกิดไฟล์ซ้ำในชุดเดียวกัน
-      await db.collection("users").doc(เจ้าของไฟล์)
-        .collection("projects").doc(ใบเสร็จของไฟล์นี้.projectId)
+      await db.collection("users").doc(fileOwner)
+        .collection("projects").doc(receiptForThisFile.projectId)
         .collection("receipts").doc(fReceiptId)
         .collection("files").doc(file.originalFileName)
-        .set(Object.assign({}, fฟิลด์, { uploadedAt: firebase.firestore.FieldValue.serverTimestamp() }));
+        .set(Object.assign({}, fFields, { uploadedAt: firebase.firestore.FieldValue.serverTimestamp() }));
     }
 
-    แสดงผล(
+    showResult(
       "✅ ใส่ข้อมูลตัวอย่างเสร็จแล้ว (โครงสร้างใหม่: users>projects>receipts>files, fundSources>ruleVersions>ruleItems)\n\n" +
       "users " + data.users.length +
-      " · fundSources " + data.fundSources.length +
-      " · ruleVersions " + data.ruleVersions.length +
-      " · ruleItems " + data.ruleItems.length +
+      " · fundSources " + (fundSourcesSeeded ? data.fundSources.length : "ข้าม") +
+      " · ruleVersions " + (fundSourcesSeeded ? data.ruleVersions.length : "ข้าม") +
+      " · ruleItems " + (fundSourcesSeeded ? data.ruleItems.length : "ข้าม") +
       " · projects " + data.projects.length +
       " · receipts " + data.receipts.length +
       " · files " + data.files.length +
+      (fundSourcesSeeded ? "" : "\n\n⚠️ ข้ามการใส่ fundSources/ruleVersions/ruleItems เพราะบัญชีนี้ไม่มีสิทธิ์ admin (isAdmin: true) — ให้ผู้ดูแลระบบเพิ่มแหล่งทุนที่หน้า fund-sources.html แทน") +
       "\n\nเปิด Firebase Console หรือหน้า receipts.html ตรวจดูได้เลย"
     );
   } catch (err) {
-    แสดงผล("❌ ใส่ข้อมูลไม่สำเร็จ: " + err.message + "\n\n(เช็ค Firestore Rules ว่าเปิดให้เขียนได้หรือยัง)");
+    showResult("❌ ใส่ข้อมูลไม่สำเร็จ: " + err.message + "\n\n(เช็ค Firestore Rules ว่าเปิดให้เขียนได้หรือยัง)");
   } finally {
-    ปุ่ม.disabled = false;
+    seedButton.disabled = false;
   }
 }
 
-function แสดงผล(ข้อความ) {
-  กล่องผล.textContent = ข้อความ;
+function showResult(message) {
+  resultBox.textContent = message;
 }
