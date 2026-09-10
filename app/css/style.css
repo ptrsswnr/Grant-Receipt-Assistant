@@ -458,3 +458,30 @@ footer.page-footer {
   color: var(--color-content-tertiary);
   font-size: 13px;
 }
+
+/* เพิ่มสำหรับ app/admin-dashboard.html (2026-09-10) — stat tile + breakdown bar แบบง่าย ไม่ใช้
+   charting library ตามสถาปัตยกรรม vanilla-JS เดิมของแอปนี้ */
+.stat-tile {
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  padding: var(--sp-3);
+}
+.stat-tile__value { font-family: var(--font-mono); font-size: 28px; color: var(--color-content-primary); line-height: 1.2; }
+.stat-tile__value--pass { color: var(--color-success); }
+.stat-tile__value--fix { color: var(--color-warning); }
+.stat-tile__value--reject { color: var(--color-error); }
+.stat-tile__label { font-size: 13px; color: var(--color-content-tertiary); margin-top: 4px; }
+
+.bar-row { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-1); }
+.bar-row__label { flex: 0 0 160px; font-size: 13px; color: var(--color-content-secondary); }
+.bar-row__track { flex: 1 1 auto; background: var(--color-surface-sunken); border-radius: var(--radius-sm); height: 24px; overflow: hidden; }
+.bar-row__fill { height: 100%; background: var(--color-stone); border-radius: var(--radius-sm); min-width: 4px; }
+.bar-row__fill--pass { background: var(--color-success); }
+.bar-row__fill--fix { background: var(--color-warning); }
+.bar-row__fill--reject { background: var(--color-error); }
+.bar-row__value { flex: 0 0 48px; text-align: right; font-family: var(--font-mono); font-size: 13px; color: var(--color-content-primary); }
+
+.admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.admin-table th, .admin-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--color-border-default); vertical-align: top; }
+.admin-table th { color: var(--color-content-tertiary); font-weight: 500; font-size: 11px; text-transform: uppercase; }

@@ -8,16 +8,16 @@
 
 | ข้อมูล | ใครอ่านได้ | ใครเขียนได้ | เช็คจากอะไร |
 |---|---|---|---|
-| ข้อมูลโปรไฟล์ตัวเอง (`users/{userId}`) | เจ้าของเท่านั้น | เจ้าของเท่านั้น | `uid` ที่ล็อกอิน = `userId` ใน path |
-| โครงการวิจัย (`.../projects/{projectId}`) | เจ้าของโครงการเท่านั้น | เจ้าของโครงการเท่านั้น | `uid` ที่ล็อกอิน = `userId` ใน path |
-| ใบเสร็จ — เปิดดูทีละใบ/ในโครงการเดียว (`.../receipts/{receiptId}`) | เจ้าของเท่านั้น | เจ้าของเท่านั้น | `uid` ที่ล็อกอิน = `userId` ใน path |
-| ไฟล์แนบใบเสร็จ (`.../files/{fileId}`) | เจ้าของเท่านั้น | เจ้าของเท่านั้น | `uid` ที่ล็อกอิน = `userId` ใน path |
-| ใบเสร็จ — ดูรวมข้ามทุกโครงการ (หน้า "ใบเสร็จของฉัน") | เจ้าของเท่านั้น | เจ้าของเท่านั้น | field `ownerUserId` ในตัวเอกสาร = `uid` ที่ล็อกอิน |
+| ข้อมูลโปรไฟล์ตัวเอง (`users/{userId}`) | เจ้าของ + admin | เจ้าของเท่านั้น (admin เขียนไม่ได้) | อ่าน: `uid`=`userId` หรือ `isAdmin()` · เขียน: `uid`=`userId` เท่านั้น |
+| โครงการวิจัย (`.../projects/{projectId}`) | เจ้าของโครงการ + admin | เจ้าของโครงการเท่านั้น (admin เขียนไม่ได้) | อ่าน: `uid`=`userId` หรือ `isAdmin()` · เขียน: `uid`=`userId` เท่านั้น |
+| ใบเสร็จ — เปิดดูทีละใบ/ในโครงการเดียว (`.../receipts/{receiptId}`) | เจ้าของ + admin | เจ้าของเท่านั้น (admin เขียนไม่ได้) | อ่าน: `uid`=`userId` หรือ `isAdmin()` · เขียน: `uid`=`userId` เท่านั้น |
+| ไฟล์แนบใบเสร็จ (`.../files/{fileId}`) | เจ้าของ + admin | เจ้าของเท่านั้น (admin เขียนไม่ได้) | อ่าน: `uid`=`userId` หรือ `isAdmin()` · เขียน: `uid`=`userId` เท่านั้น |
+| ใบเสร็จ — ดูรวมข้ามทุกโครงการ (หน้า "ใบเสร็จของฉัน" / Admin Dashboard) | เจ้าของ + admin | เจ้าของเท่านั้น (admin เขียนไม่ได้) | อ่าน: field `ownerUserId` = `uid` หรือ `isAdmin()` (Admin Dashboard ไม่กรอง `ownerUserId` เลย — อ่านของทุกคน) · เขียน: `ownerUserId` = `uid` เท่านั้น |
 | ระเบียบแหล่งทุน (`fundSources`, `ruleVersions`, `ruleItems`) | ผู้ล็อกอินทุกคน | เฉพาะ admin เท่านั้น | อ่าน: แค่เช็คว่าล็อกอินอยู่ · เขียน: field `isAdmin == true` บน `users/{uid}` ของตัวเอง |
 | ไฟล์แนบใน Storage (`receipts/{userId}/...`) | เจ้าของเท่านั้น | เจ้าของเท่านั้น + ต้องเป็น jpg/png/pdf และ ≤ 5 MB | `uid` ที่ล็อกอิน = `userId` ใน path ของไฟล์ |
 | อย่างอื่นที่ไม่อยู่ในตารางนี้ | ไม่มีใครอ่านได้ | ไม่มีใครเขียนได้ | ปิดหมด (deny by default) |
 
-สรุปสั้นๆ: **ใครก็เห็นได้แค่ข้อมูลของตัวเอง** ยกเว้น "ระเบียบแหล่งทุน" ที่เป็นข้อมูลกลางให้ทุกคน**อ่าน**ร่วมกันได้ แต่**เขียน**ได้เฉพาะ admin (เพิ่มเมื่อสร้าง `app/fund-sources.html` — ก่อนหน้านี้ผู้ล็อกอินทุกคนเขียนได้หมดเพราะยังไม่มีระบบสิทธิ์ผู้ดูแลระบบ)
+สรุปสั้นๆ: **ใครก็เห็นได้แค่ข้อมูลของตัวเอง** ยกเว้น (1) "ระเบียบแหล่งทุน" ที่เป็นข้อมูลกลางให้ทุกคน**อ่าน**ร่วมกันได้ แต่**เขียน**ได้เฉพาะ admin (เพิ่มเมื่อสร้าง `app/fund-sources.html`) และ (2) **admin อ่านได้ทุกอย่างข้ามผู้ใช้** (เพิ่ม 2026-09-10 สำหรับ `app/admin-dashboard.html` — ดูเหตุผลเต็มใน `docs/05-log/20260910-log.md`, เป็นการกลับคำตัดสินใจ FR-12/NFR-05 เดิมโดยตรง) — **admin เขียนข้อมูลของผู้ใช้คนอื่นไม่ได้เลย ไม่ว่าจะเป็น users/projects/receipts/files** สิทธิ์ของ admin ในทุกจุดที่ไม่ใช่ `fundSources`/`ruleVersions`/`ruleItems` เป็น**อ่านอย่างเดียว**
 
 **ยังไม่มี UI ตั้ง admin คนแรก** — ต้องเปิด Firebase Console → Firestore Database → เอกสาร `users/{uid}` ของบัญชีที่จะให้เป็น admin → เพิ่ม/แก้ field `isAdmin` เป็น `true` ด้วยมือ บัญชีสมัครใหม่ทุกบัญชีได้ `isAdmin: false` เป็นค่าเริ่มต้นเสมอ (ดู `app/js/signup.js`)
 
@@ -33,8 +33,18 @@
 <summary>Firestore rules (คลิกเพื่อดู)</summary>
 
 ```
+// helper: ล็อกอินอยู่ และมี field isAdmin == true บน users/{uid} ของตัวเอง — ตั้งได้เฉพาะผ่าน
+// Firebase Console/Admin SDK เท่านั้น (ห้าม self-promote ผ่าน client write ดู users/{userId} ด้านล่าง)
+function isAdmin() {
+  return request.auth != null
+    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true;
+}
+
 match /users/{userId} {
-  allow read, delete: if request.auth != null && request.auth.uid == userId;
+  // อ่านได้ทั้งเจ้าของบัญชีเองและ admin (admin ใช้หา fullName/email เจ้าของใบเสร็จใน
+  // admin-dashboard.js) — delete/create/update ยังคงจำกัดเฉพาะเจ้าของเท่านั้น (admin เขียนไม่ได้)
+  allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+  allow delete: if request.auth != null && request.auth.uid == userId;
 
   // create/update แยกจาก read/delete เพื่อกันไม่ให้เจ้าของบัญชีเปลี่ยน isAdmin ของตัวเองได้
   allow create: if request.auth != null && request.auth.uid == userId
@@ -43,42 +53,45 @@ match /users/{userId} {
     && request.resource.data.get('isAdmin', false) == resource.data.get('isAdmin', false);
 
   match /projects/{projectId} {
-    allow read, write: if request.auth != null && request.auth.uid == userId;
+    // อ่าน: เจ้าของหรือ admin · เขียน: เจ้าของเท่านั้น (admin แก้ไขโครงการของผู้อื่นไม่ได้)
+    allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+    allow write: if request.auth != null && request.auth.uid == userId;
 
     // ห้าม nest ใต้ wildcard — ดูหัวข้อ "Known Firestore Security Rules gotcha"
     // ใน CLAUDE.md (ถ้า nest /files ไว้ใต้ match แบบ `{path=**}` จะอ่านไม่ได้)
     match /receipts/{receiptId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if request.auth != null && request.auth.uid == userId;
 
       match /files/{fileId} {
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+        allow write: if request.auth != null && request.auth.uid == userId;
       }
     }
   }
 }
 
-// สำหรับ collection-group query ("ใบเสร็จของฉัน" ข้ามทุกโครงการ) — เช็คจาก field แทน path
+// สำหรับ collection-group query ("ใบเสร็จของฉัน" ข้ามทุกโครงการ, และ Admin Dashboard ข้ามทุกคน)
+// เช็คจาก field แทน path — Admin Dashboard ไม่มี .where("ownerUserId",...) เลย เพราะต้องการอ่าน
+// ของทุกคน จึงอาศัย isAdmin() bypass แทน
 match /{path=**}/receipts/{receiptId} {
-  allow read: if request.auth != null && resource.data.ownerUserId == request.auth.uid;
+  allow read: if request.auth != null && (resource.data.ownerUserId == request.auth.uid || isAdmin());
   allow write: if request.auth != null
     && request.resource.data.ownerUserId == request.auth.uid;
 }
 
-// ระเบียบแหล่งทุน — ข้อมูลกลาง อ่านได้ทุกคนที่ล็อกอิน เขียนได้เฉพาะ admin (isAdmin == true)
+// ระเบียบแหล่งทุน — ข้อมูลกลาง อ่านได้ทุกคนที่ล็อกอิน เขียนได้เฉพาะ admin
 match /fundSources/{fundSourceId} {
   allow read: if request.auth != null;
-  allow write: if request.auth != null
-    && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+  allow write: if isAdmin();
 
   match /ruleVersions/{ruleVersionId} {
     allow read: if request.auth != null;
-    allow write: if request.auth != null
-      && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    allow write: if isAdmin();
 
     match /ruleItems/{ruleItemId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      allow write: if isAdmin();
     }
   }
 }

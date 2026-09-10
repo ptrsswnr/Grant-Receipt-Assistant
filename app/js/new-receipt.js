@@ -1,7 +1,10 @@
 // ─────────────────────────────────────────────────────────────
 // js/new-receipt.js — ตัวช่วยกรอกใบเสร็จใหม่ แบบ 3 ขั้นตอน (อัปโหลด → ตรวจสอบข้อมูล → ผลตรวจ)
-// ยังไม่มี OCR/Rule Engine/LLM จริงเชื่อมต่อ (ดูเหตุผลใน SCOPE.md) ขั้นตอน "ตรวจสอบข้อมูล" จึง
-// สุ่มค่าขึ้นมาเอง สมมติว่าเป็นผลจาก AI อ่านใบเสร็จให้แล้ว ส่วนผลตรวจใช้ mock Rule Engine จาก data.js
+// ยังไม่มี OCR/LLM จริงเชื่อมต่อ (ดูเหตุผลใน SCOPE.md) ขั้นตอน "ตรวจสอบข้อมูล" จึงสุ่มค่าขึ้นมาเอง
+// สมมติว่าเป็นผลจาก AI อ่านใบเสร็จให้แล้ว — ส่วนผลตรวจ (checkAgainstRules ด้านล่าง) ยังเป็น mock
+// เหมือนเดิม (ไม่ใช่ Rule Engine จริง) แต่ตั้งแต่ 2026-09-10 เปลี่ยนจาก hardcode ในโค้ดเป็นอ่านจาก
+// ruleItems ของแหล่งทุนที่โครงการสังกัดจริงใน Firestore (data-driven mock — ดู
+// docs/05-log/20260910-log.md ที่มาของโครงสร้าง ruleItems และเหตุผลที่ยังไม่ auto-check ทุกกรณี)
 // การแนบไฟล์จริงเป็นออปชัน (ไม่บังคับ) เพื่อให้ทดลองขั้นตอนได้ทันทีโดยไม่ต้องมีไฟล์จริง
 // บันทึกลง Firestore ที่ users/{uid ของผู้ใช้ที่ล็อกอินอยู่}/projects/{projectId}/receipts/{id}
 // (ดูเหตุผลของโครงสร้างซ้อนนี้ใน js/seed.js) — ต้อง await window.AUTH_READY (จาก js/auth-guard.js)
@@ -32,6 +35,9 @@ var SAMPLE_VENDORS = [
 
   // ดรอปดาวน์โครงการวิจัยต้องดึงเฉพาะโครงการของผู้ใช้ที่ล็อกอินอยู่ (users/{uid}/projects) — ไม่ใช้
   // window.RECEIPT_DATA.projects ตรงๆ อีกต่อไป เพราะไฟล์นั้นเป็นแค่ข้อมูลตัวอย่างสำหรับ seed.html
+  // เก็บ fundSourceId ของแต่ละโครงการไว้ใน projectFundSourceId ด้วย เพื่อให้ checkAgainstRules
+  // (ตอนส่งเข้าตรวจ) รู้ว่าโครงการที่เลือกอยู่ต้องเทียบกับระเบียบของแหล่งทุนไหน
+  var projectFundSourceId = {};
   var userProjects = await db.collection("users").doc(user.uid).collection("projects").get();
   if (userProjects.empty) {
     var noProjectOption = document.createElement("option");
@@ -45,6 +51,7 @@ var SAMPLE_VENDORS = [
       option.value = doc.id;
       option.textContent = doc.data().projectName;
       projectSelect.appendChild(option);
+      projectFundSourceId[doc.id] = doc.data().fundSourceId;
     });
   }
 
@@ -71,6 +78,57 @@ var SAMPLE_VENDORS = [
       if (m) maxNumber = Math.max(maxNumber, parseInt(m[1], 10));
     });
     return "receipt" + String(maxNumber + 1).padStart(3, "0");
+  }
+
+  // ตรวจใบเสร็จเทียบกับ ruleItems ของแหล่งทุนที่โครงการสังกัดจริง (data-driven mock — ไม่ใช่ Rule
+  // Engine จริง ยังไม่มี OCR/LLM) — โครงสร้าง rateType อ้างอิงจากคู่มือบริหารจัดการโครงการวิจัยของ
+  // มหาวิทยาลัยจริง (ดู docs/05-log/20260910-log.md): "เพดานตามจริง"/"เหมาจ่าย" เทียบยอดเงินได้ตรงๆ
+  // แต่ "ต่อหน่วย" (เช่น บาท/กม.) และ "ตามข้อเสนอโครงการ" (เช่น ค่าตอบแทนนักวิจัย) ไม่มีเพดานตายตัวให้
+  // เทียบอัตโนมัติ (ต้องมี field ปริมาณ/ข้อเสนอโครงการเพิ่มเติมที่ระบบนี้ยังไม่เก็บ) จึงแค่ผ่านตาม
+  // หมวดแล้วโชว์อัตรา/หมายเหตุให้คนอ่านประกอบแทนการฟันธงอัตโนมัติ
+  async function checkAgainstRules(fundSourceId, category, amount) {
+    if (!fundSourceId) {
+      return { status: "ไม่เข้าเงื่อนไข", aiExplanation: "ไม่พบแหล่งทุนของโครงการนี้ กรุณาตรวจสอบข้อมูลโครงการที่หน้าโครงการของฉัน" };
+    }
+
+    var ruleVersionsSnap = await db.collection("fundSources").doc(fundSourceId)
+      .collection("ruleVersions").where("isActive", "==", true).limit(1).get();
+    if (ruleVersionsSnap.empty) {
+      return { status: "ไม่เข้าเงื่อนไข", aiExplanation: "แหล่งทุนนี้ยังไม่มีระเบียบที่ admin กำหนดไว้ กรุณาติดต่อผู้ดูแลระบบให้เพิ่มกฎที่หน้าจัดการแหล่งทุน" };
+    }
+
+    var ruleItemsSnap = await ruleVersionsSnap.docs[0].ref.collection("ruleItems")
+      .where("categoryName", "==", category).limit(1).get();
+    if (ruleItemsSnap.empty) {
+      return { status: "ไม่เข้าเงื่อนไข", aiExplanation: "ระเบียบของแหล่งทุนนี้ไม่มีหมวด \"" + category + "\" กรุณาตรวจสอบว่าเลือกหมวดค่าใช้จ่ายถูกต้องหรือไม่" };
+    }
+
+    var item = ruleItemsSnap.docs[0].data();
+    // legacy ruleItem ก่อนขยายโครงสร้าง (มีแค่ categoryName/maxAmount) — ถือว่าเป็น "เพดานตามจริง"
+    var rateType = item.rateType || "เพดานตามจริง";
+    var rateAmount = item.rateAmount != null ? item.rateAmount : item.maxAmount;
+
+    if (rateType === "เพดานตามจริง" || rateType === "เหมาจ่าย") {
+      if (rateAmount != null && amount > rateAmount) {
+        return {
+          status: "ต้องแก้ไข",
+          aiExplanation: "ยอดเงินที่ระบุ (" + formatCurrency(amount) + ") เกินเพดานของหมวด \"" + category + "\" ซึ่งกำหนดไว้ไม่เกิน " + formatCurrency(rateAmount) + " กรุณาตรวจสอบว่ามีเอกสารประกอบครบตามระเบียบของแหล่งทุนหรือไม่",
+        };
+      }
+      return {
+        status: "ผ่าน",
+        aiExplanation: "ใบเสร็จนี้ผ่านเกณฑ์เพราะอยู่ในหมวดที่อนุญาตและไม่เกินวงเงินที่กำหนด" + (rateAmount != null ? " (" + formatCurrency(rateAmount) + ")" : ""),
+      };
+    }
+
+    // "ต่อหน่วย"/"ตามข้อเสนอโครงการ" — ไม่มีเพดานตายตัวให้เทียบ ผ่านตามหมวดแล้วโชว์อัตรา/หมายเหตุแทน
+    var rateNote = rateType === "ต่อหน่วย" && rateAmount != null
+      ? "อัตราอ้างอิง " + formatCurrency(rateAmount) + (item.unit ? " / " + item.unit : "")
+      : "ไม่มีเพดานระดับแหล่งทุน อ้างอิงจากข้อเสนอโครงการของโครงการนี้เอง";
+    return {
+      status: "ผ่าน",
+      aiExplanation: "หมวด \"" + category + "\" เป็นประเภท " + rateType + " (" + rateNote + ") — ระบบยังตรวจอัตโนมัติแบบเต็มรูปแบบไม่ได้ กรุณาให้เจ้าหน้าที่การเงินตรวจสอบยอดเงินอีกครั้ง" + (item.note ? " หมายเหตุ: " + item.note : ""),
+    };
   }
 
   function validateFiles(files) {
@@ -194,11 +252,13 @@ var SAMPLE_VENDORS = [
     }
 
     var files = Array.from(fileInput.files);
-    var checkResult = window.mockRuleEngine(values.confirmedCategory, values.confirmedAmount);
     var step2Button = document.getElementById("step2Button");
 
     step2Button.disabled = true;
     try {
+      step2Button.textContent = "กำลังตรวจสอบตามระเบียบแหล่งทุน...";
+      var checkResult = await checkAgainstRules(projectFundSourceId[values.projectId], values.confirmedCategory, values.confirmedAmount);
+
       step2Button.textContent = "กำลังบันทึกข้อมูลใบเสร็จ...";
       var newReceiptId = await nextReceiptId();
       // receipts อยู่ซ้อนใน users/{u}/projects/{p}/receipts/{id} — เจ้าของคือผู้ใช้ที่ล็อกอินอยู่เสมอ

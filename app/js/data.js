@@ -35,15 +35,19 @@ window.RECEIPT_DATA = {
     { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2568.1", isActive: true, importedByUserId: "user001" },
   ],
 
+  // rateType: "เพดานตามจริง" (เบิกตามจริงไม่เกิน rateAmount) | "เหมาจ่าย" (จ่ายคงที่ rateAmount ต่อ unit)
+  // | "ต่อหน่วย" (rateAmount ต่อ unit เช่น ต่อกิโลเมตร — ไม่มี cap ตายตัว) | "ตามข้อเสนอโครงการ" (ไม่มี
+  // เพดานระดับแหล่งทุน อ้างอิงข้อเสนอโครงการของแต่ละโครงการเอง) — โครงสร้างนี้อ้างอิงจากคู่มือบริหาร
+  // จัดการโครงการวิจัยของมหาวิทยาลัยจริง (ดู docs/05-log/20260910-log.md) ไม่ใช่แค่ "หมวด+วงเงิน" เดิม
   ruleItems: [
-    { id: "ruleitem001", ruleVersionId: "ruleversion001", categoryName: "ค่าเดินทาง", maxAmount: 5000 },
-    { id: "ruleitem002", ruleVersionId: "ruleversion001", categoryName: "ค่าวัสดุ", maxAmount: 2000 },
-    { id: "ruleitem003", ruleVersionId: "ruleversion001", categoryName: "ค่าตอบแทนวิทยากร", maxAmount: 3000 },
-    { id: "ruleitem004", ruleVersionId: "ruleversion001", categoryName: "ค่าจ้างเหมาบริการ", maxAmount: 10000 },
-    { id: "ruleitem005", ruleVersionId: "ruleversion002", categoryName: "ค่าเดินทาง", maxAmount: 4000 },
-    { id: "ruleitem006", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุ", maxAmount: 1500 },
-    { id: "ruleitem007", ruleVersionId: "ruleversion002", categoryName: "ค่าตอบแทนวิทยากร", maxAmount: 2500 },
-    { id: "ruleitem008", ruleVersionId: "ruleversion002", categoryName: "ค่าจ้างเหมาบริการ", maxAmount: 8000 },
+    { id: "ruleitem001", ruleVersionId: "ruleversion001", categoryName: "ค่าเดินทาง", rateType: "เพดานตามจริง", rateAmount: 5000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "" },
+    { id: "ruleitem002", ruleVersionId: "ruleversion001", categoryName: "ค่าวัสดุ", rateType: "เพดานตามจริง", rateAmount: 2000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "" },
+    { id: "ruleitem003", ruleVersionId: "ruleversion001", categoryName: "ค่าตอบแทนวิทยากร", rateType: "เพดานตามจริง", rateAmount: 3000, unit: null, requiredEvidenceType: "ใบสำคัญรับเงิน", note: "" },
+    { id: "ruleitem004", ruleVersionId: "ruleversion001", categoryName: "ค่าจ้างเหมาบริการ", rateType: "เพดานตามจริง", rateAmount: 10000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "" },
+    { id: "ruleitem005", ruleVersionId: "ruleversion002", categoryName: "ค่าเดินทาง", rateType: "เพดานตามจริง", rateAmount: 4000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "" },
+    { id: "ruleitem006", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุ", rateType: "เพดานตามจริง", rateAmount: 1500, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "" },
+    { id: "ruleitem007", ruleVersionId: "ruleversion002", categoryName: "ค่าตอบแทนวิทยากร", rateType: "เพดานตามจริง", rateAmount: 2500, unit: null, requiredEvidenceType: "ใบสำคัญรับเงิน", note: "" },
+    { id: "ruleitem008", ruleVersionId: "ruleversion002", categoryName: "ค่าจ้างเหมาบริการ", rateType: "เพดานตามจริง", rateAmount: 8000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "" },
   ],
 
   receipts: [
@@ -88,9 +92,10 @@ window.RECEIPT_DATA = {
   ],
 };
 
-// กฎ mock ง่ายๆ แทน Rule Engine จริง (FR-04) — ใช้เฉพาะตอนกรอกฟอร์มมือใน new-receipt.html
-// ของจริงต้องอ้างอิงระเบียบของ FundSource ที่ Project สังกัดอยู่ (เวอร์ชัน active ณ วันตรวจ)
-// อันนี้เป็นแค่ mock ให้เห็นสถานะหลากหลายทันทีตอนทดสอบ ไม่ใช่กฎระเบียบทุนวิจัยจริง
+// กฎ mock เก่า (ก่อน 2026-09-10) — **ไม่มีอะไรเรียกใช้ฟังก์ชันนี้แล้ว** เก็บไว้แค่เป็นตัวอย่างอ้างอิง
+// เดิม `app/js/new-receipt.js` เคยเรียกฟังก์ชันนี้ตรงๆ แต่ตอนนี้เปลี่ยนไปใช้ checkAgainstRules()
+// (ในไฟล์ new-receipt.js เอง) ที่อ่านจาก ruleItems ของแหล่งทุนจริงใน Firestore แทน hardcode ด้านล่าง
+// (data-driven mock — ดู docs/05-log/20260910-log.md)
 window.mockRuleEngine = function (category, amount) {
   if (category === "ค่าอาหาร") {
     return { status: "ไม่เข้าเงื่อนไข", aiExplanation: "ระเบียบของแหล่งทุนนี้ไม่อนุญาตให้เบิกค่าอาหารในหมวดนี้ กรุณาตรวจสอบระเบียบของแหล่งทุนอีกครั้ง" };

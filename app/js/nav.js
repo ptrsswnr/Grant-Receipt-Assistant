@@ -11,6 +11,7 @@
     { href: "projects.html", label: "โครงการของฉัน" },
     { href: "receipts.html", label: "ใบเสร็จของฉัน" },
     { href: "new-receipt.html", label: "อัปโหลดใบเสร็จใหม่" },
+    { href: "admin-dashboard.html", label: "Admin Dashboard" },
     { href: "fund-sources.html", label: "แหล่งทุน (Admin)" },
     { href: "seed.html", label: "🌱 ใส่ข้อมูลตัวอย่าง" },
   ];
