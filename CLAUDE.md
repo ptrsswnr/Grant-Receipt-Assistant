@@ -41,6 +41,28 @@ Practical consequences of this nesting, all handled in `app/js/receipts.js` and 
 - `collectionGroup(...).orderBy(...)` (and even a plain collection-group `.where(...)` with no `orderBy`) needs Firestore indexes that aren't created automatically — normally you'd discover this from a runtime error in the browser (with a direct Console link baked in) the first time the exact query executes. **These are now defined in `firestore.indexes.json` and deployed** (`firebase deploy --only firestore:indexes`, 2026-09-10) so new environments/collaborators don't have to hit the error and click through Console manually: a composite index on the `receipts` collection group (`ownerUserId` ASC, `uploadedAt` DESC — covers `app/js/receipts.js`'s query) and a single-field override enabling `ownerUserId` at `COLLECTION_GROUP` scope (covers the plain equality scan in `app/js/new-receipt.js`'s `nextReceiptId()`). Verified live: both queries succeed with no index errors. If a new collection-group query is added later on a different field, expect to hit this again and add it to `firestore.indexes.json` rather than leaving it as a manual Console step.
 - The owning project for a receipt fetched via a collection-group query is `doc.ref.parent.parent` (parent of the `receipts` collection), which is `null` for a legacy top-level receipt doc — code must handle that.
 
+### Quick reference — every collection path and every status value
+
+**Firestore collection paths** (7 total — no other collections exist):
+- `users/{userId}` — profile doc (`fullName`, `email`, `roleType`, `isAdmin`, `privacyConsentAcceptedAt`)
+- `users/{userId}/projects/{projectId}` — `projectName`, `fundSourceId`, `ownerUserId`, `createdAt`
+- `users/{userId}/projects/{projectId}/receipts/{receiptId}` — see status values below
+- `users/{userId}/projects/{projectId}/receipts/{receiptId}/files/{fileId}` — attached-file metadata (demo-only, no real Storage — see "Deploying rules" above)
+- `fundSources/{fundSourceId}` — `fundSourceName`, `fundSourceCode`
+- `fundSources/{fundSourceId}/ruleVersions/{ruleVersionId}` — `versionLabel`, `isActive`, `importedByUserId`
+- `fundSources/{fundSourceId}/ruleVersions/{ruleVersionId}/ruleItems/{ruleItemId}` — `categoryName`, `rateType`, `rateAmount`, `unit`, `requiredEvidenceType`, `note`
+
+**All `receipt.status` values** (exactly 3 persisted values, set once at creation by `checkAgainstRules()` in `new-receipt.js` and never changed afterward — there is no "edit status" UI):
+| Value | Meaning | CSS class |
+|---|---|---|
+| `ผ่าน` | Passes the fund source's rules | `.chip-status--pass` |
+| `ต้องแก้ไข` | Amount exceeds the category's cap — needs correction | `.chip-status--fix` |
+| `ไม่เข้าเงื่อนไข` | Category not allowed / no matching rule for this fund source | `.chip-status--reject` |
+
+A 4th value, `รอตรวจสอบ` (pending/"awaiting check"), exists only as a **transient UI state** shown during `new-receipt.html` step 2 (before the user submits) — it is never written to Firestore as `receipt.status`; `.chip-status--pending` is its CSS class and also the fallback class for any unrecognized status string.
+
+Other boolean/flag fields that look status-like but aren't the receipt's status: `receipt.isExported` (export-report tracking, feature deferred — see `BACKLOG.md` FR-10/FR-21), `project`/`user` docs have no status field at all, `ruleVersion.isActive` (which rule version is currently enforced, not a receipt state).
+
 ### Known Firestore Security Rules gotcha (already hit twice — don't reintroduce it)
 
 A `match` block **nested inside** a recursive-wildcard block does not reliably grant access to that nested subcollection, even though the path is exactly what you'd expect:
