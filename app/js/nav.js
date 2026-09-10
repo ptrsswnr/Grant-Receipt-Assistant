@@ -13,6 +13,12 @@
 // อัปโหลดใบเสร็จใหม่ เป็นเครื่องมือของนักวิจัย ไม่ใช่ของ admin) — showAdminNavLinks() จึงแทนที่เมนูเดิม
 // ทั้งหมด ไม่ใช่แค่เพิ่มต่อท้าย ชื่อแบรนด์ (มุมซ้ายบน) ยังคงเป็นลิงก์กลับ index.html ให้เสมอ กันไม่ให้
 // admin ติดอยู่โดยไม่มีทางออกจากหน้า admin เลย
+//
+// **ซ่อนแถบเมนูไว้ก่อน** (visibility:hidden) ตอนเรนเดอร์ครั้งแรก เพราะตอนนั้นยังไม่รู้ว่า user เป็น
+// admin หรือไม่ (auth-guard.js ต้องเช็ค Firestore แบบ async ก่อน) — ถ้าไม่ซ่อนไว้ ทุกครั้งที่เปิดหน้า
+// ใหม่ admin จะเห็นเมนูนักวิจัยโผล่มาแวบหนึ่งก่อนเสมอ แล้วค่อยสลับเป็นเมนู admin (เจอจริงตอนทดสอบ)
+// auth-guard.js ต้องเรียก window.revealNav() หลังเช็ค isAdmin เสร็จแล้วเสมอ (ทั้งกรณี admin/ไม่ใช่
+// admin) ไม่งั้นเมนูจะซ่อนค้างตลอดไป
 // ─────────────────────────────────────────────────────────────
 
 (function () {
@@ -42,7 +48,17 @@
   html += '</header>';
 
   var navContainer = document.getElementById("nav");
-  if (navContainer) navContainer.innerHTML = html;
+  if (navContainer) {
+    navContainer.innerHTML = html;
+    navContainer.style.visibility = "hidden"; // ซ่อนไว้จนกว่า auth-guard.js จะเช็ค isAdmin เสร็จ
+  }
+
+  // เรียกจาก auth-guard.js เท่านั้น หลังเช็ค isAdmin เสร็จแล้ว (ไม่ว่าจะเป็น admin หรือไม่ก็ตาม) —
+  // แสดงแถบเมนูที่ซ่อนไว้ตอนแรก กันเมนูผิดโผล่มาแวบก่อนสลับ (ดูหัวคอมเมนต์ไฟล์นี้)
+  window.revealNav = function () {
+    var navContainer = document.getElementById("nav");
+    if (navContainer) navContainer.style.visibility = "visible";
+  };
 
   // เรียกจาก auth-guard.js เท่านั้น หลังยืนยันแล้วว่าบัญชีนี้ isAdmin === true จริง — เพิ่มลิงก์ admin
   // เข้าไปในแถบเมนูที่เรนเดอร์ไว้แล้ว (ไม่ได้ทำตอนโหลดหน้าปกติ เพราะตอนนั้นยังไม่รู้สถานะ admin)

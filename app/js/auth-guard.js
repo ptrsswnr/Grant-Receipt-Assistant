@@ -11,6 +11,10 @@
 //   true จะเรียก window.showAdminNavLinks() (จาก js/nav.js) เพื่อเพิ่มลิงก์ Admin Dashboard/แหล่งทุน
 //   เข้าแถบเมนู — user ทั่วไปจะไม่เห็นลิงก์เหล่านี้เลย (เดิมเห็นทุกคนแต่กันแค่ตอนเข้าเนื้อหาในหน้า)
 //   ทุกหน้าที่โหลดไฟล์นี้จึงต้องโหลด firebase-firestore-compat.js ไว้ด้วยเสมอ (ดู app/index.html)
+// - nav.js ซ่อนแถบเมนูไว้ตั้งแต่เรนเดอร์ครั้งแรก (กันเมนูนักวิจัยโผล่มาแวบก่อนสลับเป็นเมนู admin —
+//   เจอจริงตอนทดสอบ: ทุกครั้งที่เปิดหน้าใหม่จะเห็นเมนูนักวิจัยกะพริบก่อนเปลี่ยนเป็นเมนู admin) จึงต้อง
+//   เรียก window.revealNav() เสมอหลังเช็ค isAdmin เสร็จ **ไม่ว่าผลจะเป็น admin หรือไม่ก็ตาม** — ถ้าลืม
+//   เรียก เมนูจะซ่อนค้างมองไม่เห็นเลย
 // ─────────────────────────────────────────────────────────────
 
 (function () {
@@ -46,7 +50,11 @@
           if (doc.exists && doc.data().isAdmin === true && window.showAdminNavLinks) {
             window.showAdminNavLinks();
           }
-        }).catch(function () {});
+        }).catch(function () {}).then(function () {
+          if (window.revealNav) window.revealNav();
+        });
+      } else if (window.revealNav) {
+        window.revealNav();
       }
 
       resolve(user);
