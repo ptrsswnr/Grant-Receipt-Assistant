@@ -8,6 +8,11 @@
 // แสดงให้ทุกคนเห็นแต่กันสิทธิ์แค่ตอนเข้าเนื้อหาในหน้า ทำให้ user ทั่วไปเห็นลิงก์ทั้งที่กดแล้วโดนบล็อก
 // ตั้งแต่ 2026-09-10 ย้ายไปให้ app/js/auth-guard.js เป็นคนเพิ่มลิงก์เหล่านี้เข้ามาแทน หลังเช็ค isAdmin
 // จาก Firestore แล้วว่าเป็น true จริง (เรียก window.showAdminNavLinks() ที่ไฟล์นี้ export ไว้)
+//
+// บัญชี admin เห็น**เฉพาะ** 2 ลิงก์นี้ในเมนู (ไม่เห็นเมนูของนักวิจัยเลย — โครงการของฉัน/ใบเสร็จของฉัน/
+// อัปโหลดใบเสร็จใหม่ เป็นเครื่องมือของนักวิจัย ไม่ใช่ของ admin) — showAdminNavLinks() จึงแทนที่เมนูเดิม
+// ทั้งหมด ไม่ใช่แค่เพิ่มต่อท้าย ชื่อแบรนด์ (มุมซ้ายบน) ยังคงเป็นลิงก์กลับ index.html ให้เสมอ กันไม่ให้
+// admin ติดอยู่โดยไม่มีทางออกจากหน้า admin เลย
 // ─────────────────────────────────────────────────────────────
 
 (function () {
@@ -26,7 +31,7 @@
   var currentPage = location.pathname.split("/").pop() || "index.html";
 
   var html = '<header class="proto-bar">';
-  html += '<div class="proto-bar__brand">🧾 Grant Receipt Assistant</div>';
+  html += '<a href="index.html" class="proto-bar__brand" style="text-decoration:none;">🧾 Grant Receipt Assistant</a>';
   html += '<nav class="proto-bar__nav">';
   menuItems.forEach(function (m) {
     var active = m.href === currentPage ? ' class="active"' : "";
@@ -44,6 +49,7 @@
   window.showAdminNavLinks = function () {
     var navEl = document.querySelector(".proto-bar__nav");
     if (!navEl) return;
+    navEl.innerHTML = ""; // แทนที่เมนูนักวิจัยทั้งหมด — admin เห็นแค่ลิงก์ admin เท่านั้น
     window.ADMIN_NAV_ITEMS.forEach(function (m) {
       var a = document.createElement("a");
       a.href = m.href;
