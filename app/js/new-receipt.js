@@ -27,11 +27,24 @@ var SAMPLE_VENDORS = [
   var fileInput = document.getElementById("receiptFiles");
   var warningBox = document.getElementById("warningBox");
   var fileStatusBox = document.getElementById("fileStatus");
+  var privacyConsentCard = document.getElementById("privacyConsentCard");
+  var privacyConsentCheckbox = document.getElementById("privacyConsentCheckbox");
 
   var stepEl = { 1: document.getElementById("step1"), 2: document.getElementById("step2"), 3: document.getElementById("step3") };
   var dotEl = { 1: document.getElementById("stepDot1"), 2: document.getElementById("stepDot2"), 3: document.getElementById("stepDot3") };
 
   var user = await window.AUTH_READY;
+
+  // แสดงกล่องขอความยินยอมเรื่องความเป็นส่วนตัวเฉพาะครั้งที่ยังไม่เคยกดยอมรับมาก่อน (เช็คจาก field
+  // privacyConsentAcceptedAt บนเอกสาร users/{uid} ของตัวเอง) — ให้ admin เห็นข้อมูลใบเสร็จได้เต็มรูปแบบ
+  // ผ่าน Admin Dashboard ตั้งแต่ 2026-09-10 (กลับคำตัดสินใจ FR-12 เดิม) จึงต้องแจ้งนักวิจัยให้รับทราบ
+  // ก่อนอัปโหลดครั้งแรก (เวอร์ชันเบาของ FR-13/FR-14 ที่เดิมเลื่อนไป Sprint 3 — ยังไม่ใช่ PDPA
+  // compliance เต็มรูปแบบ ไม่มี consent record แยกต่างหาก แค่ timestamp เดียวบนเอกสารผู้ใช้)
+  var userDoc = await db.collection("users").doc(user.uid).get();
+  var privacyConsentAlreadyGiven = userDoc.exists && !!userDoc.data().privacyConsentAcceptedAt;
+  if (!privacyConsentAlreadyGiven) {
+    privacyConsentCard.style.display = "block";
+  }
 
   // ดรอปดาวน์โครงการวิจัยต้องดึงเฉพาะโครงการของผู้ใช้ที่ล็อกอินอยู่ (users/{uid}/projects) — ไม่ใช้
   // window.RECEIPT_DATA.projects ตรงๆ อีกต่อไป เพราะไฟล์นั้นเป็นแค่ข้อมูลตัวอย่างสำหรับ seed.html
@@ -42,7 +55,7 @@ var SAMPLE_VENDORS = [
   if (userProjects.empty) {
     var noProjectOption = document.createElement("option");
     noProjectOption.value = "";
-    noProjectOption.textContent = "ยังไม่มีโครงการวิจัย — ไปที่หน้า \"ใส่ข้อมูลตัวอย่าง\" ก่อน";
+    noProjectOption.textContent = "ยังไม่มีโครงการวิจัย — ไปที่หน้า \"โครงการของฉัน\" ก่อน";
     noProjectOption.disabled = true;
     projectSelect.appendChild(noProjectOption);
   } else {
@@ -53,6 +66,13 @@ var SAMPLE_VENDORS = [
       projectSelect.appendChild(option);
       projectFundSourceId[doc.id] = doc.data().fundSourceId;
     });
+  }
+
+  // ถ้ามาจากลิงก์ "อัปโหลดใบเสร็จ" ในการ์ดโครงการที่หน้า projects.html จะมี ?projectId=xxx ใน URL —
+  // เลือกโครงการนั้นไว้ล่วงหน้าให้เลย (ยังแก้ไขเปลี่ยนโครงการอื่นในดรอปดาวน์เองได้ตามปกติ)
+  var preselectProjectId = new URLSearchParams(location.search).get("projectId");
+  if (preselectProjectId && projectFundSourceId.hasOwnProperty(preselectProjectId)) {
+    projectSelect.value = preselectProjectId;
   }
 
   window.RECEIPT_DATA.categories.forEach(function (category) {
@@ -193,9 +213,13 @@ var SAMPLE_VENDORS = [
   });
 
   // ─── ขั้นตอนที่ 1 → 2 ───
-  document.getElementById("step1Button").addEventListener("click", function () {
+  document.getElementById("step1Button").addEventListener("click", async function () {
     clearWarning();
 
+    if (!privacyConsentAlreadyGiven && !privacyConsentCheckbox.checked) {
+      warn("กรุณายอมรับเงื่อนไขเรื่องความเป็นส่วนตัวก่อนอัปโหลดใบเสร็จ");
+      return;
+    }
     if (!projectSelect.value) {
       warn("กรุณาเลือกโครงการวิจัยก่อน");
       return;
@@ -205,6 +229,15 @@ var SAMPLE_VENDORS = [
     if (fileError) {
       warn(fileError);
       return;
+    }
+
+    if (!privacyConsentAlreadyGiven) {
+      privacyConsentAlreadyGiven = true;
+      privacyConsentCard.style.display = "none";
+      await db.collection("users").doc(user.uid).set(
+        { privacyConsentAcceptedAt: firebase.firestore.FieldValue.serverTimestamp() },
+        { merge: true }
+      );
     }
 
     goToStep(2);

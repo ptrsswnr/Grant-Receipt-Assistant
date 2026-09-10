@@ -64,12 +64,16 @@
     return "project" + String(maxNumber + 1).padStart(3, "0");
   }
 
-  function projectCardHtml(project) {
+  function projectCardHtml(projectId, project) {
     var fundSourceName = fundSourceNameById[project.fundSourceId] || "(ไม่พบแหล่งทุน)";
     return (
       '<div class="card">' +
         '<h4>' + esc(project.projectName) + '</h4>' +
         '<p class="text-small">แหล่งทุน: ' + esc(fundSourceName) + '</p>' +
+        '<div class="row" style="margin-top:8px;">' +
+          '<a class="btn btn-secondary btn-sm" href="receipts.html?projectId=' + esc(projectId) + '">ใบเสร็จในโครงการนี้</a>' +
+          '<a class="btn btn-primary btn-sm" href="new-receipt.html?projectId=' + esc(projectId) + '">อัปโหลดใบเสร็จ</a>' +
+        '</div>' +
       '</div>'
     );
   }
@@ -83,7 +87,7 @@
       return snapshot.docs;
     }
 
-    projectList.innerHTML = snapshot.docs.map(function (doc) { return projectCardHtml(doc.data()); }).join("");
+    projectList.innerHTML = snapshot.docs.map(function (doc) { return projectCardHtml(doc.id, doc.data()); }).join("");
     projectList.style.display = "block";
     loadState.style.display = "none";
     return snapshot.docs;

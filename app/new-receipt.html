@@ -45,7 +45,7 @@
         <select id="projectId">
           <option value="">— เลือกโครงการวิจัย —</option>
         </select>
-        <p class="help-text">ยังไม่มีโครงการที่ต้องการ? ไปสร้างที่หน้า <a href="seed.html">🌱 ใส่ข้อมูลตัวอย่าง</a> ก่อน (ฟีเจอร์สร้างโครงการเองยังไม่ทำในสัปดาห์นี้ — ดู BACKLOG.md)</p>
+        <p class="help-text">ยังไม่มีโครงการที่ต้องการ? ไปสร้างที่หน้า <a href="projects.html">โครงการของฉัน</a> ก่อน</p>
       </div>
 
       <div class="field">
@@ -57,6 +57,16 @@
           <p class="text-body" style="margin:0;">รองรับไฟล์ชนิด .jpg, .png และ .pdf เท่านั้น</p>
         </label>
         <div id="fileStatus" class="text-small" style="margin-top:8px;"></div>
+      </div>
+
+      <div class="card" id="privacyConsentCard" style="display:none;">
+        <label class="row row-align-center" style="gap:8px; cursor:pointer;">
+          <input type="checkbox" id="privacyConsentCheckbox" style="width:auto; flex:0 0 auto;">
+          <span class="text-small">
+            ฉันรับทราบว่าข้อมูลใบเสร็จที่อัปโหลด (ยอดเงิน วันที่ หมวดค่าใช้จ่าย ผู้ขาย และไฟล์แนบ) จะถูกผู้ดูแลระบบ (Admin)
+            เห็นได้เต็มรูปแบบผ่าน Admin Dashboard และอาจถูกนำไปใช้จัดทำรายงานสรุปและปรับปรุงระบบ
+          </span>
+        </label>
       </div>
 
       <div class="row" style="justify-content:flex-end;">

@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// js/receipts.js — หน้ารายการใบเสร็จของฉัน
+// js/receipts.js — หน้ารายการใบเสร็จของฉัน (หรือของโครงการเดียว ถ้ามี ?projectId= ใน URL)
 // อ่านข้อมูลจาก Firestore จริง — ไม่ใช่ mock ในโค้ด
 // receipts อยู่ซ้อนใน users/{userId}/projects/{projectId}/receipts/{id} (ดูเหตุผลใน js/seed.js)
 // หน้านี้ต้องแสดงใบเสร็จของทุกโครงการของผู้ใช้ที่ล็อกอินอยู่รวมกัน จึงใช้ collectionGroup("receipts")
@@ -7,6 +7,11 @@
 // ของผู้ใช้คนอื่น (ownerUserId เป็น field ที่ denormalize ไว้บนเอกสาร receipt เอง — ดู firestore.rules
 // ที่ต้องอิง field นี้เช็คสิทธิ์การอ่านของ collectionGroup query แบบนี้ด้วย) — ครั้งแรกที่รันอาจเจอ
 // error ขอให้สร้าง Firestore composite index ก่อน (ดูคำอธิบายใน catch ด้านล่าง)
+//
+// ถ้ามาจาก app/projects.html (ลิงก์ "ใบเสร็จในโครงการนี้") จะมี ?projectId=xxx ใน URL — กรอง
+// เฉพาะใบเสร็จของโครงการนั้นฝั่ง client (ยังคง fetch ทุกใบของผู้ใช้เหมือนเดิม แค่กรองผลลัพธ์ก่อนแสดง
+// ไม่ต้อง query ใหม่/ไม่ต้องมี index เพิ่ม) พร้อมเปลี่ยนหัวข้อหน้าให้ระบุชื่อโครงการและมีปุ่ม
+// "อัปโหลดใบเสร็จในโครงการนี้" ต่อไปยัง new-receipt.html?projectId=xxx
 // ─────────────────────────────────────────────────────────────
 
 var STATUS_CHIP_CLASS = {
@@ -77,24 +82,49 @@ function receiptCardHtml(receipt, files, projectName) {
 (async function loadReceipts() {
   var loadState = document.getElementById("load-state");
   var list = document.getElementById("receipt-list");
+  var pageIntro = document.getElementById("pageIntro");
+
+  var filterProjectId = new URLSearchParams(location.search).get("projectId");
 
   try {
     var user = await window.AUTH_READY;
+
+    if (filterProjectId) {
+      var projectDoc = await db.collection("users").doc(user.uid).collection("projects").doc(filterProjectId).get();
+      var filterProjectName = projectDoc.exists ? projectDoc.data().projectName : "(ไม่พบโครงการ)";
+      pageIntro.innerHTML =
+        '<h1>ใบเสร็จของโครงการ: ' + esc(filterProjectName) + '</h1>' +
+        '<p class="text-body">' +
+          '<a href="projects.html">← กลับไปโครงการของฉัน</a> · ' +
+          '<a href="new-receipt.html?projectId=' + esc(filterProjectId) + '" class="btn btn-primary btn-sm">อัปโหลดใบเสร็จในโครงการนี้</a>' +
+        '</p>';
+    }
+
     var snapshot = await db.collectionGroup("receipts")
       .where("ownerUserId", "==", user.uid)
       .orderBy("uploadedAt", "desc")
       .get();
 
-    if (snapshot.empty) {
-      loadState.innerHTML =
-        '<div class="banner banner--warning">' +
+    var docs = snapshot.docs;
+    if (filterProjectId) {
+      docs = docs.filter(function (doc) {
+        var projectRef = doc.ref.parent.parent;
+        return projectRef && projectRef.id === filterProjectId;
+      });
+    }
+
+    if (docs.length === 0) {
+      loadState.innerHTML = filterProjectId
+        ? '<div class="banner banner--info"><p class="text-body">โครงการนี้ยังไม่มีใบเสร็จ — ' +
+          '<a href="new-receipt.html?projectId=' + esc(filterProjectId) + '">อัปโหลดใบเสร็จแรก</a></p></div>'
+        : '<div class="banner banner--warning">' +
           '<p class="text-body">ยังไม่มีข้อมูลใน collection <code>receipts</code> — ไปที่หน้า ' +
-          '<a href="seed.html">🌱 ใส่ข้อมูลตัวอย่าง</a> ก่อน (ต้องตั้ง Firestore Rules ให้เขียนได้ด้วย ดู firestore.rules)</p>' +
-        '</div>';
+          '<a href="projects.html">โครงการของฉัน</a> เพื่อสร้างโครงการแล้วอัปโหลดใบเสร็จก่อน</p>' +
+          '</div>';
       return;
     }
 
-    var htmlParts = await Promise.all(snapshot.docs.map(async function (doc) {
+    var htmlParts = await Promise.all(docs.map(async function (doc) {
       var filesSnapshot = await doc.ref.collection("files").get();
       var files = filesSnapshot.docs.map(function (f) { return f.data(); });
       var receipt = doc.data();
@@ -102,7 +132,7 @@ function receiptCardHtml(receipt, files, projectName) {
       // parent ของ collection "receipts" คือเอกสารโครงการ (users/{u}/projects/{p}) เสมอ
       // ยกเว้นใบเสร็จเก่าจากโครงสร้าง flat (ก่อน 2026-09-05) ที่ไม่มี parent — เผื่อไว้กันพัง
       var projectRef = doc.ref.parent.parent;
-      var projectName = "(ข้อมูลจากโครงสร้างเก่า — ไปที่หน้า seed.html แล้วกด \"ล้างข้อมูลโครงสร้างเก่า\")";
+      var projectName = "(ข้อมูลจากโครงสร้างเก่า — ไม่มีโครงการอ้างอิง)";
       if (projectRef) {
         var projectSnap = await projectRef.get();
         projectName = projectSnap.exists ? projectSnap.data().projectName : "(ไม่พบโครงการ)";
