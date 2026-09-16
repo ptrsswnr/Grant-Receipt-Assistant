@@ -1,7 +1,11 @@
 // ─────────────────────────────────────────────────────────────
 // js/new-receipt.js — ตัวช่วยกรอกใบเสร็จใหม่ แบบ 3 ขั้นตอน (อัปโหลด → ตรวจสอบข้อมูล → ผลตรวจ)
-// ยังไม่มี OCR/LLM จริงเชื่อมต่อ (ดูเหตุผลใน SCOPE.md) ขั้นตอน "ตรวจสอบข้อมูล" จึงสุ่มค่าขึ้นมาเอง
-// สมมติว่าเป็นผลจาก AI อ่านใบเสร็จให้แล้ว — ส่วนผลตรวจ (checkAgainstRules ด้านล่าง) ยังเป็น mock
+// ตั้งแต่ 2026-09-16 ขั้นตอน "ตรวจสอบข้อมูล" อ่านด้วย AI จริงผ่าน OpenRouter ได้แล้ว (ดู
+// js/receipt-ai.js) จากไฟล์แรกที่แนบ ไม่ว่าจะเป็นรูปภาพ (jpg/png) หรือ pdf (แปลงหน้าแรกเป็นรูปภาพ
+// ก่อนด้วย js/pdf-to-image.js) แต่เฉพาะตอนรัน local ที่มี js/ai-config.local.js (test only — ดู
+// CLAUDE.md "AI receipt reading (test only)") — ทุกกรณีอื่น (ไม่มีไฟล์แนบ, ไม่มี API key, หรือ AI
+// เรียก/แปลงไฟล์ไม่สำเร็จ) ยังใช้ randomAiData() (mock) แทนเหมือนเดิม (เหตุผลเดิมของโหมด mock อยู่ใน
+// SCOPE.md) — ส่วนผลตรวจ (checkAgainstRules ด้านล่าง) ยังเป็น mock
 // เหมือนเดิม (ไม่ใช่ Rule Engine จริง) แต่ตั้งแต่ 2026-09-10 เปลี่ยนจาก hardcode ในโค้ดเป็นอ่านจาก
 // ruleItems ของแหล่งทุนที่โครงการสังกัดจริงใน Firestore (data-driven mock — ดู
 // docs/05-log/20260910-log.md ที่มาของโครงสร้าง ruleItems และเหตุผลที่ยังไม่ auto-check ทุกกรณี)
@@ -128,16 +132,22 @@ var SAMPLE_VENDORS = [
     var rateType = item.rateType || "เพดานตามจริง";
     var rateAmount = item.rateAmount != null ? item.rateAmount : item.maxAmount;
 
+    // evidenceChainId ส่งต่อให้ Level 2 agent (js/receipt-check-agent.js) ไปอ่านชุดเอกสารประกอบ
+    // ของหมวดนี้เพิ่ม — ไม่ใช่ส่วนของการตัดสิน pass/fix/reject ที่ยังคงเป็น numeric comparison ล้วนๆ
+    // item.note (ถ้ามี) ต่อท้าย aiExplanation เสมอทุก rateType — ใช้เป็นที่อ้างอิงแหล่งที่มาของตัวเลข
+    // (เช่น ชื่อคู่มือ) ให้ทั้งผู้ใช้และ Level 2 agent เห็นว่ากฎนี้อ้างอิงมาจากไหน
     if (rateType === "เพดานตามจริง" || rateType === "เหมาจ่าย") {
       if (rateAmount != null && amount > rateAmount) {
         return {
           status: "ต้องแก้ไข",
-          aiExplanation: "ยอดเงินที่ระบุ (" + formatCurrency(amount) + ") เกินเพดานของหมวด \"" + category + "\" ซึ่งกำหนดไว้ไม่เกิน " + formatCurrency(rateAmount) + " กรุณาตรวจสอบว่ามีเอกสารประกอบครบตามระเบียบของแหล่งทุนหรือไม่",
+          aiExplanation: "ยอดเงินที่ระบุ (" + formatCurrency(amount) + ") เกินเพดานของหมวด \"" + category + "\" ซึ่งกำหนดไว้ไม่เกิน " + formatCurrency(rateAmount) + (item.unit ? " / " + item.unit : "") + " กรุณาตรวจสอบว่ามีเอกสารประกอบครบตามระเบียบของแหล่งทุนหรือไม่" + (item.note ? " หมายเหตุ: " + item.note : ""),
+          evidenceChainId: item.evidenceChainId || null,
         };
       }
       return {
         status: "ผ่าน",
-        aiExplanation: "ใบเสร็จนี้ผ่านเกณฑ์เพราะอยู่ในหมวดที่อนุญาตและไม่เกินวงเงินที่กำหนด" + (rateAmount != null ? " (" + formatCurrency(rateAmount) + ")" : ""),
+        aiExplanation: "ใบเสร็จนี้ผ่านเกณฑ์เพราะอยู่ในหมวดที่อนุญาตและไม่เกินวงเงินที่กำหนด" + (rateAmount != null ? " (" + formatCurrency(rateAmount) + (item.unit ? " / " + item.unit : "") + ")" : "") + (item.note ? " หมายเหตุ: " + item.note : ""),
+        evidenceChainId: item.evidenceChainId || null,
       };
     }
 
@@ -148,6 +158,7 @@ var SAMPLE_VENDORS = [
     return {
       status: "ผ่าน",
       aiExplanation: "หมวด \"" + category + "\" เป็นประเภท " + rateType + " (" + rateNote + ") — ระบบยังตรวจอัตโนมัติแบบเต็มรูปแบบไม่ได้ กรุณาให้เจ้าหน้าที่การเงินตรวจสอบยอดเงินอีกครั้ง" + (item.note ? " หมายเหตุ: " + item.note : ""),
+      evidenceChainId: item.evidenceChainId || null,
     };
   }
 
@@ -200,6 +211,28 @@ var SAMPLE_VENDORS = [
     window.scrollTo(0, 0);
   }
 
+  var connectDriveButton = document.getElementById("connectDriveButton");
+  var driveConnectStatus = document.getElementById("driveConnectStatus");
+
+  function refreshDriveConnectStatus() {
+    driveConnectStatus.textContent = window.googleDriveIsConnected() ? "✅ เชื่อมต่อแล้ว" : "";
+  }
+  refreshDriveConnectStatus();
+
+  connectDriveButton.addEventListener("click", async function () {
+    connectDriveButton.disabled = true;
+    connectDriveButton.textContent = "กำลังเชื่อมต่อ...";
+    try {
+      await window.googleDriveConnect();
+      refreshDriveConnectStatus();
+    } catch (err) {
+      driveConnectStatus.innerHTML = '<span style="color:var(--color-error);">⚠️ ' + esc(err.message) + '</span>';
+    } finally {
+      connectDriveButton.disabled = false;
+      connectDriveButton.textContent = "เชื่อมต่อ Google Drive";
+    }
+  });
+
   fileInput.addEventListener("change", function () {
     var files = Array.from(fileInput.files);
     var error = files.length > 0 ? validateFiles(files) : null;
@@ -244,21 +277,50 @@ var SAMPLE_VENDORS = [
     document.getElementById("aiProcessing").hidden = false;
     document.getElementById("reviewForm").hidden = true;
 
-    setTimeout(function () {
-      var aiData = randomAiData();
-      document.getElementById("confirmedAmount").value = aiData.confirmedAmount;
-      document.getElementById("confirmedDate").value = aiData.confirmedDate;
-      categorySelect.value = aiData.confirmedCategory;
-      document.getElementById("confirmedVendorName").value = aiData.confirmedVendorName;
+    // ไฟล์รูปภาพ (jpg/png) ส่งให้ AI จริงอ่านได้ตรงๆ (ดู js/receipt-ai.js) — ไฟล์ pdf ต้องแปลงเป็น
+    // รูปภาพก่อน (js/pdf-to-image.js, หน้าแรกเท่านั้น) เพราะ OpenRouter รับแค่รูปภาพ ไม่มีไฟล์แนบเลย
+    // ยังใช้ randomAiData() (โหมดสาธิต) เหมือนเดิม
+    var imageFile = files.filter(function (f) {
+      var ext = fileExtension(f.name);
+      return ext === "jpg" || ext === "jpeg" || ext === "png";
+    })[0];
+    var pdfFile = !imageFile && files.filter(function (f) { return fileExtension(f.name) === "pdf"; })[0];
+    var aiSourceFile = imageFile || pdfFile;
 
-      var fileNameText = files.length > 0
-        ? files.map(function (f) { return f.name; }).join(", ")
-        : "ไม่ได้แนบไฟล์จริง (โหมดสาธิต — จำลองผลอ่านด้วย AI)";
-      document.getElementById("fileNameDisplay").textContent = fileNameText;
+    var aiData;
+    var aiModeNote;
+    var usedRealAi = false;
+    if (aiSourceFile && window.OPENROUTER_API_KEY) {
+      try {
+        var fileForAi = imageFile || await window.convertPdfFirstPageToImageFile(pdfFile);
+        aiData = await window.analyzeReceiptWithAI(fileForAi, window.RECEIPT_DATA.categories);
+        aiModeNote = "อ่านด้วย AI จริง (OpenRouter) จากไฟล์ " + aiSourceFile.name;
+        usedRealAi = true;
+      } catch (err) {
+        warn("AI อ่านใบเสร็จไม่สำเร็จ (" + err.message + ") — ใช้ข้อมูลตัวอย่างแทนชั่วคราว");
+        aiData = randomAiData();
+        aiModeNote = "AI อ่านไม่สำเร็จ — ใช้ข้อมูลตัวอย่างแทน";
+      }
+    } else {
+      aiData = randomAiData();
+      aiModeNote = aiSourceFile
+        ? "ยังไม่ได้ตั้งค่า OpenRouter API key — ใช้ข้อมูลตัวอย่างแทน (ดู js/ai-config.example.js)"
+        : "ไม่ได้แนบไฟล์ — ใช้ข้อมูลตัวอย่างแทน (โหมดสาธิต)";
+    }
 
-      document.getElementById("aiProcessing").hidden = true;
-      document.getElementById("reviewForm").hidden = false;
-    }, 700);
+    document.getElementById("aiSuggestionLabel").style.display = usedRealAi ? "block" : "none";
+    document.getElementById("confirmedAmount").value = aiData.confirmedAmount;
+    document.getElementById("confirmedDate").value = aiData.confirmedDate;
+    categorySelect.value = aiData.confirmedCategory;
+    document.getElementById("confirmedVendorName").value = aiData.confirmedVendorName;
+
+    var fileNameText = files.length > 0
+      ? files.map(function (f) { return f.name; }).join(", ") + " — " + aiModeNote
+      : aiModeNote;
+    document.getElementById("fileNameDisplay").textContent = fileNameText;
+
+    document.getElementById("aiProcessing").hidden = true;
+    document.getElementById("reviewForm").hidden = false;
   });
 
   // ─── ขั้นตอนที่ 2 → 1 (ย้อนกลับ) ───
@@ -285,6 +347,10 @@ var SAMPLE_VENDORS = [
     }
 
     var files = Array.from(fileInput.files);
+    if (files.length > 0 && !window.googleDriveIsConnected()) {
+      warn('มีไฟล์แนบแต่ยังไม่ได้เชื่อมต่อ Google Drive (หรือหมดอายุแล้ว) — กดปุ่ม "เชื่อมต่อ Google Drive" ในขั้นตอนที่ 1 ก่อนแล้วลองอีกครั้ง');
+      return;
+    }
     var step2Button = document.getElementById("step2Button");
 
     step2Button.disabled = true;
@@ -309,28 +375,45 @@ var SAMPLE_VENDORS = [
 
       for (var i = 0; i < files.length; i++) {
         var file = files[i];
-        step2Button.textContent = "กำลังอัปโหลดไฟล์ " + (i + 1) + "/" + files.length + "...";
+        step2Button.textContent = "กำลังอัปโหลดไฟล์ขึ้น Google Drive " + (i + 1) + "/" + files.length + "...";
 
-        var storagePath = "receipts/" + user.uid + "/" + receiptRef.id + "/" + Date.now() + "_" + file.name;
-        var storageRef = storage.ref(storagePath);
-        await storageRef.put(file);
-        var downloadUrl = await storageRef.getDownloadURL();
+        var driveFile = await window.googleDriveUploadReceiptFile(file, receiptRef.id);
 
         await receiptRef.collection("files").add({
           originalFileName: file.name,
           fileType: fileExtension(file.name),
           fileSizeBytes: file.size,
-          fileReference: downloadUrl,
+          fileReference: driveFile.webViewLink,
           sortOrder: i + 1,
           uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });
+      }
+
+      // Level 2 agentic AI: อ่านชุดเอกสารประกอบของหมวดนี้ (evidenceChain/documentTypes) จริงจาก
+      // Firestore แล้วให้ AI อธิบายผลตรวจ + วิธีแก้ไขเอกสารเพิ่มเติม (ดู js/receipt-check-agent.js
+      // — ผลตรวจ pass/fix/reject ข้างบนเป็น numeric comparison ล้วนๆ อยู่แล้ว agent นี้ไม่เปลี่ยนผลนั้น
+      // แค่เสริมคำอธิบาย) ห่อ try/catch แยกจากการบันทึกใบเสร็จ เพื่อไม่ให้ AI อธิบายเพิ่มเติมไม่สำเร็จ
+      // ไปบล็อกการแสดงผลตรวจที่บันทึกสำเร็จไปแล้ว
+      try {
+        step2Button.textContent = "กำลังให้ AI อธิบายผลตรวจและวิธีแก้ไข...";
+        var enrichedExplanation = await window.runReceiptCheckAgent({
+          receiptRef: receiptRef,
+          evidenceChainId: checkResult.evidenceChainId,
+          category: values.confirmedCategory,
+          amount: values.confirmedAmount,
+          deterministicResult: checkResult,
+        });
+        checkResult.aiExplanation = enrichedExplanation;
+        await receiptRef.update({ aiExplanation: enrichedExplanation });
+      } catch (agentErr) {
+        console.warn("AI agent อธิบายเพิ่มเติมไม่สำเร็จ (ใช้ผลตรวจแบบไม่มีคำอธิบายเสริม):", agentErr);
       }
 
       var projectName = projectSelect.options[projectSelect.selectedIndex].textContent;
       showCheckResult(values, checkResult, projectName);
       goToStep(3);
     } catch (err) {
-      warn("บันทึกไม่สำเร็จ: " + err.message + " (เช็ค Firestore/Storage Rules ว่าเปิดให้เขียนได้หรือยัง)");
+      warn("บันทึกไม่สำเร็จ: " + err.message + " (เช็ค Firestore Rules หรือการเชื่อมต่อ Google Drive ว่าเปิดให้เขียนได้หรือยัง)");
     } finally {
       step2Button.disabled = false;
       step2Button.textContent = "ส่งเข้าตรวจกับ Rule Engine";

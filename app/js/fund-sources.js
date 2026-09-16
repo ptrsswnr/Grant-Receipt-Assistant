@@ -11,6 +11,10 @@
 // docs/05-log/20260910-log.md): categoryName, rateType, rateAmount, unit, requiredEvidenceType, note
 // — requiredEvidenceType/note เป็น field อ้างอิงให้อ่านเฉยๆ ยังไม่มีการบังคับใช้ (enforce) จริง
 // (ตัดออกจากขอบเขตรอบนี้ตามที่ผู้ใช้ยืนยัน — ดู BACKLOG.md Sprint 4)
+// evidenceChainId (เพิ่ม 2026-09-12): อ้างอิง evidenceChains/{id} (ข้อมูลอ้างอิงกลาง ไม่ผูกแหล่งทุน —
+// โหลดมาทำ dropdown ใน evidenceChainsById ด้านล่าง) แยกความกังวลจาก rateType/rateAmount โดยเจตนา:
+// rateType/rateAmount ตอบ "เกินวงเงินไหม", evidenceChainId ตอบ "เอกสารประกอบครบชุดไหม" — ดู
+// data.js หัวข้อ documentTypes/evidenceChains สำหรับที่มาและตัวอย่างชุดเอกสารจริง (วจ.1–วจ.9)
 // ─────────────────────────────────────────────────────────────
 
 (async function () {
@@ -24,6 +28,10 @@
   var fundSourceList = document.getElementById("fund-source-list");
 
   var RATE_TYPES = ["เพดานตามจริง", "เหมาจ่าย", "ต่อหน่วย", "ตามข้อเสนอโครงการ"];
+
+  // evidenceChains: ข้อมูลอ้างอิงกลาง (ดู data.js/CLAUDE.md หัวข้อ documentTypes/evidenceChains) —
+  // โหลดครั้งเดียวตอนเข้าหน้านี้เพื่อทำ dropdown ให้เลือกตอนเพิ่ม ruleItem ไม่ต้องพิมพ์ id เอง
+  var evidenceChainsById = {}; // id -> chainName ใช้ตอนแสดงผลแถว ruleItem
 
   function warn(message) {
     warningBox.textContent = "⚠️ " + message;
@@ -67,13 +75,14 @@
   // legacy ruleItem บางอันที่ seed ไว้ก่อนหน้านี้ (ก่อนขยายโครงสร้าง 2026-09-10) มีแค่
   // categoryName/maxAmount — แปลงให้เข้ากับ field ใหม่เพื่อแสดงผล/แก้ไขได้เหมือนกันหมด
   function normalizeRuleItem(data) {
-    if (data.rateType) return data;
+    if (data.rateType) return Object.assign({ evidenceChainId: null }, data);
     return Object.assign({}, data, {
       rateType: "เพดานตามจริง",
       rateAmount: data.maxAmount != null ? data.maxAmount : null,
       unit: null,
       requiredEvidenceType: data.requiredEvidenceType || "",
       note: data.note || "",
+      evidenceChainId: data.evidenceChainId || null,
     });
   }
 
@@ -82,12 +91,16 @@
     var rateText = item.rateAmount != null
       ? "฿" + Number(item.rateAmount).toLocaleString("th-TH") + (item.unit ? " / " + esc(item.unit) : "")
       : "-";
+    var chainText = item.evidenceChainId
+      ? (evidenceChainsById[item.evidenceChainId] || item.evidenceChainId)
+      : "(ไม่ระบุชุดเอกสาร)";
     return (
       '<div class="row row-align-center" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--color-border-default);" data-fs-id="' + esc(fsId) + '" data-ri-id="' + esc(riId) + '">' +
         '<span class="text-small" style="flex:1 1 130px;">' + esc(item.categoryName) + '</span>' +
         '<span class="text-small" style="flex:1 1 110px;">' + esc(item.rateType) + '</span>' +
         '<span class="text-small text-mono" style="flex:1 1 110px;">' + rateText + '</span>' +
         '<span class="text-tiny" style="flex:1 1 110px;">' + esc(item.requiredEvidenceType) + '</span>' +
+        '<span class="text-tiny" style="flex:1 1 150px;">' + esc(chainText) + '</span>' +
         '<span class="text-tiny" style="flex:1 1 130px;">' + esc(item.note) + '</span>' +
         '<button type="button" class="btn btn-ghost btn-sm" data-action="delete-rule-item">ลบ</button>' +
       '</div>'
@@ -96,13 +109,18 @@
 
   function addRuleItemFormHtml(fsId) {
     var options = RATE_TYPES.map(function (t) { return '<option value="' + esc(t) + '">' + esc(t) + '</option>'; }).join("");
+    var chainOptions = '<option value="">(ไม่ระบุชุดเอกสาร)</option>' +
+      Object.keys(evidenceChainsById).map(function (id) {
+        return '<option value="' + esc(id) + '">' + esc(evidenceChainsById[id]) + '</option>';
+      }).join("");
     return (
       '<div class="row" style="margin-top:12px; flex-wrap:wrap;" data-fs-id="' + esc(fsId) + '">' +
-        '<input type="text" class="ri-category" placeholder="หมวด เช่น ค่าเดินทาง" style="flex:1 1 140px;">' +
+        '<input type="text" class="ri-category" placeholder="หมวด เช่น ค่าวัสดุสำนักงาน" style="flex:1 1 140px;">' +
         '<select class="ri-rate-type" style="flex:1 1 130px;">' + options + '</select>' +
         '<input type="number" class="ri-rate-amount" placeholder="จำนวนเงิน" style="flex:1 1 100px;">' +
         '<input type="text" class="ri-unit" placeholder="หน่วย (ถ้ามี)" style="flex:1 1 90px;">' +
         '<input type="text" class="ri-evidence" placeholder="เอกสารที่ต้องใช้" style="flex:1 1 120px;">' +
+        '<select class="ri-evidence-chain" style="flex:1 1 160px;" title="ชุดเอกสารที่ต้องมีครบ (evidenceChains)">' + chainOptions + '</select>' +
         '<input type="text" class="ri-note" placeholder="หมายเหตุ" style="flex:1 1 140px;">' +
         '<button type="button" class="btn btn-secondary btn-sm" data-action="add-rule-item">เพิ่มกฎ</button>' +
       '</div>'
@@ -145,6 +163,17 @@
     fundSourceList.style.display = "block";
     loadState.style.display = "none";
     return snapshot.docs;
+  }
+
+  // โหลด evidenceChains ครั้งเดียวก่อนวาดการ์ดแหล่งทุน (dropdown + ชื่อ chain ในแถว ruleItem
+  // ต้องใช้ค่านี้) — ถ้าโหลดไม่สำเร็จ (เช่น ยังไม่เคย seed) ปล่อยเป็น dropdown ว่างเฉยๆ ไม่บล็อกหน้า
+  try {
+    var evidenceChainsSnap = await db.collection("evidenceChains").get();
+    evidenceChainsSnap.forEach(function (doc) {
+      evidenceChainsById[doc.id] = doc.data().chainName || doc.id;
+    });
+  } catch (chainErr) {
+    // ไม่มีสิทธิ์อ่านหรือยังไม่เคย seed — ปล่อย evidenceChainsById ว่างไว้ dropdown จะมีแค่ "(ไม่ระบุชุดเอกสาร)"
   }
 
   var existingDocs;
@@ -255,6 +284,7 @@
       var rateAmountRaw = formRow.querySelector(".ri-rate-amount").value;
       var unit = formRow.querySelector(".ri-unit").value.trim();
       var requiredEvidenceType = formRow.querySelector(".ri-evidence").value.trim();
+      var evidenceChainId = formRow.querySelector(".ri-evidence-chain").value || null;
       var note = formRow.querySelector(".ri-note").value.trim();
 
       if (!categoryName) {
@@ -280,6 +310,7 @@
           rateAmount: rateAmountRaw === "" ? null : parseFloat(rateAmountRaw),
           unit: unit || null,
           requiredEvidenceType: requiredEvidenceType,
+          evidenceChainId: evidenceChainId,
           note: note,
           ruleVersionId: activeVersionRef.id,
         });

@@ -8,6 +8,10 @@
 .env.*
 !.env.example
 
+# Local-only OpenRouter API key for AI receipt reading (test only — see CLAUDE.md
+# "AI receipt reading (test only)"). Never deployed, never committed.
+app/js/ai-config.local.js
+
 # Firebase/GCP service account keys — real secrets if this repo ever adds server-side
 # admin access (Cloud Functions, scripts using firebase-admin). The Web SDK apiKey in
 # app/js/firebase-config.js is NOT a secret (see that file's own comment) and stays committed —

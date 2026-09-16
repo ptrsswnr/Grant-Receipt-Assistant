@@ -31,9 +31,77 @@
 // ─────────────────────────────────────────────────────────────
 
 var seedButton = document.getElementById("seedButton");
+var seedRulesButton = document.getElementById("seedRulesButton");
 var resultBox = document.getElementById("seedResult");
 
 seedButton.addEventListener("click", seedData);
+seedRulesButton.addEventListener("click", seedRulesButtonHandler);
+
+// เขียน documentTypes/evidenceChains/fundSources/ruleVersions/ruleItems ลง Firestore จาก data.js
+// (admin เท่านั้น — ดู firestore.rules) แยกออกมาเป็นฟังก์ชันเดียวใช้ร่วมกันทั้งปุ่ม "ใส่ข้อมูลตัวอย่าง"
+// (seedData ด้านล่าง ซึ่ง seed users/projects/receipts/files ด้วย) และปุ่ม "อัปเดตเฉพาะระเบียบ/กฎ"
+// (seedRulesButtonHandler — ใช้ตอนแก้ไขระเบียบจริงแล้วอยากผลักเข้า Firestore โดยไม่แตะข้อมูลใบเสร็จ/
+// โครงการตัวอย่างที่ไม่ต้องการอีกต่อไป — เพิ่ม 2026-09-16) คืนค่า true ถ้าเขียนสำเร็จ (มีสิทธิ์ admin)
+async function seedRules() {
+  var data = window.RECEIPT_DATA;
+  for (var dt of data.documentTypes) {
+    var { id: dtId, ...dtFields } = dt;
+    await db.collection("documentTypes").doc(dtId).set(dtFields);
+  }
+
+  for (var ec of data.evidenceChains) {
+    var { id: ecId, ...ecFields } = ec;
+    await db.collection("evidenceChains").doc(ecId).set(ecFields);
+  }
+
+  for (var fs of data.fundSources) {
+    var { id: fsId, ...fsFields } = fs;
+    await db.collection("fundSources").doc(fsId).set(fsFields);
+  }
+
+  for (var rv of data.ruleVersions) {
+    var { id: rvId, fundSourceId: rvFundSourceId, ...rvFields } = rv;
+    await db.collection("fundSources").doc(rvFundSourceId)
+      .collection("ruleVersions").doc(rvId)
+      .set(Object.assign({}, rvFields, {
+        fundSourceId: rvFundSourceId,
+        importedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }));
+  }
+
+  for (var ri of data.ruleItems) {
+    var { id: riId, ruleVersionId: riRuleVersionId, ...riFields } = ri;
+    var versionForThisItem = data.ruleVersions.find(function (x) { return x.id === riRuleVersionId; });
+    await db.collection("fundSources").doc(versionForThisItem.fundSourceId)
+      .collection("ruleVersions").doc(riRuleVersionId)
+      .collection("ruleItems").doc(riId)
+      .set(Object.assign({}, riFields, { ruleVersionId: riRuleVersionId }));
+  }
+}
+
+async function seedRulesButtonHandler() {
+  seedRulesButton.disabled = true;
+  showResult("กำลังอัปเดตระเบียบ/กฎ…");
+  try {
+    await seedRules();
+    var data = window.RECEIPT_DATA;
+    showResult(
+      "✅ อัปเดตระเบียบ/กฎเสร็จแล้ว (ไม่แตะ users/projects/receipts/files)\n\n" +
+      "documentTypes " + data.documentTypes.length +
+      " · evidenceChains " + data.evidenceChains.length +
+      " · fundSources " + data.fundSources.length +
+      " · ruleVersions " + data.ruleVersions.length +
+      " · ruleItems " + data.ruleItems.length +
+      "\n\n⚠️ ปุ่มนี้เขียนทับ/เพิ่มเท่านั้น ไม่ลบ ruleItem เก่าที่ id ไม่ตรงกับชุดปัจจุบันใน data.js — ถ้าเคย" +
+      " seed ชุดหมวดเก่าไว้ก่อนหน้านี้ ให้ไปลบรายการที่ชื่อหมวดไม่ตรงกับ dropdown ปัจจุบันออกเองที่หน้า" +
+      " fund-sources.html\n\nเปิด Firebase Console หรือหน้า fund-sources.html ตรวจดูได้เลย"
+    );
+  } catch (err) {
+    showResult("❌ อัปเดตไม่สำเร็จ: " + err.message + "\n\n(ต้องเป็นบัญชี admin — isAdmin: true — เท่านั้น)");
+  } finally {
+    seedRulesButton.disabled = false;
+  }
+}
 
 async function seedData() {
   seedButton.disabled = true;
@@ -49,33 +117,12 @@ async function seedData() {
     var { id: _mockUserId, ...userFields } = data.users[0];
     await db.collection("users").doc(uid).set(Object.assign({}, userFields, { email: currentUser.email }), { merge: true });
 
-    // fundSources/ruleVersions/ruleItems เขียนได้เฉพาะบัญชี admin (isAdmin: true) — ผู้ใช้ทั่วไปจะ
-    // โดน permission-denied ที่นี่ ข้ามไปเงียบๆ แล้วเดินหน้า seed projects/receipts/files ของตัวเองต่อ
+    // fundSources/ruleVersions/ruleItems/documentTypes/evidenceChains เขียนได้เฉพาะบัญชี admin
+    // (isAdmin: true) — ผู้ใช้ทั่วไปจะโดน permission-denied ที่นี่ ข้ามไปเงียบๆ แล้วเดินหน้า seed
+    // projects/receipts/files ของตัวเองต่อ (ดู seedRules() ด้านบน สำหรับรายละเอียดสิ่งที่เขียน)
     var fundSourcesSeeded = true;
     try {
-      for (var fs of data.fundSources) {
-        var { id: fsId, ...fsFields } = fs;
-        await db.collection("fundSources").doc(fsId).set(fsFields);
-      }
-
-      for (var rv of data.ruleVersions) {
-        var { id: rvId, fundSourceId: rvFundSourceId, ...rvFields } = rv;
-        await db.collection("fundSources").doc(rvFundSourceId)
-          .collection("ruleVersions").doc(rvId)
-          .set(Object.assign({}, rvFields, {
-            fundSourceId: rvFundSourceId,
-            importedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          }));
-      }
-
-      for (var ri of data.ruleItems) {
-        var { id: riId, ruleVersionId: riRuleVersionId, ...riFields } = ri;
-        var versionForThisItem = data.ruleVersions.find(function (x) { return x.id === riRuleVersionId; });
-        await db.collection("fundSources").doc(versionForThisItem.fundSourceId)
-          .collection("ruleVersions").doc(riRuleVersionId)
-          .collection("ruleItems").doc(riId)
-          .set(Object.assign({}, riFields, { ruleVersionId: riRuleVersionId }));
-      }
+      await seedRules();
     } catch (fsErr) {
       fundSourcesSeeded = false;
     }
@@ -116,15 +163,17 @@ async function seedData() {
     }
 
     showResult(
-      "✅ ใส่ข้อมูลตัวอย่างเสร็จแล้ว (โครงสร้างใหม่: users>projects>receipts>files, fundSources>ruleVersions>ruleItems)\n\n" +
+      "✅ ใส่ข้อมูลตัวอย่างเสร็จแล้ว (โครงสร้างใหม่: users>projects>receipts>files, fundSources>ruleVersions>ruleItems, documentTypes, evidenceChains)\n\n" +
       "users " + data.users.length +
+      " · documentTypes " + (fundSourcesSeeded ? data.documentTypes.length : "ข้าม") +
+      " · evidenceChains " + (fundSourcesSeeded ? data.evidenceChains.length : "ข้าม") +
       " · fundSources " + (fundSourcesSeeded ? data.fundSources.length : "ข้าม") +
       " · ruleVersions " + (fundSourcesSeeded ? data.ruleVersions.length : "ข้าม") +
       " · ruleItems " + (fundSourcesSeeded ? data.ruleItems.length : "ข้าม") +
       " · projects " + data.projects.length +
       " · receipts " + data.receipts.length +
       " · files " + data.files.length +
-      (fundSourcesSeeded ? "" : "\n\n⚠️ ข้ามการใส่ fundSources/ruleVersions/ruleItems เพราะบัญชีนี้ไม่มีสิทธิ์ admin (isAdmin: true) — ให้ผู้ดูแลระบบเพิ่มแหล่งทุนที่หน้า fund-sources.html แทน") +
+      (fundSourcesSeeded ? "" : "\n\n⚠️ ข้ามการใส่ documentTypes/evidenceChains/fundSources/ruleVersions/ruleItems เพราะบัญชีนี้ไม่มีสิทธิ์ admin (isAdmin: true) — ให้ผู้ดูแลระบบเพิ่มแหล่งทุนที่หน้า fund-sources.html แทน") +
       "\n\nเปิด Firebase Console หรือหน้า receipts.html ตรวจดูได้เลย"
     );
   } catch (err) {

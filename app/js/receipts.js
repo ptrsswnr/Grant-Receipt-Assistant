@@ -18,7 +18,7 @@
 // receipt ของตัวเองอยู่แล้ว — ไม่ต้องแก้ rules เพิ่ม ลบผ่าน doc.ref ตรงๆ (path มี uid ของเจ้าของ
 // อยู่แล้ว คนอื่นเดา path มาลบใบเสร็จของเราไม่ได้อยู่ดีเพราะ rules เช็คจาก path จริง ไม่ใช่แค่ซ่อนปุ่ม)
 // cascade ลบ subcollection "files" (เอกสารอ้างอิงไฟล์แนบใน Firestore) ไปด้วย — ไม่ลบไฟล์จริงใน
-// Storage เพราะ Storage ยังไม่ได้ provision ในโปรเจกต์นี้ (ดู CLAUDE.md หัวข้อ Deploying rules)
+// Google Drive ด้วย (ลบแค่เอกสารอ้างอิงใน Firestore) — ดู CLAUDE.md หัวข้อ "แนบไฟล์จริงผ่าน Google Drive"
 // ─────────────────────────────────────────────────────────────
 
 var STATUS_CHIP_CLASS = {

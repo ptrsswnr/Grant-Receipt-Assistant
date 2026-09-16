@@ -17,6 +17,7 @@ rules_version = '2';
 // โครงสร้าง collection (nest ตามความเป็นเจ้าของ):
 //   users/{userId}/projects/{projectId}/receipts/{receiptId}/files/{fileId}
 //   fundSources/{fundSourceId}/ruleVersions/{ruleVersionId}/ruleItems/{ruleItemId}
+//   documentTypes/{documentTypeId}, evidenceChains/{evidenceChainId}  (เพิ่ม 2026-09-12 — ดู CLAUDE.md)
 // รูปแบบ rule ของ receipts/files ใช้ 2 ชุดคู่กัน (ทดสอบจริงกับ Firestore แล้วจำเป็นต้องมีทั้งคู่):
 //   1) concrete path เต็มเส้นทาง (users/.../projects/.../receipts/.../files/...) สำหรับ
 //      อ่าน/เขียนไฟล์แนบจริง — nest match /files ใต้ match ที่ใช้ wildcard (`{path=**}`) แล้ว
@@ -83,6 +84,14 @@ service cloud.firestore {
             allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
             allow write: if request.auth != null && request.auth.uid == userId;
           }
+
+          // agentLogs — เพิ่ม 2026-09-16, audit trail ของ Level 2 agentic AI (ดู
+          // app/js/receipt-check-agent.js / CLAUDE.md "AI receipt checking agent (Level 2, test
+          // only)") สิทธิ์เดียวกับ files เป๊ะ (owner เขียน, owner+admin อ่าน)
+          match /agentLogs/{logId} {
+            allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+            allow write: if request.auth != null && request.auth.uid == userId;
+          }
         }
       }
     }
@@ -115,6 +124,20 @@ service cloud.firestore {
           allow write: if isAdmin();
         }
       }
+    }
+
+    // documentTypes/evidenceChains — เพิ่ม 2026-09-12 (ดู CLAUDE.md/data.js หัวข้อเดียวกัน) เป็นข้อมูล
+    // อ้างอิงกลางเหมือน fundSources ทุกประการ (ไม่มีเจ้าของ ไม่ผูกแหล่งทุนใดแหล่งทุนหนึ่ง — เป็น
+    // top-level collection แยกจาก fundSources ไม่ nest เพราะแบบฟอร์ม วจ.1–วจ.9 เป็นของมหาวิทยาลัย
+    // กลาง ใช้ร่วมกันได้ทุกแหล่งทุน) — สิทธิ์เดียวกัน: อ่านได้ทุกบัญชีที่ล็อกอินอยู่ เขียนได้เฉพาะ admin
+    match /documentTypes/{documentTypeId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    match /evidenceChains/{evidenceChainId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
 
     // กันไม่ให้ collection อื่นที่ไม่ได้ประกาศไว้ข้างบนถูกอ่าน/เขียนโดยไม่ตั้งใจ
