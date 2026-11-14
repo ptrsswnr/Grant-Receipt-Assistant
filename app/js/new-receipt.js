@@ -5,10 +5,8 @@
 // ก่อนด้วย js/pdf-to-image.js) แต่เฉพาะตอนรัน local ที่มี js/ai-config.local.js (test only — ดู
 // CLAUDE.md "AI receipt reading (test only)") — ทุกกรณีอื่น (ไม่มีไฟล์แนบ, ไม่มี API key, หรือ AI
 // เรียก/แปลงไฟล์ไม่สำเร็จ) ยังใช้ randomAiData() (mock) แทนเหมือนเดิม (เหตุผลเดิมของโหมด mock อยู่ใน
-// SCOPE.md) — ส่วนผลตรวจ (checkAgainstRules ด้านล่าง) ยังเป็น mock
-// เหมือนเดิม (ไม่ใช่ Rule Engine จริง) แต่ตั้งแต่ 2026-09-10 เปลี่ยนจาก hardcode ในโค้ดเป็นอ่านจาก
-// ruleItems ของแหล่งทุนที่โครงการสังกัดจริงใน Firestore (data-driven mock — ดู
-// docs/05-log/20260910-log.md ที่มาของโครงสร้าง ruleItems และเหตุผลที่ยังไม่ auto-check ทุกกรณี)
+// SCOPE.md) — ผลตรวจตัดสินโดย js/rule-engine.js (pure function) จาก ruleItems ของแหล่งทุนที่
+// โครงการสังกัดจริงใน Firestore (ดู docs/05-log/20260910-log.md ที่มาของโครงสร้าง ruleItems)
 // การแนบไฟล์จริงเป็นออปชัน (ไม่บังคับ) เพื่อให้ทดลองขั้นตอนได้ทันทีโดยไม่ต้องมีไฟล์จริง
 // บันทึกลง Firestore ที่ users/{uid ของผู้ใช้ที่ล็อกอินอยู่}/projects/{projectId}/receipts/{id}
 // (ดูเหตุผลของโครงสร้างซ้อนนี้ใน js/seed.js) — ต้อง await window.AUTH_READY (จาก js/auth-guard.js)
@@ -104,62 +102,31 @@ var SAMPLE_VENDORS = [
     return "receipt" + String(maxNumber + 1).padStart(3, "0");
   }
 
-  // ตรวจใบเสร็จเทียบกับ ruleItems ของแหล่งทุนที่โครงการสังกัดจริง (data-driven mock — ไม่ใช่ Rule
-  // Engine จริง ยังไม่มี OCR/LLM) — โครงสร้าง rateType อ้างอิงจากคู่มือบริหารจัดการโครงการวิจัยของ
-  // มหาวิทยาลัยจริง (ดู docs/05-log/20260910-log.md): "เพดานตามจริง"/"เหมาจ่าย" เทียบยอดเงินได้ตรงๆ
-  // แต่ "ต่อหน่วย" (เช่น บาท/กม.) และ "ตามข้อเสนอโครงการ" (เช่น ค่าตอบแทนนักวิจัย) ไม่มีเพดานตายตัวให้
-  // เทียบอัตโนมัติ (ต้องมี field ปริมาณ/ข้อเสนอโครงการเพิ่มเติมที่ระบบนี้ยังไม่เก็บ) จึงแค่ผ่านตาม
-  // หมวดแล้วโชว์อัตรา/หมายเหตุให้คนอ่านประกอบแทนการฟันธงอัตโนมัติ
-  async function checkAgainstRules(fundSourceId, category, amount) {
-    if (!fundSourceId) {
-      return { status: "ไม่เข้าเงื่อนไข", aiExplanation: "ไม่พบแหล่งทุนของโครงการนี้ กรุณาตรวจสอบข้อมูลโครงการที่หน้าโครงการของฉัน" };
-    }
-
+  // โหลดชุดกฎของเวอร์ชันที่ active ทั้งชุดจาก Firestore แล้วส่งให้ js/rule-engine.js ตัดสิน — การตัดสิน
+  // อยู่ใน rule engine (pure function) เท่านั้น ไฟล์นี้แค่โหลดข้อมูลกับแสดงผล
+  async function loadActiveRuleSet(fundSourceId) {
+    if (!fundSourceId) return null;
     var ruleVersionsSnap = await db.collection("fundSources").doc(fundSourceId)
       .collection("ruleVersions").where("isActive", "==", true).limit(1).get();
     if (ruleVersionsSnap.empty) {
-      return { status: "ไม่เข้าเงื่อนไข", aiExplanation: "แหล่งทุนนี้ยังไม่มีระเบียบที่ admin กำหนดไว้ กรุณาติดต่อผู้ดูแลระบบให้เพิ่มกฎที่หน้าจัดการแหล่งทุน" };
+      return { fundSourceId: fundSourceId, ruleVersionId: null, versionLabel: null, ruleItems: [] };
     }
-
-    var ruleItemsSnap = await ruleVersionsSnap.docs[0].ref.collection("ruleItems")
-      .where("categoryName", "==", category).limit(1).get();
-    if (ruleItemsSnap.empty) {
-      return { status: "ไม่เข้าเงื่อนไข", aiExplanation: "ระเบียบของแหล่งทุนนี้ไม่มีหมวด \"" + category + "\" กรุณาตรวจสอบว่าเลือกหมวดค่าใช้จ่ายถูกต้องหรือไม่" };
-    }
-
-    var item = ruleItemsSnap.docs[0].data();
-    // legacy ruleItem ก่อนขยายโครงสร้าง (มีแค่ categoryName/maxAmount) — ถือว่าเป็น "เพดานตามจริง"
-    var rateType = item.rateType || "เพดานตามจริง";
-    var rateAmount = item.rateAmount != null ? item.rateAmount : item.maxAmount;
-
-    // evidenceChainId ส่งต่อให้ Level 2 agent (js/receipt-check-agent.js) ไปอ่านชุดเอกสารประกอบ
-    // ของหมวดนี้เพิ่ม — ไม่ใช่ส่วนของการตัดสิน pass/fix/reject ที่ยังคงเป็น numeric comparison ล้วนๆ
-    // item.note (ถ้ามี) ต่อท้าย aiExplanation เสมอทุก rateType — ใช้เป็นที่อ้างอิงแหล่งที่มาของตัวเลข
-    // (เช่น ชื่อคู่มือ) ให้ทั้งผู้ใช้และ Level 2 agent เห็นว่ากฎนี้อ้างอิงมาจากไหน
-    if (rateType === "เพดานตามจริง" || rateType === "เหมาจ่าย") {
-      if (rateAmount != null && amount > rateAmount) {
-        return {
-          status: "ต้องแก้ไข",
-          aiExplanation: "ยอดเงินที่ระบุ (" + formatCurrency(amount) + ") เกินเพดานของหมวด \"" + category + "\" ซึ่งกำหนดไว้ไม่เกิน " + formatCurrency(rateAmount) + (item.unit ? " / " + item.unit : "") + " กรุณาตรวจสอบว่ามีเอกสารประกอบครบตามระเบียบของแหล่งทุนหรือไม่" + (item.note ? " หมายเหตุ: " + item.note : ""),
-          evidenceChainId: item.evidenceChainId || null,
-        };
-      }
-      return {
-        status: "ผ่าน",
-        aiExplanation: "ใบเสร็จนี้ผ่านเกณฑ์เพราะอยู่ในหมวดที่อนุญาตและไม่เกินวงเงินที่กำหนด" + (rateAmount != null ? " (" + formatCurrency(rateAmount) + (item.unit ? " / " + item.unit : "") + ")" : "") + (item.note ? " หมายเหตุ: " + item.note : ""),
-        evidenceChainId: item.evidenceChainId || null,
-      };
-    }
-
-    // "ต่อหน่วย"/"ตามข้อเสนอโครงการ" — ไม่มีเพดานตายตัวให้เทียบ ผ่านตามหมวดแล้วโชว์อัตรา/หมายเหตุแทน
-    var rateNote = rateType === "ต่อหน่วย" && rateAmount != null
-      ? "อัตราอ้างอิง " + formatCurrency(rateAmount) + (item.unit ? " / " + item.unit : "")
-      : "ไม่มีเพดานระดับแหล่งทุน อ้างอิงจากข้อเสนอโครงการของโครงการนี้เอง";
+    var versionDoc = ruleVersionsSnap.docs[0];
+    var ruleItemsSnap = await versionDoc.ref.collection("ruleItems").get();
     return {
-      status: "ผ่าน",
-      aiExplanation: "หมวด \"" + category + "\" เป็นประเภท " + rateType + " (" + rateNote + ") — ระบบยังตรวจอัตโนมัติแบบเต็มรูปแบบไม่ได้ กรุณาให้เจ้าหน้าที่การเงินตรวจสอบยอดเงินอีกครั้ง" + (item.note ? " หมายเหตุ: " + item.note : ""),
-      evidenceChainId: item.evidenceChainId || null,
+      fundSourceId: fundSourceId,
+      ruleVersionId: versionDoc.id,
+      versionLabel: versionDoc.data().versionLabel || null,
+      ruleItems: ruleItemsSnap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }),
     };
+  }
+
+  async function checkAgainstRules(fundSourceId, category, amount) {
+    var ruleSet = await loadActiveRuleSet(fundSourceId);
+    var result = window.RuleEngine.evaluate({ category: category, amount: amount }, ruleSet);
+    // receipt-check-agent.js และ field aiExplanation บนเอกสาร receipt ยังใช้ชื่อเดิม
+    result.aiExplanation = result.explanation;
+    return result;
   }
 
   function validateFiles(files) {
@@ -368,6 +335,15 @@ var SAMPLE_VENDORS = [
       await receiptRef.set(Object.assign({}, values, {
         status: checkResult.status,
         aiExplanation: checkResult.aiExplanation,
+        // บันทึกที่มาของคำตัดสิน เพื่อใช้ตรวจย้อนหลังและเทียบกับผลของเจ้าหน้าที่การเงินในการประเมินผล
+        ruleCheck: {
+          engineVersion: checkResult.engineVersion,
+          reasonCode: checkResult.reasonCode,
+          autoVerified: checkResult.autoVerified,
+          fundSourceId: checkResult.fundSourceId,
+          ruleVersionId: checkResult.ruleVersionId,
+          ruleItemId: checkResult.ruleItemId,
+        },
         isExported: false,
         ownerUserId: user.uid,
         uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
