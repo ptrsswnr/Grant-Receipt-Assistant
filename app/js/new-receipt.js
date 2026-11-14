@@ -104,12 +104,24 @@ var SAMPLE_VENDORS = [
 
   // โหลดชุดกฎของเวอร์ชันที่ active ทั้งชุดจาก Firestore แล้วส่งให้ js/rule-engine.js ตัดสิน — การตัดสิน
   // อยู่ใน rule engine (pure function) เท่านั้น ไฟล์นี้แค่โหลดข้อมูลกับแสดงผล
+  // ชุดเอกสาร (evidenceChains) และชื่อเอกสาร (documentTypes) เป็นข้อมูลกลางของมหาวิทยาลัย ไม่ผูกแหล่งทุน
+  // โหลดครั้งเดียวตอนเปิดหน้า
+  var evidenceChainsById = {};
+  var documentNames = {};
+  var [chainsSnap, docTypesSnap] = await Promise.all([
+    db.collection("evidenceChains").get(),
+    db.collection("documentTypes").get(),
+  ]);
+  chainsSnap.forEach(function (d) { evidenceChainsById[d.id] = d.data(); });
+  docTypesSnap.forEach(function (d) { documentNames[d.id] = d.data().documentName; });
+
+  var ruleSetCache = {};
   async function loadActiveRuleSet(fundSourceId) {
     if (!fundSourceId) return null;
     var ruleVersionsSnap = await db.collection("fundSources").doc(fundSourceId)
       .collection("ruleVersions").where("isActive", "==", true).limit(1).get();
     if (ruleVersionsSnap.empty) {
-      return { fundSourceId: fundSourceId, ruleVersionId: null, versionLabel: null, ruleItems: [] };
+      return { fundSourceId: fundSourceId, ruleVersionId: null, versionLabel: null, ruleItems: [], evidenceChains: evidenceChainsById };
     }
     var versionDoc = ruleVersionsSnap.docs[0];
     var ruleItemsSnap = await versionDoc.ref.collection("ruleItems").get();
@@ -118,16 +130,70 @@ var SAMPLE_VENDORS = [
       ruleVersionId: versionDoc.id,
       versionLabel: versionDoc.data().versionLabel || null,
       ruleItems: ruleItemsSnap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }),
+      evidenceChains: evidenceChainsById,
     };
   }
+  function getRuleSet(fundSourceId) {
+    if (!ruleSetCache[fundSourceId]) ruleSetCache[fundSourceId] = loadActiveRuleSet(fundSourceId);
+    return ruleSetCache[fundSourceId];
+  }
 
-  async function checkAgainstRules(fundSourceId, category, amount) {
-    var ruleSet = await loadActiveRuleSet(fundSourceId);
-    var result = window.RuleEngine.evaluate({ category: category, amount: amount }, ruleSet);
+  async function checkAgainstRules(fundSourceId, category, amount, evidence) {
+    var ruleSet = await getRuleSet(fundSourceId);
+    var result = window.RuleEngine.evaluate({ category: category, amount: amount, evidence: evidence }, ruleSet, documentNames);
     // receipt-check-agent.js และ field aiExplanation บนเอกสาร receipt ยังใช้ชื่อเดิม
     result.aiExplanation = result.explanation;
     return result;
   }
+
+  // ─── checklist เอกสารประกอบ (ขั้นตอนที่ 2) ───
+  // รายการมาจาก RuleEngine.requiredEvidence() ตัวเดียวกับที่ใช้ตัดสิน จึงแสดงตรงกับที่ระบบจะตรวจเสมอ
+  var evidenceChecklist = document.getElementById("evidenceChecklist");
+  var evidenceChecklistBody = document.getElementById("evidenceChecklistBody");
+  var checklistShown = false;
+
+  function checkedValues(attr) {
+    return Array.from(evidenceChecklistBody.querySelectorAll("input[" + attr + "]:checked")).map(function (el) { return el.getAttribute(attr); });
+  }
+
+  async function renderEvidenceChecklist() {
+    var fundSourceId = projectFundSourceId[projectSelect.value];
+    var category = categorySelect.value;
+    var amount = parseFloat(document.getElementById("confirmedAmount").value);
+    var required = fundSourceId && category
+      ? window.RuleEngine.requiredEvidence(category, amount, await getRuleSet(fundSourceId))
+      : null;
+
+    var keepDocs = checkedValues("data-doc-id");
+    var keepAttest = checkedValues("data-attest-id");
+    checklistShown = !!required;
+    evidenceChecklist.hidden = !required;
+    if (!required) {
+      evidenceChecklistBody.innerHTML = "";
+      return;
+    }
+
+    var html = '<p class="help-text" style="margin-top:0;">ชุดเอกสาร "' + esc(required.chainName) + '" — ติ๊กเอกสารที่แนบมาครบแล้ว ระบบจะแจ้งถ้ายังขาด</p>';
+    required.steps.forEach(function (step) {
+      var hint = !step.required ? "ถ้าเข้ากรณี"
+        : step.documentTypeIds.length > 1 ? "จำเป็น — อย่างใดอย่างหนึ่ง" : "จำเป็น";
+      if (step.timing === "before") hint += " · ต้องทำก่อนเกิดค่าใช้จ่าย";
+      if (step.timing === "after") hint += " · ทำหลังเสร็จกิจกรรม";
+      html += '<div style="margin:10px 0;"><div class="text-small" style="color:var(--color-content-secondary);">' + esc(hint) + (step.note ? " — " + esc(step.note) : "") + '</div>';
+      step.documentTypeIds.forEach(function (id) {
+        html += '<label style="display:flex; gap:8px; align-items:flex-start; margin-top:4px;"><input type="checkbox" data-doc-id="' + esc(id) + '"' + (keepDocs.indexOf(id) !== -1 ? " checked" : "") + '> <span>' + esc(documentNames[id] || id) + '</span></label>';
+      });
+      html += '</div>';
+    });
+    required.attestations.forEach(function (a) {
+      html += '<label style="display:flex; gap:8px; align-items:flex-start; margin-top:10px;"><input type="checkbox" data-attest-id="' + esc(a.id) + '"' + (keepAttest.indexOf(a.id) !== -1 ? " checked" : "") + '> <span>ยืนยันว่า' + esc(a.text) + '</span></label>';
+    });
+    evidenceChecklistBody.innerHTML = html;
+  }
+
+  categorySelect.addEventListener("change", renderEvidenceChecklist);
+  // จำนวนเงินมีผลกับขั้นตอนตามเงื่อนไข (เช่น ซื้อเกิน 100,000 บาทต้องมีกรรมการตรวจรับ 3 คน)
+  document.getElementById("confirmedAmount").addEventListener("change", renderEvidenceChecklist);
 
   function validateFiles(files) {
     if (files.length > MAX_FILES) return "แนบไฟล์ได้สูงสุด " + MAX_FILES + " ไฟล์ต่อใบเสร็จ 1 รายการ (ตอนนี้เลือกไว้ " + files.length + " ไฟล์)";
@@ -280,6 +346,8 @@ var SAMPLE_VENDORS = [
     document.getElementById("confirmedDate").value = aiData.confirmedDate;
     categorySelect.value = aiData.confirmedCategory;
     document.getElementById("confirmedVendorName").value = aiData.confirmedVendorName;
+    evidenceChecklistBody.innerHTML = "";
+    await renderEvidenceChecklist();
 
     var fileNameText = files.length > 0
       ? files.map(function (f) { return f.name; }).join(", ") + " — " + aiModeNote
@@ -323,7 +391,10 @@ var SAMPLE_VENDORS = [
     step2Button.disabled = true;
     try {
       step2Button.textContent = "กำลังตรวจสอบตามระเบียบแหล่งทุน...";
-      var checkResult = await checkAgainstRules(projectFundSourceId[values.projectId], values.confirmedCategory, values.confirmedAmount);
+      var evidence = checklistShown
+        ? { documentTypeIds: checkedValues("data-doc-id"), attestationIds: checkedValues("data-attest-id") }
+        : undefined;
+      var checkResult = await checkAgainstRules(projectFundSourceId[values.projectId], values.confirmedCategory, values.confirmedAmount, evidence);
 
       step2Button.textContent = "กำลังบันทึกข้อมูลใบเสร็จ...";
       var newReceiptId = await nextReceiptId();
@@ -343,7 +414,11 @@ var SAMPLE_VENDORS = [
           fundSourceId: checkResult.fundSourceId,
           ruleVersionId: checkResult.ruleVersionId,
           ruleItemId: checkResult.ruleItemId,
+          findings: checkResult.findings.map(function (f) { return { code: f.code, message: f.message }; }),
         },
+        // รายการที่นักวิจัยติ๊กยืนยันเอง (ยังไม่ได้ตรวจจากไฟล์จริง) — null คือหมวดนี้ไม่มี checklist
+        providedDocumentTypeIds: evidence ? evidence.documentTypeIds : null,
+        confirmedAttestations: evidence ? evidence.attestationIds : null,
         isExported: false,
         ownerUserId: user.uid,
         uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -439,6 +514,7 @@ var SAMPLE_VENDORS = [
     document.getElementById("confirmedAmount").value = "";
     document.getElementById("confirmedDate").value = "";
     document.getElementById("confirmedVendorName").value = "";
+    evidenceChecklistBody.innerHTML = "";
     goToStep(1);
   });
 })();

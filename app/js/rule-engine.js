@@ -11,7 +11,7 @@
   else root.RuleEngine = api;
 })(typeof self !== "undefined" ? self : this, function () {
   // เพิ่มเลขนี้ทุกครั้งที่ตรรกะการตัดสินเปลี่ยน — บันทึกลงใบเสร็จทุกใบ เพื่อให้รู้ว่าผลแต่ละใบมาจากตรรกะชุดไหน
-  var ENGINE_VERSION = "1.0.0";
+  var ENGINE_VERSION = "1.1.0";
 
   var STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", REJECT: "ไม่เข้าเงื่อนไข" };
 
@@ -23,6 +23,9 @@
     AMOUNT_EXCEEDS_CAP: "AMOUNT_EXCEEDS_CAP",
     WITHIN_CAP: "WITHIN_CAP",
     NO_FIXED_CAP: "NO_FIXED_CAP",
+    MISSING_EVIDENCE: "MISSING_EVIDENCE",
+    MISSING_ATTESTATION: "MISSING_ATTESTATION",
+    EVIDENCE_NOT_CHECKED: "EVIDENCE_NOT_CHECKED",
   };
 
   var CAPPED_RATE_TYPES = ["เพดานตามจริง", "เหมาจ่าย"];
@@ -53,10 +56,109 @@
     return formatCurrency(item.rateAmount) + (item.unit ? " / " + item.unit : "");
   }
 
-  // receipt: { category, amount }
-  // ruleSet: null | { fundSourceId, ruleVersionId, versionLabel, ruleItems: [ruleItem, ...] }
+  function findRuleItem(category, ruleSet) {
+    var raw = ruleSet && (ruleSet.ruleItems || []).filter(function (ri) { return ri.categoryName === category; })[0];
+    return raw ? normalizeRuleItem(raw) : null;
+  }
+
+  var CONDITION_OPS = {
+    ">": function (a, b) { return a > b; },
+    ">=": function (a, b) { return a >= b; },
+    "<": function (a, b) { return a < b; },
+    "<=": function (a, b) { return a <= b; },
+  };
+
+  // ชุดเอกสารที่หมวดนี้ต้องมี (รวม conditionalSteps ที่เข้าเงื่อนไขของใบเสร็จนี้แล้ว) — ใช้ทั้งตอนตรวจ
+  // และตอนสร้าง checklist ในหน้าจอ เพื่อให้สองที่ใช้ตรรกะชุดเดียวกัน
+  // คืน null ถ้าหมวดนี้ไม่มีกฎหรือไม่ได้ผูกชุดเอกสารไว้
+  function requiredEvidence(category, amount, ruleSet) {
+    var item = findRuleItem(category, ruleSet);
+    var chain = item && item.evidenceChainId && ruleSet.evidenceChains ? ruleSet.evidenceChains[item.evidenceChainId] : null;
+    if (!chain) return null;
+
+    var steps = (chain.steps || []).map(function (s) {
+      return { order: s.order, timing: s.timing || "with", required: !!s.required, documentTypeIds: s.documentTypeIds || [], note: s.note || null };
+    });
+    (chain.conditionalSteps || []).forEach(function (cs, i) {
+      var op = CONDITION_OPS[cs.when && cs.when.op];
+      var value = cs.when && cs.when.field === "amount" ? amount : undefined;
+      if (op && typeof value === "number" && op(value, cs.when.value)) {
+        steps.push({ order: 100 + i, timing: "with", required: true, documentTypeIds: cs.addStep.documentTypeIds || [], note: cs.addStep.note || null, conditional: true });
+      }
+    });
+
+    return {
+      evidenceChainId: item.evidenceChainId,
+      chainName: chain.chainName || item.evidenceChainId,
+      steps: steps,
+      attestations: (chain.attestations || []).map(function (a) { return { id: a.id, text: a.text }; }),
+    };
+  }
+
+  // provided: { documentTypeIds: [...], attestationIds: [...] } — ตอนนี้มาจาก checklist ที่นักวิจัยติ๊กเอง
+  // ภายหลังจะมาจาก OCR จำแนกประเภทเอกสารอัตโนมัติก็ได้ โดยไม่ต้องแก้ฟังก์ชันนี้
+  function checkEvidence(required, provided) {
+    var have = provided.documentTypeIds || [];
+    var confirmed = provided.attestationIds || [];
+    return {
+      missingSteps: required.steps.filter(function (s) {
+        return s.required && !s.documentTypeIds.some(function (id) { return have.indexOf(id) !== -1; });
+      }),
+      missingAttestations: required.attestations.filter(function (a) { return confirmed.indexOf(a.id) === -1; }),
+    };
+  }
+
+  // receipt: { category, amount, evidence?: { documentTypeIds, attestationIds } }
+  //   — ไม่ส่ง evidence มาเลย = ยังไม่ได้ตรวจเอกสารแนบ (autoVerified เป็น false)
+  // ruleSet: null | { fundSourceId, ruleVersionId, versionLabel, ruleItems: [...], evidenceChains?: { id: chain } }
   //   — ruleSet === null หมายถึงหาแหล่งทุนไม่เจอ, ruleVersionId === null หมายถึงไม่มีเวอร์ชันที่ active
-  function evaluate(receipt, ruleSet) {
+  // documentNames: { documentTypeId: ชื่อเอกสาร } ใช้แค่ทำคำอธิบายให้อ่านง่าย ไม่มีผลต่อการตัดสิน
+  function evaluate(receipt, ruleSet, documentNames) {
+    var result = evaluateAmount(receipt, ruleSet);
+    result.findings = result.reasonCode ? [{ code: result.reasonCode, message: result.explanation }] : [];
+    if (result.status === STATUS.REJECT) return result;
+
+    var required = requiredEvidence(receipt.category, receipt.amount, ruleSet);
+    if (!required) return result;
+
+    if (!receipt.evidence) {
+      result.autoVerified = false;
+      result.findings.push({ code: REASON.EVIDENCE_NOT_CHECKED, message: "ยังไม่ได้ตรวจความครบของเอกสารแนบ" });
+      return result;
+    }
+
+    var names = documentNames || {};
+    var nameOf = function (id) { return names[id] || id; };
+    var gaps = checkEvidence(required, receipt.evidence);
+    var messages = [];
+
+    gaps.missingSteps.forEach(function (s) {
+      var docs = s.documentTypeIds.map(nameOf).join(" หรือ ");
+      var message = "ขาดเอกสาร: " + docs + (s.note ? " (" + s.note + ")" : "");
+      result.findings.push({ code: REASON.MISSING_EVIDENCE, message: message, documentTypeIds: s.documentTypeIds });
+      messages.push(message);
+    });
+    gaps.missingAttestations.forEach(function (a) {
+      var message = "ยังไม่ได้ยืนยัน: " + a.text;
+      result.findings.push({ code: REASON.MISSING_ATTESTATION, message: message, attestationId: a.id });
+      messages.push(message);
+    });
+
+    if (messages.length) {
+      var evidenceText = "เอกสารประกอบยังไม่ครบตามชุด \"" + required.chainName + "\": " + messages.join("; ");
+      // ยอดเงินผ่านแต่เอกสารไม่ครบ → เหตุผลหลักคือเอกสาร; ถ้ายอดเกินอยู่แล้ว เหตุผลหลักยังเป็นยอดเงิน
+      if (result.status === STATUS.PASS) {
+        result.status = STATUS.FIX;
+        result.reasonCode = gaps.missingSteps.length ? REASON.MISSING_EVIDENCE : REASON.MISSING_ATTESTATION;
+        result.explanation = evidenceText + " — ส่วนยอดเงิน: " + result.explanation;
+      } else {
+        result.explanation += " — นอกจากนี้ " + evidenceText;
+      }
+    }
+    return result;
+  }
+
+  function evaluateAmount(receipt, ruleSet) {
     var result = {
       engineVersion: ENGINE_VERSION,
       fundSourceId: ruleSet ? ruleSet.fundSourceId || null : null,
@@ -83,14 +185,13 @@
     }
 
     var category = receipt.category;
-    var raw = (ruleSet.ruleItems || []).filter(function (ri) { return ri.categoryName === category; })[0];
-    if (!raw) {
+    var item = findRuleItem(category, ruleSet);
+    if (!item) {
       result.reasonCode = REASON.CATEGORY_NOT_IN_RULES;
       result.explanation = "ระเบียบของแหล่งทุนนี้ไม่มีหมวด \"" + category + "\" กรุณาตรวจสอบว่าเลือกหมวดค่าใช้จ่ายถูกต้องหรือไม่";
       return result;
     }
 
-    var item = normalizeRuleItem(raw);
     result.ruleItemId = item.id;
     result.evidenceChainId = item.evidenceChainId;
     result.citation = item.note;
@@ -132,6 +233,7 @@
     STATUS: STATUS,
     REASON: REASON,
     normalizeRuleItem: normalizeRuleItem,
+    requiredEvidence: requiredEvidence,
     evaluate: evaluate,
   };
 });
