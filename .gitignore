@@ -30,6 +30,14 @@ firestore-debug.log
 ui-debug.log
 .firebase/
 
+# Local OCR research setup (research/ocr) — venv, downloaded model weights, and receipt images/
+# OCR output, which may contain personal data (names, ID numbers) and must never be committed
+research/ocr/.venv/
+research/ocr/OpenThai2.0-OCR-Text/
+research/ocr/samples/
+research/ocr/output/
+__pycache__/
+
 # In case a local npm install ever happens in this repo (firebase-tools is installed globally
 # for this project, not locally — see CLAUDE.md)
 node_modules/
