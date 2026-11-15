@@ -138,9 +138,9 @@ var SAMPLE_VENDORS = [
     return ruleSetCache[fundSourceId];
   }
 
-  async function checkAgainstRules(fundSourceId, category, amount, evidence, budget) {
+  async function checkAgainstRules(fundSourceId, category, amount, evidence, budget, summary) {
     var ruleSet = await getRuleSet(fundSourceId);
-    var result = window.RuleEngine.evaluate({ category: category, amount: amount, evidence: evidence, budget: budget }, ruleSet, documentNames);
+    var result = window.RuleEngine.evaluate({ category: category, amount: amount, evidence: evidence, budget: budget, summary: summary }, ruleSet, documentNames);
     // receipt-check-agent.js และ field aiExplanation บนเอกสาร receipt ยังใช้ชื่อเดิม
     result.aiExplanation = result.explanation;
     return result;
@@ -380,21 +380,44 @@ var SAMPLE_VENDORS = [
     var aiData;
     var aiModeNote;
     var usedRealAi = false;
-    if (aiSourceFile && window.OPENROUTER_API_KEY) {
+    var aiReady = window.AiClient && window.AiClient.isConfigured();
+    var fileForAi = null;
+    var ocrResult = null;
+
+    // OCR ภาษาไทยในเครื่อง (research/ocr/server.py) — ใช้เมื่อเปิดไว้เท่านั้น ใบเสร็จไม่ออกจากเครื่อง
+    if (aiSourceFile && window.OcrClient && await window.OcrClient.isAvailable()) {
       try {
-        var fileForAi = imageFile || await window.convertPdfFirstPageToImageFile(pdfFile);
-        aiData = await window.analyzeReceiptWithAI(fileForAi, window.RECEIPT_DATA.categories);
-        aiModeNote = "อ่านด้วย AI จริง (OpenRouter) จากไฟล์ " + aiSourceFile.name;
+        fileForAi = imageFile || await window.convertPdfFirstPageToImageFile(pdfFile);
+        ocrResult = await window.OcrClient.read(fileForAi);
+      } catch (err) {
+        console.warn("OCR ในเครื่องอ่านไม่สำเร็จ", err);
+      }
+    }
+    var ocrNote = ocrResult && ocrResult.lowConfidence && ocrResult.lowConfidence.length
+      ? " — OCR ไม่มั่นใจ " + ocrResult.lowConfidence.length + " บรรทัด ตรวจตัวเลขให้ดี"
+      : "";
+
+    if (aiSourceFile && aiReady) {
+      try {
+        fileForAi = fileForAi || imageFile || await window.convertPdfFirstPageToImageFile(pdfFile);
+        aiData = await window.analyzeReceiptWithAI(fileForAi, window.RECEIPT_DATA.categories, ocrResult ? window.OcrClient.textForAi(ocrResult) : "");
+        aiModeNote = "อ่านด้วย AI (" + window.AiClient.describe(null, true) + ")" + (ocrResult ? " ร่วมกับ OCR ในเครื่อง" : "") +
+          " จากไฟล์ " + aiSourceFile.name + ocrNote;
         usedRealAi = true;
       } catch (err) {
         warn("AI อ่านใบเสร็จไม่สำเร็จ (" + err.message + ") — ใช้ข้อมูลตัวอย่างแทนชั่วคราว");
         aiData = randomAiData();
         aiModeNote = "AI อ่านไม่สำเร็จ — ใช้ข้อมูลตัวอย่างแทน";
       }
+    } else if (ocrResult) {
+      // ไม่มี AI: ดึงยอดเงิน/วันที่/ชื่อร้านจากข้อความ OCR ตรงๆ ส่วนหมวดให้ผู้ใช้เลือกเอง
+      var fields = window.OcrClient.extractFields(ocrResult);
+      aiData = { confirmedAmount: fields.amount || "", confirmedDate: fields.date, confirmedCategory: "", confirmedVendorName: fields.vendorName };
+      aiModeNote = "อ่านด้วย OCR ในเครื่อง (ไม่ใช้ AI) จากไฟล์ " + aiSourceFile.name + " — ตรวจตัวเลขและเลือกหมวดเอง" + ocrNote;
     } else {
       aiData = randomAiData();
       aiModeNote = aiSourceFile
-        ? "ยังไม่ได้ตั้งค่า OpenRouter API key — ใช้ข้อมูลตัวอย่างแทน (ดู js/ai-config.example.js)"
+        ? "ยังไม่ได้ตั้งค่า AI และไม่ได้เปิด OCR ในเครื่อง — ใช้ข้อมูลตัวอย่างแทน (ดู js/ai-config.example.js)"
         : "ไม่ได้แนบไฟล์ — ใช้ข้อมูลตัวอย่างแทน (โหมดสาธิต)";
     }
 
@@ -462,7 +485,9 @@ var SAMPLE_VENDORS = [
         var line = budgetLines.filter(function (l) { return l.id === budgetLineSelect.value; })[0] || null;
         budget = { line: line, spentBefore: line ? await spentOnLine(values.projectId, line.id) : 0 };
       }
-      var checkResult = await checkAgainstRules(projectFundSourceId[values.projectId], values.confirmedCategory, values.confirmedAmount, evidence, budget);
+      var summaryAmount = parseFloat(document.getElementById("summaryAmount").value);
+      var summary = isNaN(summaryAmount) ? undefined : { amount: summaryAmount };
+      var checkResult = await checkAgainstRules(projectFundSourceId[values.projectId], values.confirmedCategory, values.confirmedAmount, evidence, budget, summary);
 
       step2Button.textContent = "กำลังบันทึกข้อมูลใบเสร็จ...";
       var newReceiptId = await nextReceiptId();
@@ -486,6 +511,8 @@ var SAMPLE_VENDORS = [
         },
         // null = โครงการยังไม่มีประมาณการ หรือเลือก "ไม่อยู่ในประมาณการ" (ดู ruleCheck.reasonCode แยกสองกรณี)
         budgetLineId: checkResult.budgetLineId || null,
+        // ยอดที่นักวิจัยลงไว้ในใบสรุปรายรับ-จ่าย (null = ไม่ได้กรอก จึงไม่ได้เทียบ)
+        summaryAmount: summary ? summary.amount : null,
         // รายการที่นักวิจัยติ๊กยืนยันเอง (ยังไม่ได้ตรวจจากไฟล์จริง) — null คือหมวดนี้ไม่มี checklist
         providedDocumentTypeIds: evidence ? evidence.documentTypeIds : null,
         confirmedAttestations: evidence ? evidence.attestationIds : null,
@@ -582,6 +609,7 @@ var SAMPLE_VENDORS = [
     fileInput.value = "";
     fileStatusBox.textContent = "";
     document.getElementById("confirmedAmount").value = "";
+    document.getElementById("summaryAmount").value = "";
     document.getElementById("confirmedDate").value = "";
     document.getElementById("confirmedVendorName").value = "";
     evidenceChecklistBody.innerHTML = "";

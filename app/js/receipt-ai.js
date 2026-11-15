@@ -1,14 +1,8 @@
 // ─────────────────────────────────────────────────────────────
-// js/receipt-ai.js — real receipt reading via OpenRouter's vision-capable chat completions API
-// (test only — see CLAUDE.md "AI receipt reading (test only)"). Only handles image files
-// (jpg/jpeg/png); PDF receipts still fall back to demo/random data in new-receipt.js since
-// OpenRouter's image_url content type expects an image, not a PDF. Requires
-// window.OPENROUTER_API_KEY (see js/ai-config.example.js) — new-receipt.js checks for that
-// before calling this and falls back to demo data if it's missing.
+// js/receipt-ai.js — อ่านใบเสร็จจากรูปด้วยโมเดลที่ดูรูปได้ ผ่าน js/ai-client.js (ผู้ให้บริการตั้งใน
+// js/ai-config.local.js) รับเฉพาะรูป jpg/png; pdf ถูกแปลงหน้าแรกเป็นรูปก่อนใน new-receipt.js
+// ถ้ามีข้อความจาก OCR ในเครื่อง (js/ocr-client.js) จะส่งไปประกอบด้วย
 // ─────────────────────────────────────────────────────────────
-
-var OPENROUTER_MODEL = "google/gemini-2.5-flash-lite";
-var OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 
 function fileToDataUrl(file) {
   return new Promise(function (resolve, reject) {
@@ -19,15 +13,9 @@ function fileToDataUrl(file) {
   });
 }
 
-// โมเดลบางตัวห่อ JSON ด้วย ```json ... ``` ทั้งที่ขอให้ตอบ JSON ล้วนแล้ว — ตัดออกก่อน parse
-function extractJson(text) {
-  var fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  return JSON.parse((fenced ? fenced[1] : text).trim());
-}
-
-// อ่านใบเสร็จจากไฟล์รูปภาพด้วย AI จริงผ่าน OpenRouter — คืนค่าในรูปแบบเดียวกับ randomAiData()
+// อ่านใบเสร็จจากไฟล์รูปภาพด้วย AI จริง — คืนค่าในรูปแบบเดียวกับ randomAiData()
 // ใน new-receipt.js (confirmedAmount/confirmedDate/confirmedCategory/confirmedVendorName)
-window.analyzeReceiptWithAI = async function (file, categories) {
+window.analyzeReceiptWithAI = async function (file, categories, ocrText) {
   var dataUrl = await fileToDataUrl(file);
   var prompt =
     "อ่านใบเสร็จรับเงินในรูปนี้ แล้วตอบกลับเป็น JSON เท่านั้น (ห้ามมีข้อความอื่นนอกเหนือจาก JSON) รูปแบบ:\n" +
@@ -35,38 +23,19 @@ window.analyzeReceiptWithAI = async function (file, categories) {
     "amount ต้องเป็นตัวเลขล้วน ไม่มีสัญลักษณ์สกุลเงินหรือคอมมา\n" +
     "category ต้องเลือกจากรายการนี้เท่านั้น (ตอบตามตัวสะกดเป๊ะๆ): " + categories.join(", ");
 
-  var response = await fetch(OPENROUTER_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + window.OPENROUTER_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            { type: "image_url", image_url: { url: dataUrl } },
-          ],
-        },
+  // ocrText (ถ้ามี): ข้อความที่ OCR ในเครื่องอ่านได้ ส่งไปพร้อมรูปเพื่อช่วยให้อ่านตัวเลขแม่นขึ้น
+  if (ocrText) prompt += "\n\nข้อความที่ OCR อ่านได้จากรูปเดียวกัน (อาจผิดบางตัว ใช้ประกอบกับรูป):\n" + ocrText;
+  var content = await window.AiClient.chat([
+    {
+      role: "user",
+      content: [
+        { type: "text", text: prompt },
+        { type: "image_url", image_url: { url: dataUrl } },
       ],
-    }),
-  });
+    },
+  ], { vision: true, temperature: 0 });
 
-  if (!response.ok) {
-    var errBody = await response.text();
-    throw new Error("OpenRouter API error " + response.status + ": " + errBody.slice(0, 200));
-  }
-
-  var result = await response.json();
-  var content = result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content;
-  if (!content) {
-    throw new Error("OpenRouter ไม่ส่งข้อความกลับมา");
-  }
-
-  var parsed = extractJson(content);
+  var parsed = window.AiClient.extractJson(content);
   var amount = typeof parsed.amount === "number" ? parsed.amount : parseFloat(parsed.amount);
   if (isNaN(amount)) {
     throw new Error("อ่านยอดเงินจากใบเสร็จไม่ได้");

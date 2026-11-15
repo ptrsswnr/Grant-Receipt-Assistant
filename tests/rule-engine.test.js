@@ -334,3 +334,37 @@ test("flat-rate lodging (relative's or own home) needs a payment certificate (�
 test("same input always gives the same output", () => {
   assert.deepEqual(check("ค่าที่พัก (โรงแรม)", 2000), check("ค่าที่พัก (โรงแรม)", 2000));
 });
+
+// ─── ยอดในใบสรุปรายรับ-จ่าย (engine 1.4.0) ───
+const summaryReceipt = (summaryAmount) => ({
+  category: "ค่าวัสดุสำนักงาน", amount: 3200,
+  budget: { line: { id: "l1", itemName: "วัสดุสำนักงาน", total: 10000 }, spentBefore: 0 },
+  evidence: { documentTypeIds: ["tax-invoice-full", "inspection-photos"], attestationIds: ["paid-stamp", "inspection-stamp"] },
+  summary: summaryAmount === undefined ? undefined : { amount: summaryAmount },
+});
+
+test("summary sheet amount that differs from the receipt → ต้องแก้ไข", () => {
+  const r = evaluate(summaryReceipt(3020), ruleSet2570, documentNames);
+  assert.equal(r.status, STATUS.FIX);
+  assert.equal(r.reasonCode, REASON.SUMMARY_AMOUNT_MISMATCH);
+  assert.match(r.explanation, /180\.00/);
+});
+
+test("summary sheet amount that matches → pass, and leaving it blank skips the check", () => {
+  const same = evaluate(summaryReceipt(3200), ruleSet2570, documentNames);
+  assert.equal(same.status, STATUS.PASS);
+  assert.ok(same.findings.some((f) => f.code === REASON.SUMMARY_MATCHES));
+  const blank = evaluate(summaryReceipt(undefined), ruleSet2570, documentNames);
+  assert.equal(blank.status, STATUS.PASS);
+  assert.ok(!blank.findings.some((f) => f.group === "summary"));
+  assert.equal(blank.autoVerified, true);
+});
+
+test("an over-estimate receipt keeps the estimate as the main reason even if the summary is also wrong", () => {
+  const receipt = summaryReceipt(1);
+  receipt.budget.line.total = 1000;
+  const r = evaluate(receipt, ruleSet2570, documentNames);
+  assert.equal(r.status, STATUS.APPROVAL);
+  assert.equal(r.reasonCode, REASON.OVER_ESTIMATE);
+  assert.ok(r.findings.some((f) => f.code === REASON.SUMMARY_AMOUNT_MISMATCH));
+});

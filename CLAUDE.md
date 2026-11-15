@@ -19,8 +19,11 @@ Read `SCOPE.md` and `BACKLOG.md` before assuming a feature is real vs. mocked/de
 - **Deploy Firestore rules**: `firebase deploy --only firestore:rules` (add `,storage:rules` to include Storage rules too — see "Deploying rules" below for why that one's normally skipped).
 - **Deploy Firestore indexes**: `firebase deploy --only firestore:indexes` (needed after adding a new collection-group query — see "Firestore data model" below).
 - **Deploy the live site**: `firebase deploy --only hosting` — `firebase.json`'s `hosting.public` is `"app"`, deploying straight to https://grant-receipt-assistant.web.app (the README's "Live app" link). Not otherwise documented in this file before now; no CI/CD wired up, so this is a manual step.
-- **Run the tests**: `node --test tests/rule-engine.test.js tests/budget-parser.test.js` (Node's built-in runner, no `package.json`/install needed — rule tests run against the real 2570 `ruleItems` in `app/js/data.js`). Pass file paths explicitly; `node --test tests/` fails on Windows.
+- **Run the tests**: `node --test tests/rule-engine.test.js tests/budget-parser.test.js tests/eval.test.js tests/proxy.test.js tests/ocr-client.test.js` (Node's built-in runner, no `package.json`/install needed — rule tests run against the real 2570 `ruleItems` in `app/js/data.js`). Pass file paths explicitly; `node --test tests/` fails on Windows.
 - **Local Thai OCR (research only, not part of the app)**: `research/ocr/` runs iApp's OpenThai 2.0 OCR Text (4 MB ONNX, CPU-only, Apache-2.0; recommended by the project owner's thesis advisor) fully offline. Run `research/ocr/.venv/Scripts/python research/ocr/read_receipt.py <image-or-pdf>` — it prints each line with its confidence and writes `research/ocr/output/<file>.json`. The venv, the model, `samples/` and `output/` are gitignored (receipts can contain personal data). To rebuild on a fresh machine: `python -m venv .venv`, then `pip install onnxruntime opencv-python-headless pyclipper numpy pillow pypdfium2 huggingface_hub`, then `hf download iapp/OpenThai2.0-OCR-Text --local-dir OpenThai2.0-OCR-Text`. OCR returns plain lines, not fields, so amount, date and vendor still need a separate extraction step.
+- **Evaluation harness (thesis Phase 4)**: `node research/eval/run-eval.js <cases.csv> [--baseline] [--show-prompt <id>]` compares rule-engine verdicts (and optionally an LLM-only baseline) with finance officers' verdicts; see `research/eval/README.md`. Real cases go in the gitignored `research/eval/data/`.
+- **Local OCR service for the app**: `research/ocr/.venv/Scripts/python research/ocr/server.py` (127.0.0.1:8765). `new-receipt.html` uses it automatically when it's running.
+- **AI proxy**: `proxy/` is a Cloudflare Worker, deployed by the owner with `npx wrangler deploy` (needs their Cloudflare login); see `proxy/README.md`.
 - **Lint/build**: none exist. No `package.json`, no bundler — this is intentional (see "Running the app locally" below).
 
 ## Running the app locally
@@ -274,6 +277,24 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)" (`ruleitem028`): flat ฿800/day. It uses the new `chain-travel-flat-lodging`, whose payment step is a payment certificate (วจ.2) instead of a receipt. The owner said this "น่าจะ" (probably) applies, so it still needs confirming with finance.
   - The importer guesses hotel unless the item mentions เหมาจ่าย or บ้านญาติ.
 - **Wording when a check can't run (engine 1.3.1):** the owner said every expense must follow the approved estimate. So instead of "can't auto-verify, ask finance", the explanation tells the researcher to upload the estimate file (no estimate yet), or to re-upload it with the multiplier filled in (line has no quantity). `explain()` now always appends unverified findings at the end; before, the "no estimate" note was dropped for capped categories.
+
+## AI provider, local OCR, summary check, evaluation harness — 2026-11-15 (engine 1.4.0)
+
+- **Why**: the OpenRouter key in `ai-config.local.js` is the instructor's paid key, valid only for the course. The thesis needs a provider the owner can keep using, ideally one where receipts don't leave the machine (EC/PDPA).
+- **`app/js/ai-client.js`** is now the only place that calls an LLM (`receipt-ai.js` and `receipt-check-agent.js` both go through it). It's UMD, so the eval scripts reuse it. `window.AI_CONFIG = { provider, endpoint, apiKey, model, visionModel }` picks `openrouter` / `ollama` (local, free) / `proxy` / `custom`, all OpenAI-compatible chat completions. The old `window.OPENROUTER_API_KEY` still works. With `provider: "proxy"`, it sends the signed-in user's Firebase ID token instead of a key.
+- **`proxy/worker.js`** (Cloudflare Worker, **not deployed**): holds the upstream key as a secret and forwards requests. It verifies the Firebase ID token signature (RS256 against Google's JWKs, plus `aud`/`iss`/`exp`), and checks the origin allowlist and the model allowlist. `firebase.json` hosting serves only `app/`, so `proxy/` never ships to Hosting. Tested in `tests/proxy.test.js` with a locally generated key pair (`env.TEST_JWKS`).
+- **Local OCR in the app**: `research/ocr/server.py` binds 127.0.0.1 only and answers allowed origins only. It sends `Access-Control-Allow-Private-Network`, so the live https site can call it too. `app/js/ocr-client.js` probes `/health` (1.5 s timeout).
+  - In step 1, when OCR is up, its lines (marked where confidence < 0.9) go to the AI with the image.
+  - Without AI, `extractFields()` pulls the amount, date (Buddhist era → ISO) and vendor from the OCR text, and the user picks the category.
+  - Checked with a generated receipt image (no real receipts): the right fields, 0.2 s. The OCR sometimes drops Thai tone marks, e.g. "เครือง".
+- **Summary-sheet check**: `receipt.summary = { amount }` is the amount the researcher wrote in the "สรุปรายรับ-จ่ายเงินโครงการ" ledger (revised manual pp.2–4).
+  - If it differs from the receipt → `SUMMARY_AMOUNT_MISMATCH` (ต้องแก้ไข); equal → `SUMMARY_MATCHES`; blank → no finding.
+  - It's a new finding group, `summary`, between regulation and evidence.
+  - The field is optional in `new-receipt.html` step 2 (`#summaryAmount`), and receipts store `summaryAmount`.
+  - Category-level totals of the summary sheet are not checked (the sheet isn't imported).
+- **`research/eval/`**: `lib.js` (CSV parsing, rule set from `data.js`, `computeMetrics`: accuracy, Cohen's kappa, macro F1, missed problems, false alarms), `baseline.js` (the LLM-only verdict from the same rules as text, via `AiClient`), and `run-eval.js` (writes `output/*.md` + `.json`).
+  - `cases.example.csv` is made up; EX11 deliberately disagrees, as a case rules can't see.
+  - The baseline was not run against any paid API.
 
 ## UI/shared code conventions
 

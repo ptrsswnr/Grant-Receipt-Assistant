@@ -45,3 +45,9 @@ node_modules/
 # Design-review artifacts: Playwright logs/snapshots and screenshot evidence (regenerated per review)
 .playwright-mcp/
 .impeccable/review/
+
+# Evaluation harness (research/eval) — real labelled receipts from finance, run reports, and the
+# local AI config for the LLM-only baseline. cases.example.csv (made-up cases) stays committed.
+research/eval/data/
+research/eval/output/
+research/eval/ai-config.local.json

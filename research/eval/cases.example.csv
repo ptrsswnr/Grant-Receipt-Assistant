@@ -1,0 +1,14 @@
+case_id,category,amount,in_estimate,line_name,line_total,line_quantity,spent_before,documents,attestations,summary_amount,finance_verdict,finance_note
+EX01,ค่าวัสดุสำนักงาน,3200,yes,ค่าวัสดุสำนักงาน,10000,,0,tax-invoice-full;inspection-photos,paid-stamp;inspection-stamp,,ผ่าน,ตัวอย่างสมมติ ไม่ใช่ข้อมูลจริง
+EX02,ค่าวัสดุสำนักงาน,6500,yes,ค่าวัสดุสำนักงาน,10000,,0,tax-invoice-full;inspection-photos,paid-stamp;inspection-stamp,,ต้องแก้ไข,เกินเพดาน 5000 ต่อครั้ง
+EX03,ค่าวัสดุคอมพิวเตอร์,2000,yes,ค่าวัสดุคอมพิวเตอร์,8000,,0,tax-invoice-full;inspection-photos,paid-stamp,,ต้องแก้ไข,ลืมประทับตราตรวจรับพัสดุ
+EX04,ค่าอาหารกลางวัน (ประชุม/อบรม),3000,yes,ค่าอาหารกลางวัน,6000,40,3000,tax-invoice-full;attendee-signin-sheet,paid-stamp,,ผ่าน,150 บาท x 40 คนมื้อ ใช้ครบพอดี
+EX05,ค่าตอบแทนนักศึกษาช่วยงาน (วิชาการ),7000,yes,ค่าตอบแทนนักศึกษาช่วยงานด้านวิชาการ,6000,100,0,committee-pre-approval;timesheet-parttime-vj8;voucher-vj1;id-card-copy,paid-stamp,,ต้องชี้แจง/ขออนุมัติ,เกินประมาณการ
+EX06,ค่าตอบแทนคณะผู้วิจัย,5000,yes,ค่าตอบแทนคณะผู้วิจัย,5000,,0,voucher-vj1;id-card-copy,paid-stamp,,ไม่เข้าเงื่อนไข,มหาวิทยาลัยไม่สนับสนุน
+EX07,ค่าแท็กซี่ (เดินทางปฏิบัติงาน),700,no,,,,,committee-pre-approval;travel-approval-vj3;hr-leave-form;travel-report-vj4;payment-cert-vj2,paid-stamp,,ต้องชี้แจง/ขออนุมัติ,ไม่ได้ตั้งไว้ในประมาณการ
+EX08,ค่าที่พัก (โรงแรม),1500,yes,ค่าที่พัก,9000,5,0,committee-pre-approval;travel-approval-vj3;hr-leave-form;travel-report-vj4;tax-invoice-full,paid-stamp,,ผ่าน,
+EX09,ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง),800,yes,ค่าที่พักเหมาจ่าย,2400,3,0,committee-pre-approval;travel-approval-vj3;hr-leave-form;travel-report-vj4;payment-cert-vj2,paid-stamp,,ผ่าน,
+EX10,ค่าพาหนะส่วนตัว (ต่อกิโลเมตร),4800,yes,ค่าเดินทางรถยนต์ส่วนตัว,4800,1200,0,committee-pre-approval;travel-approval-vj3;hr-leave-form;travel-report-vj4;payment-cert-vj2;vehicle-registration-copy,paid-stamp,,ผ่าน,200 กม. x 2 x 3 ครั้ง
+EX11,ค่าวัสดุสำนักงาน,1200,yes,ค่าวัสดุสำนักงาน,10000,,3200,voucher-vj1;inspection-photos,paid-stamp;inspection-stamp,,ต้องแก้ไข,ลายเซ็นผู้รับเงินไม่ตรงกับบัตรประชาชน (ระบบมองไม่เห็นเรื่องนี้)
+EX12,ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ต่างจังหวัด),3000,yes,ค่าน้ำมันเชื้อเพลิงพาหนะเช่าต่างจังหวัด,6000,,0,tax-invoice-full;inspection-photos,paid-stamp;inspection-stamp,,ผ่าน,
+EX13,ค่าวัสดุสำนักงาน,3200,yes,ค่าวัสดุสำนักงาน,10000,,0,tax-invoice-full;inspection-photos,paid-stamp;inspection-stamp,3020,ต้องแก้ไข,ลงยอดในใบสรุปผิด

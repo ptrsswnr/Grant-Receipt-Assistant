@@ -16,6 +16,8 @@
 <script src="https://accounts.google.com/gsi/client" defer></script>
 <script src="js/google-drive.js" defer></script>
 <script src="js/ai-config.local.js" defer onerror="console.warn('ai-config.local.js not found — AI receipt reading falls back to demo data (see js/ai-config.example.js)')"></script>
+<script src="js/ai-client.js" defer></script>
+<script src="js/ocr-client.js" defer></script>
 <script src="js/rule-engine.js" defer></script>
 <script src="js/receipt-ai.js" defer></script>
 <script src="js/receipt-check-agent.js" defer></script>
@@ -115,6 +117,11 @@
           <label for="confirmedAmount">ยอดเงิน (บาท)</label>
           <input type="number" id="confirmedAmount" class="input-mono" min="0" step="0.01">
           <p class="help-text">ตรวจตัวเลขให้ตรงกับใบเสร็จจริงก่อนส่งตรวจ</p>
+        </div>
+        <div class="field">
+          <label for="summaryAmount">ยอดที่ลงในใบสรุปรายรับ-จ่าย (บาท) <span class="text-small">ไม่บังคับ</span></label>
+          <input type="number" id="summaryAmount" class="input-mono" min="0" step="0.01">
+          <p class="help-text">ถ้าลงบันทึกรายรับ-จ่ายเงินโครงการไว้แล้ว ใส่ตัวเลขที่ลงไว้ ระบบจะเทียบกับยอดในใบเสร็จ</p>
         </div>
         <div class="field">
           <label for="confirmedDate">วันที่บนใบเสร็จ</label>

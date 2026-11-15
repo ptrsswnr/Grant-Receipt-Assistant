@@ -1,0 +1,11 @@
+name = "grant-receipt-ai-proxy"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[vars]
+UPSTREAM_URL = "https://openrouter.ai/api/v1/chat/completions"
+FIREBASE_PROJECT_ID = "grant-receipt-assistant"
+ALLOWED_ORIGINS = "https://grant-receipt-assistant.web.app,https://grant-receipt-assistant.firebaseapp.com,http://localhost:4173"
+ALLOWED_MODELS = "google/gemini-2.5-flash-lite"
+
+# คีย์จริงห้ามใส่ในไฟล์นี้ ใช้: npx wrangler secret put UPSTREAM_API_KEY

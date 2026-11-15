@@ -11,7 +11,7 @@
   else root.RuleEngine = api;
 })(typeof self !== "undefined" ? self : this, function () {
   // เพิ่มเลขนี้ทุกครั้งที่ตรรกะการตัดสินเปลี่ยน — บันทึกลงใบเสร็จทุกใบ เพื่อให้รู้ว่าผลแต่ละใบมาจากตรรกะชุดไหน
-  var ENGINE_VERSION = "1.3.1";
+  var ENGINE_VERSION = "1.4.0";
 
   var STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", APPROVAL: "ต้องชี้แจง/ขออนุมัติ", REJECT: "ไม่เข้าเงื่อนไข" };
 
@@ -20,6 +20,8 @@
     NO_ACTIVE_RULE_VERSION: "NO_ACTIVE_RULE_VERSION",
     CATEGORY_NOT_IN_RULES: "CATEGORY_NOT_IN_RULES",
     INVALID_AMOUNT: "INVALID_AMOUNT",
+    SUMMARY_AMOUNT_MISMATCH: "SUMMARY_AMOUNT_MISMATCH",
+    SUMMARY_MATCHES: "SUMMARY_MATCHES",
     AMOUNT_EXCEEDS_CAP: "AMOUNT_EXCEEDS_CAP",
     WITHIN_CAP: "WITHIN_CAP",
     NO_FIXED_CAP: "NO_FIXED_CAP",
@@ -125,7 +127,24 @@
 
   // ประมาณการก่อน แล้วจึงระเบียบ แล้วจึงเอกสาร (ลำดับเดียวกับที่เจ้าหน้าที่การเงินตรวจจริง) — ถ้ารุนแรงเท่ากัน
   // finding ของกลุ่มที่มาก่อนเป็นเหตุผลหลัก
-  var GROUP_ORDER = ["budget", "regulation", "evidence"];
+  var GROUP_ORDER = ["budget", "regulation", "summary", "evidence"];
+
+  // ยอดที่นักวิจัยลงไว้ใน "สรุปรายรับ-จ่ายเงินโครงการ" (บันทึกรายรับ-จ่าย, คู่มือฉบับปรับปรุง หน้า 2–4)
+  // ต้องตรงกับยอดในใบเสร็จ — การเงินเจอตัวเลขไม่ตรงกันบ่อย ไม่กรอก = ไม่ตรวจข้อนี้
+  function checkSummary(receipt) {
+    var summary = receipt.summary;
+    if (!summary || typeof summary.amount !== "number" || !isFinite(summary.amount)) return [];
+    var diff = Math.round((summary.amount - receipt.amount) * 100) / 100;
+    if (Math.abs(diff) >= 0.01) {
+      return [{
+        group: "summary", status: STATUS.FIX, code: REASON.SUMMARY_AMOUNT_MISMATCH,
+        message: "ยอดที่ลงในใบสรุปรายรับ-จ่าย (" + formatCurrency(summary.amount) + ") ไม่ตรงกับยอดในใบเสร็จ (" +
+          formatCurrency(receipt.amount) + ") ต่างกัน " + formatCurrency(Math.abs(diff)) + " กรุณาแก้ตัวเลขในใบสรุปให้ตรงกับใบเสร็จ",
+        summaryAmount: summary.amount,
+      }];
+    }
+    return [{ group: "summary", status: STATUS.PASS, code: REASON.SUMMARY_MATCHES, message: "ยอดในใบสรุปรายรับ-จ่ายตรงกับใบเสร็จ" }];
+  }
 
   function checkBudget(receipt) {
     var budget = receipt.budget;
@@ -218,6 +237,7 @@
       findings.push({ group: "budget", status: STATUS.PASS, code: REASON.ESTIMATE_NOT_CHECKED, message: "ทุกรายจ่ายต้องเป็นไปตามประมาณการที่อนุมัติแล้ว แต่โครงการนี้ยังไม่มีไฟล์ประมาณการในระบบ กรุณาอัปโหลดไฟล์ประมาณการ (ตาราง 17.2) ที่ปุ่ม \"ประมาณการ\" ในหน้าโครงการของฉัน เพื่อให้ระบบตรวจกับประมาณการ", unverified: true });
     }
     findings.push(regulationFinding);
+    findings = findings.concat(checkSummary(receipt));
     var evidence = checkEvidenceFindings(receipt, ruleSet, documentNames);
     findings = findings.concat(evidence.findings);
     if (findings.some(function (f) { return f.unverified; })) result.autoVerified = false;

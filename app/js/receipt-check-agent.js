@@ -114,29 +114,7 @@ async function summarizeWithAi(opts, sources) {
   lines.push("3) คุณไม่เห็นไฟล์ที่ผู้ใช้แนบจริง ห้ามอ้างว่าตรวจสอบไฟล์แนบแล้วหรือครบ/ไม่ครบ — บอกแค่ว่าตามระเบียบต้องมีอะไรบ้าง");
   lines.push("4) ถ้าผลตรวจคือ \"ต้องแก้ไข\" หรือ \"ไม่เข้าเงื่อนไข\" ให้บอกวิธีแก้ไขที่ทำได้จริงจากข้อมูลที่ให้มาเท่านั้น (เช่น ลดยอดเงิน เปลี่ยนหมวด เตรียมเอกสารที่ขาด) ห้ามแนะนำสิ่งที่ไม่มีอยู่ในข้อมูลนี้");
 
-  var response = await fetch(OPENROUTER_ENDPOINT, {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer " + window.OPENROUTER_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: OPENROUTER_MODEL,
-      messages: [{ role: "user", content: lines.join("\n") }],
-    }),
-  });
-
-  if (!response.ok) {
-    var errBody = await response.text();
-    throw new Error("OpenRouter API error " + response.status + ": " + errBody.slice(0, 200));
-  }
-
-  var result = await response.json();
-  var content = result.choices && result.choices[0] && result.choices[0].message && result.choices[0].message.content;
-  if (!content) {
-    throw new Error("OpenRouter ไม่ส่งข้อความกลับมา");
-  }
-  return content.trim();
+  return window.AiClient.chat([{ role: "user", content: lines.join("\n") }], { temperature: 0.2 });
 }
 
 // opts: { receiptRef, evidenceChainId, category, amount, deterministicResult }
@@ -150,7 +128,7 @@ window.runReceiptCheckAgent = async function (opts) {
   var explanation;
   var usedAi = false;
   try {
-    if (window.OPENROUTER_API_KEY) {
+    if (window.AiClient && window.AiClient.isConfigured()) {
       explanation = await summarizeWithAi(opts, sources);
       usedAi = true;
     } else {
@@ -165,7 +143,7 @@ window.runReceiptCheckAgent = async function (opts) {
   await opts.receiptRef.collection("agentLogs").add({
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     usedAi: usedAi,
-    model: usedAi ? OPENROUTER_MODEL : null,
+    model: usedAi ? window.AiClient.describe() : null,
     category: opts.category,
     amount: opts.amount,
     deterministicStatus: opts.deterministicResult.status,
