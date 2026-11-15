@@ -326,6 +326,7 @@ input[disabled], select[disabled] { border-color: var(--color-divider); opacity:
 .chip-status--pass { background: var(--color-success-bg); color: var(--color-success-text); }
 .chip-status--fix { background: var(--color-accent-100); color: var(--color-accent-800); }
 .chip-status--reject { background: var(--color-error-bg); color: var(--color-error-text); }
+.chip-status--approval { background: var(--color-accent-300); color: var(--color-accent-900); }
 .chip-status--pending { background: var(--color-pending-bg); color: var(--color-pending-text); }
 
 .input-mono { font-family: var(--font-mono); font-size: 15px; font-variant-numeric: tabular-nums; }
@@ -483,6 +484,7 @@ input[disabled], select[disabled] { border-color: var(--color-divider); opacity:
 .rule-callout--pass { border-left-color: var(--color-success); }
 .rule-callout--fix { border-left-color: var(--color-accent); }
 .rule-callout--reject { border-left-color: var(--color-error); }
+.rule-callout--approval { border-left-color: var(--color-accent-700); }
 
 .rule-callout__explain { font-size: 14px; line-height: 1.65; color: var(--color-text); margin-bottom: var(--sp-2); }
 
@@ -541,6 +543,7 @@ footer.page-footer {
 .bar-row__fill--pass { background: var(--color-success); }
 .bar-row__fill--fix { background: var(--color-accent); }
 .bar-row__fill--reject { background: var(--color-error); }
+.bar-row__fill--approval { background: var(--color-accent-700); }
 .bar-row__value { flex: 0 0 40px; text-align: right; font-family: var(--font-mono); font-size: 13px; font-variant-numeric: tabular-nums; color: var(--color-text); }
 
 .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }

@@ -71,6 +71,12 @@ service cloud.firestore {
         allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
         allow write: if request.auth != null && request.auth.uid == userId;
 
+        // ประมาณการที่อนุมัติแล้ว (ตาราง 17.2 ของข้อเสนอโครงการ) — เพิ่ม 2026-11-15 สิทธิ์เดียวกับโครงการ
+        match /budgetLines/{lineId} {
+          allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+          allow write: if request.auth != null && request.auth.uid == userId;
+        }
+
         // ประกาศ receipts/files แบบ concrete (ไม่ใช้ wildcard) ตรงนี้ เพราะทดสอบจริงแล้วพบว่า
         // การ nest match /files ไว้ใต้ match /{path=**}/receipts/{receiptId} (แบบ wildcard)
         // ใช้อ่าน subcollection files ไม่ได้ (permission-denied) แม้ path จะตรงตามที่ตั้งใจ —

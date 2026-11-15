@@ -24,6 +24,7 @@
 var STATUS_CHIP_CLASS = {
   "ผ่าน": "chip-status--pass",
   "ต้องแก้ไข": "chip-status--fix",
+  "ต้องชี้แจง/ขออนุมัติ": "chip-status--approval",
   "ไม่เข้าเงื่อนไข": "chip-status--reject",
 };
 
@@ -59,7 +60,7 @@ function filesHtml(files) {
 // เวลามีหลายรายการเรียงต่อกัน — data-receipt-path ใช้ระบุตัวใบเสร็จให้ปุ่มลบ (event delegation)
 function receiptCardHtml(receiptPath, receipt, files, projectName) {
   var chipClass = STATUS_CHIP_CLASS[receipt.status] || "chip-status--pending";
-  var calloutKind = chipClass.indexOf("pass") > -1 ? "pass" : chipClass.indexOf("fix") > -1 ? "fix" : "reject";
+  var calloutKind = chipClass.replace("chip-status--", "").replace("pending", "reject");
 
   var html = '<div class="receipt-entry" data-receipt-path="' + esc(receiptPath) + '">';
   html +=

@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ประมาณการค่าใช้จ่าย — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/data.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
+<script src="js/firebase-config.js" defer></script>
+<script src="js/nav.js" defer></script>
+<script src="js/auth-guard.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="js/budget-parser.js" defer></script>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <p class="text-small"><a href="projects.html">← โครงการของฉัน</a></p>
+    <h1>ประมาณการค่าใช้จ่าย</h1>
+    <p class="text-body" id="projectNameLine"></p>
+    <p class="text-body">
+      ใบเสร็จแต่ละใบจะถูกเทียบกับรายการในประมาณการที่อนุมัติแล้ว ถ้าใช้จ่ายสะสมเกินยอดที่ตั้งไว้ หรือเป็นรายการที่ไม่อยู่ในประมาณการ
+      ผลตรวจจะเป็น "ต้องชี้แจง/ขออนุมัติ"
+    </p>
+  </div>
+
+  <div id="warningBox" class="banner banner--error" style="display:none;"></div>
+
+  <div class="section">
+    <div class="card">
+      <h3>รายการในประมาณการปัจจุบัน</h3>
+      <div id="currentBudget"><p class="text-body">กำลังโหลด...</p></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="card">
+      <h3>นำเข้าประมาณการจากไฟล์</h3>
+      <p class="text-body">
+        ใช้ไฟล์ตัวช่วยทำตาราง 17.2 "รายละเอียดงบประมาณการวิจัยจำแนกตามงบประเภทต่างๆ" ของมหาวิทยาลัยที่กรอกแล้ว
+        (ใน Google Sheets ให้เลือก ไฟล์ → ดาวน์โหลด → Microsoft Excel (.xlsx)) การนำเข้าใหม่จะแทนที่ประมาณการเดิมทั้งหมด
+      </p>
+      <div class="field">
+        <label for="budgetFile">ไฟล์ตาราง 17.2 (.xlsx หรือ .csv)</label>
+        <input type="file" id="budgetFile" accept=".xlsx,.xls,.csv">
+      </div>
+      <div id="importPreview"></div>
+    </div>
+  </div>
+
+</main>
+
+<script src="js/budget.js" defer></script>
+
+</body>
+</html>

@@ -19,9 +19,9 @@
   var loadState = document.getElementById("load-state");
   var dashboardContent = document.getElementById("dashboard-content");
 
-  var STATUS_ORDER = ["ผ่าน", "ต้องแก้ไข", "ไม่เข้าเงื่อนไข"];
-  var STATUS_BAR_CLASS = { "ผ่าน": "pass", "ต้องแก้ไข": "fix", "ไม่เข้าเงื่อนไข": "reject" };
-  var STATUS_CHIP_CLASS = { "ผ่าน": "chip-status--pass", "ต้องแก้ไข": "chip-status--fix", "ไม่เข้าเงื่อนไข": "chip-status--reject" };
+  var STATUS_ORDER = ["ผ่าน", "ต้องแก้ไข", "ต้องชี้แจง/ขออนุมัติ", "ไม่เข้าเงื่อนไข"];
+  var STATUS_BAR_CLASS = { "ผ่าน": "pass", "ต้องแก้ไข": "fix", "ต้องชี้แจง/ขออนุมัติ": "approval", "ไม่เข้าเงื่อนไข": "reject" };
+  var STATUS_CHIP_CLASS = { "ผ่าน": "chip-status--pass", "ต้องแก้ไข": "chip-status--fix", "ต้องชี้แจง/ขออนุมัติ": "chip-status--approval", "ไม่เข้าเงื่อนไข": "chip-status--reject" };
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {

@@ -120,6 +120,11 @@
           <label for="confirmedDate">วันที่บนใบเสร็จ</label>
           <input type="date" id="confirmedDate">
         </div>
+        <div class="field" id="budgetLineField" hidden>
+          <label for="budgetLineId">ตัดจากรายการไหนในประมาณการ</label>
+          <select id="budgetLineId"></select>
+          <p class="help-text" id="budgetLineHelp">ระบบจะเทียบยอดสะสมของรายการนี้กับยอดที่ตั้งไว้ในประมาณการ</p>
+        </div>
         <div class="field">
           <label for="confirmedCategory">หมวดค่าใช้จ่าย</label>
           <select id="confirmedCategory"></select>

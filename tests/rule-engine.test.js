@@ -78,9 +78,15 @@ test("per-proposal category passes but is flagged as not auto-verified", () => {
   assert.equal(r.autoVerified, false);
 });
 
-test("capped categories with complete evidence are auto-verified", () => {
-  const r = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 100, evidence: { documentTypeIds: ["tax-invoice-full"], attestationIds: ["inspection-stamp"] } }, ruleSet2570);
-  assert.equal(r.autoVerified, true);
+const officeLine = { id: "line-office", itemName: "ค่าวัสดุสำนักงาน", total: 5000 };
+const completePurchase = { documentTypeIds: ["tax-invoice-full"], attestationIds: ["inspection-stamp"] };
+
+test("only fully verified when the estimate, cap and evidence were all checked", () => {
+  const full = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 100, evidence: completePurchase, budget: { line: officeLine, spentBefore: 0 } }, ruleSet2570);
+  assert.equal(full.autoVerified, true);
+  const noEstimate = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 100, evidence: completePurchase }, ruleSet2570);
+  assert.equal(noEstimate.autoVerified, false);
+  assert.ok(noEstimate.findings.some((f) => f.code === REASON.ESTIMATE_NOT_CHECKED));
 });
 
 test("invalid amount → needs fix, not pass", () => {
@@ -129,7 +135,6 @@ test("purchase with tax invoice and inspection stamp confirmed → pass", () => 
   const r = withDocs("ค่าวัสดุสำนักงาน", 1000, ["tax-invoice-full"], ["inspection-stamp"]);
   assert.equal(r.status, STATUS.PASS);
   assert.equal(r.reasonCode, REASON.WITHIN_CAP);
-  assert.equal(r.autoVerified, true);
 });
 
 test("purchase without inspection stamp confirmed → needs fix", () => {
@@ -179,6 +184,58 @@ test("rejected category skips the evidence check entirely", () => {
   const r = withDocs("ค่าตอบแทนคณะผู้วิจัย", 5000, []);
   assert.equal(r.reasonCode, REASON.CATEGORY_NOT_IN_RULES);
   assert.equal(r.findings.length, 1);
+});
+
+// ─── เทียบกับประมาณการ ───
+const lunchLine = { id: "line-lunch", itemName: "ค่าอาหารกลางวัน (ประชุม/อบรม)", total: 6000 }; // 150 × 20 คน × 2 มื้อ
+const meetingDocs = { documentTypeIds: ["attendee-signin-sheet", "tax-invoice-full"], attestationIds: [] };
+const lunch = (amount, spentBefore, line = lunchLine) =>
+  evaluate({ category: "ค่าอาหารกลางวัน (ประชุม/อบรม)", amount, evidence: meetingDocs, budget: { line, spentBefore } }, ruleSet2570, documentNames);
+
+test("per-person cap is not compared against a whole-receipt total once an estimate line is given", () => {
+  // อาหาร 20 คน ฿3,000 = ฿150/คน ไม่เกินเพดาน; แบบเดิมจะเทียบ ฿3,000 > ฿150 แล้วตัดสินผิดว่าต้องแก้ไข
+  const r = lunch(3000, 0);
+  assert.equal(r.status, STATUS.PASS);
+  assert.equal(r.reasonCode, REASON.WITHIN_ESTIMATE);
+  assert.ok(r.findings.some((f) => f.code === REASON.PER_UNIT_CAP_VIA_ESTIMATE));
+});
+
+test("spending exactly up to the line total passes", () => {
+  assert.equal(lunch(3000, 3000).status, STATUS.PASS);
+});
+
+test("cumulative spending over the line total → needs justification/approval, with the numbers", () => {
+  const r = lunch(3000, 3500);
+  assert.equal(r.status, STATUS.APPROVAL);
+  assert.equal(r.reasonCode, REASON.OVER_ESTIMATE);
+  assert.match(r.explanation, /6,000/);
+  assert.match(r.explanation, /108\.3%/);
+});
+
+test("expense not in the estimate at all → needs justification/approval", () => {
+  const r = lunch(500, 0, null);
+  assert.equal(r.status, STATUS.APPROVAL);
+  assert.equal(r.reasonCode, REASON.NOT_IN_ESTIMATE);
+  assert.equal(r.budgetLineId, null);
+});
+
+test("over the estimate outranks missing documents, but both are reported", () => {
+  const r = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 2000, evidence: { documentTypeIds: [], attestationIds: [] }, budget: { line: officeLine, spentBefore: 4000 } }, ruleSet2570, documentNames);
+  assert.equal(r.status, STATUS.APPROVAL);
+  assert.equal(r.reasonCode, REASON.OVER_ESTIMATE);
+  const codes = r.findings.map((f) => f.code);
+  assert.ok(codes.includes(REASON.MISSING_EVIDENCE) && codes.includes(REASON.MISSING_ATTESTATION));
+});
+
+test("a category the regulations forbid is rejected even if it was in the estimate", () => {
+  const r = evaluate({ category: "ค่าตอบแทนคณะผู้วิจัย", amount: 1000, budget: { line: { id: "x", itemName: "ค่าตอบแทนคณะผู้วิจัย", total: 50000 }, spentBefore: 0 } }, ruleSet2570);
+  assert.equal(r.status, STATUS.REJECT);
+});
+
+test("whole-amount caps (no unit) still apply when an estimate line is given", () => {
+  const r = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 6000, evidence: completePurchase, budget: { line: { ...officeLine, total: 10000 }, spentBefore: 0 } }, ruleSet2570);
+  assert.equal(r.status, STATUS.FIX);
+  assert.equal(r.reasonCode, REASON.AMOUNT_EXCEEDS_CAP);
 });
 
 test("same input always gives the same output", () => {

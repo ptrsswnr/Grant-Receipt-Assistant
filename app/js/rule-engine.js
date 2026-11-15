@@ -11,9 +11,9 @@
   else root.RuleEngine = api;
 })(typeof self !== "undefined" ? self : this, function () {
   // เพิ่มเลขนี้ทุกครั้งที่ตรรกะการตัดสินเปลี่ยน — บันทึกลงใบเสร็จทุกใบ เพื่อให้รู้ว่าผลแต่ละใบมาจากตรรกะชุดไหน
-  var ENGINE_VERSION = "1.1.0";
+  var ENGINE_VERSION = "1.2.0";
 
-  var STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", REJECT: "ไม่เข้าเงื่อนไข" };
+  var STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", APPROVAL: "ต้องชี้แจง/ขออนุมัติ", REJECT: "ไม่เข้าเงื่อนไข" };
 
   var REASON = {
     NO_FUND_SOURCE: "NO_FUND_SOURCE",
@@ -26,6 +26,11 @@
     MISSING_EVIDENCE: "MISSING_EVIDENCE",
     MISSING_ATTESTATION: "MISSING_ATTESTATION",
     EVIDENCE_NOT_CHECKED: "EVIDENCE_NOT_CHECKED",
+    PER_UNIT_CAP_VIA_ESTIMATE: "PER_UNIT_CAP_VIA_ESTIMATE",
+    NOT_IN_ESTIMATE: "NOT_IN_ESTIMATE",
+    OVER_ESTIMATE: "OVER_ESTIMATE",
+    WITHIN_ESTIMATE: "WITHIN_ESTIMATE",
+    ESTIMATE_NOT_CHECKED: "ESTIMATE_NOT_CHECKED",
   };
 
   var CAPPED_RATE_TYPES = ["เพดานตามจริง", "เหมาจ่าย"];
@@ -108,57 +113,132 @@
     };
   }
 
-  // receipt: { category, amount, evidence?: { documentTypeIds, attestationIds } }
-  //   — ไม่ส่ง evidence มาเลย = ยังไม่ได้ตรวจเอกสารแนบ (autoVerified เป็น false)
+  // ความรุนแรงของผล — ผลรวมของใบเสร็จคือ finding ที่รุนแรงที่สุด
+  var SEVERITY = {};
+  SEVERITY[STATUS.PASS] = 0;
+  SEVERITY[STATUS.FIX] = 1;
+  SEVERITY[STATUS.APPROVAL] = 2;
+  SEVERITY[STATUS.REJECT] = 3;
+
+  // ประมาณการก่อน แล้วจึงระเบียบ แล้วจึงเอกสาร (ลำดับเดียวกับที่เจ้าหน้าที่การเงินตรวจจริง) — ถ้ารุนแรงเท่ากัน
+  // finding ของกลุ่มที่มาก่อนเป็นเหตุผลหลัก
+  var GROUP_ORDER = ["budget", "regulation", "evidence"];
+
+  function checkBudget(receipt) {
+    var budget = receipt.budget;
+    var amount = receipt.amount;
+    if (!budget.line) {
+      return [{
+        group: "budget", status: STATUS.APPROVAL, code: REASON.NOT_IN_ESTIMATE,
+        message: "ค่าใช้จ่ายนี้ไม่อยู่ในประมาณการที่อนุมัติไว้ (รายการใหม่) ต้องชี้แจงเหตุผลและขออนุมัติก่อนเบิก",
+      }];
+    }
+    var line = budget.line;
+    var spentBefore = budget.spentBefore || 0;
+    var spentAfter = spentBefore + amount;
+    var percent = line.total > 0 ? Math.round((spentAfter / line.total) * 1000) / 10 : null;
+    var usage = "รายการ \"" + line.itemName + "\" ตั้งไว้ " + formatCurrency(line.total) +
+      " ใช้ไปแล้ว " + formatCurrency(spentBefore) + " รวมใบนี้เป็น " + formatCurrency(spentAfter) +
+      (percent != null ? " (" + percent + "%)" : "");
+    if (spentAfter > line.total) {
+      return [{
+        group: "budget", status: STATUS.APPROVAL, code: REASON.OVER_ESTIMATE,
+        message: "ใช้จ่ายเกินประมาณการ: " + usage + " ต้องชี้แจงเหตุผลและขออนุมัติ",
+        budgetLineId: line.id, percentUsed: percent,
+      }];
+    }
+    return [{
+      group: "budget", status: STATUS.PASS, code: REASON.WITHIN_ESTIMATE,
+      message: "อยู่ในประมาณการ: " + usage, budgetLineId: line.id, percentUsed: percent,
+    }];
+  }
+
+  function checkEvidenceFindings(receipt, ruleSet, documentNames) {
+    var required = requiredEvidence(receipt.category, receipt.amount, ruleSet);
+    if (!required) return { findings: [], required: null };
+    if (!receipt.evidence) {
+      return { required: required, findings: [{ group: "evidence", status: STATUS.PASS, code: REASON.EVIDENCE_NOT_CHECKED, message: "ยังไม่ได้ตรวจความครบของเอกสารแนบ", unverified: true }] };
+    }
+    var names = documentNames || {};
+    var gaps = checkEvidence(required, receipt.evidence);
+    var findings = [];
+    gaps.missingSteps.forEach(function (s) {
+      var docs = s.documentTypeIds.map(function (id) { return names[id] || id; }).join(" หรือ ");
+      findings.push({ group: "evidence", status: STATUS.FIX, code: REASON.MISSING_EVIDENCE, message: "ขาดเอกสาร: " + docs + (s.note ? " (" + s.note + ")" : ""), documentTypeIds: s.documentTypeIds });
+    });
+    gaps.missingAttestations.forEach(function (a) {
+      findings.push({ group: "evidence", status: STATUS.FIX, code: REASON.MISSING_ATTESTATION, message: "ยังไม่ได้ยืนยัน: " + a.text, attestationId: a.id });
+    });
+    return { findings: findings, required: required };
+  }
+
+  function explain(findings, chainName) {
+    var problems = findings.filter(function (f) { return f.status !== STATUS.PASS; });
+    var infos = findings.filter(function (f) { return f.status === STATUS.PASS && !f.unverified; });
+    var parts = [];
+    GROUP_ORDER.forEach(function (group) {
+      var msgs = problems.filter(function (f) { return f.group === group; }).map(function (f) { return f.message; });
+      if (!msgs.length) return;
+      parts.push(group === "evidence" ? "เอกสารประกอบยังไม่ครบตามชุด \"" + chainName + "\": " + msgs.join("; ") : msgs.join("; "));
+    });
+    var infoText = infos.map(function (f) { return f.message; }).join(" — ");
+    if (!parts.length) return infoText;
+    return parts.join(" — ") + (infoText ? " — ส่วนที่ผ่านแล้ว: " + infoText : "");
+  }
+
+  // receipt: {
+  //   category, amount,
+  //   evidence?: { documentTypeIds, attestationIds }   — ไม่ส่งมา = ยังไม่ได้ตรวจเอกสารแนบ
+  //   budget?: { line: { id, itemName, total } | null, spentBefore }
+  //     — ไม่ส่งมา = โครงการยังไม่ได้นำเข้าประมาณการ; line: null = ใบนี้ไม่อยู่ในประมาณการ
+  //     — spentBefore คือยอดของใบเสร็จอื่นที่ตัดจากรายการเดียวกันแล้ว (ไม่รวมใบนี้)
+  // }
   // ruleSet: null | { fundSourceId, ruleVersionId, versionLabel, ruleItems: [...], evidenceChains?: { id: chain } }
   //   — ruleSet === null หมายถึงหาแหล่งทุนไม่เจอ, ruleVersionId === null หมายถึงไม่มีเวอร์ชันที่ active
   // documentNames: { documentTypeId: ชื่อเอกสาร } ใช้แค่ทำคำอธิบายให้อ่านง่าย ไม่มีผลต่อการตัดสิน
   function evaluate(receipt, ruleSet, documentNames) {
-    var result = evaluateAmount(receipt, ruleSet);
-    result.findings = result.reasonCode ? [{ code: result.reasonCode, message: result.explanation }] : [];
-    if (result.status === STATUS.REJECT) return result;
-
-    var required = requiredEvidence(receipt.category, receipt.amount, ruleSet);
-    if (!required) return result;
-
-    if (!receipt.evidence) {
-      result.autoVerified = false;
-      result.findings.push({ code: REASON.EVIDENCE_NOT_CHECKED, message: "ยังไม่ได้ตรวจความครบของเอกสารแนบ" });
+    var hasBudget = !!receipt.budget;
+    var result = evaluateAmount(receipt, ruleSet, { perUnitViaEstimate: hasBudget && !!receipt.budget.line });
+    var regulationFinding = { group: "regulation", status: result.status, code: result.reasonCode, message: result.explanation };
+    if (result.status === STATUS.REJECT || result.reasonCode === REASON.INVALID_AMOUNT) {
+      result.findings = [regulationFinding];
       return result;
     }
 
-    var names = documentNames || {};
-    var nameOf = function (id) { return names[id] || id; };
-    var gaps = checkEvidence(required, receipt.evidence);
-    var messages = [];
-
-    gaps.missingSteps.forEach(function (s) {
-      var docs = s.documentTypeIds.map(nameOf).join(" หรือ ");
-      var message = "ขาดเอกสาร: " + docs + (s.note ? " (" + s.note + ")" : "");
-      result.findings.push({ code: REASON.MISSING_EVIDENCE, message: message, documentTypeIds: s.documentTypeIds });
-      messages.push(message);
-    });
-    gaps.missingAttestations.forEach(function (a) {
-      var message = "ยังไม่ได้ยืนยัน: " + a.text;
-      result.findings.push({ code: REASON.MISSING_ATTESTATION, message: message, attestationId: a.id });
-      messages.push(message);
-    });
-
-    if (messages.length) {
-      var evidenceText = "เอกสารประกอบยังไม่ครบตามชุด \"" + required.chainName + "\": " + messages.join("; ");
-      // ยอดเงินผ่านแต่เอกสารไม่ครบ → เหตุผลหลักคือเอกสาร; ถ้ายอดเกินอยู่แล้ว เหตุผลหลักยังเป็นยอดเงิน
-      if (result.status === STATUS.PASS) {
-        result.status = STATUS.FIX;
-        result.reasonCode = gaps.missingSteps.length ? REASON.MISSING_EVIDENCE : REASON.MISSING_ATTESTATION;
-        result.explanation = evidenceText + " — ส่วนยอดเงิน: " + result.explanation;
-      } else {
-        result.explanation += " — นอกจากนี้ " + evidenceText;
-      }
+    var findings = [];
+    if (hasBudget) findings = findings.concat(checkBudget(receipt));
+    else {
+      result.autoVerified = false;
+      findings.push({ group: "budget", status: STATUS.PASS, code: REASON.ESTIMATE_NOT_CHECKED, message: "โครงการนี้ยังไม่ได้นำเข้าประมาณการ จึงยังไม่ได้เทียบกับประมาณการ", unverified: true });
     }
+    findings.push(regulationFinding);
+    var evidence = checkEvidenceFindings(receipt, ruleSet, documentNames);
+    findings = findings.concat(evidence.findings);
+    if (findings.some(function (f) { return f.unverified; })) result.autoVerified = false;
+
+    var worst = findings.reduce(function (max, f) { return SEVERITY[f.status] > SEVERITY[max] ? f.status : max; }, STATUS.PASS);
+    var primary = null;
+    GROUP_ORDER.some(function (group) {
+      primary = findings.filter(function (f) { return f.group === group && f.status === worst && !f.unverified; })[0] || null;
+      return !!primary;
+    });
+
+    result.status = worst;
+    result.reasonCode = primary ? primary.code : result.reasonCode;
+    result.budgetLineId = hasBudget && receipt.budget.line ? receipt.budget.line.id : null;
+    result.findings = findings.map(function (f) {
+      var out = Object.assign({}, f);
+      delete out.unverified;
+      return out;
+    });
+    result.explanation = explain(findings, evidence.required ? evidence.required.chainName : "");
     return result;
   }
 
-  function evaluateAmount(receipt, ruleSet) {
+  // opts.perUnitViaEstimate: ใบเสร็จผูกกับรายการในประมาณการแล้ว — เพดาน "ต่อคน/ต่อคืน/ต่อมื้อ" ของระเบียบ
+  // ห้ามเอายอดรวมทั้งใบไปเทียบตรงๆ (อาหาร 10 คน ฿1,500 ไม่ได้เกินเพดาน ฿150/คน/มื้อ) ให้ใช้การเทียบยอดกับ
+  // ประมาณการที่อนุมัติตามอัตราระเบียบแล้วแทน
+  function evaluateAmount(receipt, ruleSet, opts) {
     var result = {
       engineVersion: ENGINE_VERSION,
       fundSourceId: ruleSet ? ruleSet.fundSourceId || null : null,
@@ -205,6 +285,13 @@
     }
 
     if (CAPPED_RATE_TYPES.indexOf(item.rateType) !== -1 && item.rateAmount != null) {
+      if (opts && opts.perUnitViaEstimate && item.unit) {
+        result.status = STATUS.PASS;
+        result.reasonCode = REASON.PER_UNIT_CAP_VIA_ESTIMATE;
+        result.autoVerified = false;
+        result.explanation = withNote("หมวด \"" + category + "\" มีเพดานต่อหน่วย (" + rateText(item) + ") ซึ่งตรวจจากยอดรวมใบเสร็จไม่ได้ ระบบจึงเทียบกับประมาณการที่อนุมัติแล้วแทน", item);
+        return result;
+      }
       if (amount > item.rateAmount) {
         result.status = STATUS.FIX;
         result.reasonCode = REASON.AMOUNT_EXCEEDS_CAP;

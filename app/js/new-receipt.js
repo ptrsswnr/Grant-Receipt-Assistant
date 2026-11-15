@@ -138,9 +138,9 @@ var SAMPLE_VENDORS = [
     return ruleSetCache[fundSourceId];
   }
 
-  async function checkAgainstRules(fundSourceId, category, amount, evidence) {
+  async function checkAgainstRules(fundSourceId, category, amount, evidence, budget) {
     var ruleSet = await getRuleSet(fundSourceId);
-    var result = window.RuleEngine.evaluate({ category: category, amount: amount, evidence: evidence }, ruleSet, documentNames);
+    var result = window.RuleEngine.evaluate({ category: category, amount: amount, evidence: evidence, budget: budget }, ruleSet, documentNames);
     // receipt-check-agent.js และ field aiExplanation บนเอกสาร receipt ยังใช้ชื่อเดิม
     result.aiExplanation = result.explanation;
     return result;
@@ -189,6 +189,63 @@ var SAMPLE_VENDORS = [
       html += '<label style="display:flex; gap:8px; align-items:flex-start; margin-top:10px;"><input type="checkbox" data-attest-id="' + esc(a.id) + '"' + (keepAttest.indexOf(a.id) !== -1 ? " checked" : "") + '> <span>ยืนยันว่า' + esc(a.text) + '</span></label>';
     });
     evidenceChecklistBody.innerHTML = html;
+  }
+
+  // ─── รายการในประมาณการ (ขั้นตอนที่ 2) ───
+  // แสดงเฉพาะโครงการที่นำเข้าประมาณการแล้ว (budget.html) — โครงการที่ยังไม่มีจะไม่ถูกเทียบกับประมาณการ
+  var NOT_IN_ESTIMATE = "__not_in_estimate__";
+  var budgetLineField = document.getElementById("budgetLineField");
+  var budgetLineSelect = document.getElementById("budgetLineId");
+  var budgetLinesCache = {};
+
+  function projectRefFor(projectId) {
+    return db.collection("users").doc(user.uid).collection("projects").doc(projectId);
+  }
+
+  function getBudgetLines(projectId) {
+    if (!budgetLinesCache[projectId]) {
+      budgetLinesCache[projectId] = projectRefFor(projectId).collection("budgetLines").orderBy("order").get()
+        .then(function (snap) { return snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); });
+    }
+    return budgetLinesCache[projectId];
+  }
+
+  async function renderBudgetLines() {
+    var lines = projectSelect.value ? await getBudgetLines(projectSelect.value) : [];
+    budgetLineField.hidden = !lines.length;
+    if (!lines.length) {
+      budgetLineSelect.innerHTML = "";
+      return;
+    }
+    var html = '<option value="">— เลือกรายการ —</option>';
+    var group = null;
+    lines.forEach(function (line) {
+      if (line.group !== group) {
+        if (group !== null) html += "</optgroup>";
+        group = line.group;
+        html += '<optgroup label="' + esc(group || "(ไม่ระบุหมวด)") + '">';
+      }
+      html += '<option value="' + esc(line.id) + '">' + esc(line.itemName) + " (ตั้งไว้ " + esc(formatCurrency(line.total)) + ")</option>";
+    });
+    html += '</optgroup><option value="' + NOT_IN_ESTIMATE + '">ไม่อยู่ในประมาณการ (รายการใหม่)</option>';
+    budgetLineSelect.innerHTML = html;
+  }
+
+  budgetLineSelect.addEventListener("change", async function () {
+    var lines = await getBudgetLines(projectSelect.value);
+    var line = lines.filter(function (l) { return l.id === budgetLineSelect.value; })[0];
+    if (line && line.ruleCategory) {
+      categorySelect.value = line.ruleCategory;
+      await renderEvidenceChecklist();
+    }
+  });
+
+  // ยอดของใบเสร็จอื่นที่ตัดจากรายการเดียวกันแล้ว — query ตรงใน subcollection ของโครงการตัวเอง ไม่ต้องใช้ index พิเศษ
+  async function spentOnLine(projectId, lineId) {
+    var snap = await projectRefFor(projectId).collection("receipts").where("budgetLineId", "==", lineId).get();
+    var sum = 0;
+    snap.forEach(function (d) { sum += d.data().confirmedAmount || 0; });
+    return sum;
   }
 
   categorySelect.addEventListener("change", renderEvidenceChecklist);
@@ -347,6 +404,7 @@ var SAMPLE_VENDORS = [
     categorySelect.value = aiData.confirmedCategory;
     document.getElementById("confirmedVendorName").value = aiData.confirmedVendorName;
     evidenceChecklistBody.innerHTML = "";
+    await renderBudgetLines();
     await renderEvidenceChecklist();
 
     var fileNameText = files.length > 0
@@ -380,6 +438,10 @@ var SAMPLE_VENDORS = [
       warn("กรอกไม่ครบ — ต้องมียอดเงิน วันที่ และหมวดค่าใช้จ่ายก่อนส่งตรวจ");
       return;
     }
+    if (!budgetLineField.hidden && !budgetLineSelect.value) {
+      warn("กรุณาเลือกว่าใบเสร็จนี้ตัดจากรายการไหนในประมาณการ (หรือเลือก \"ไม่อยู่ในประมาณการ\")");
+      return;
+    }
 
     var files = Array.from(fileInput.files);
     if (files.length > 0 && !window.googleDriveIsConnected()) {
@@ -394,7 +456,13 @@ var SAMPLE_VENDORS = [
       var evidence = checklistShown
         ? { documentTypeIds: checkedValues("data-doc-id"), attestationIds: checkedValues("data-attest-id") }
         : undefined;
-      var checkResult = await checkAgainstRules(projectFundSourceId[values.projectId], values.confirmedCategory, values.confirmedAmount, evidence);
+      var budget;
+      if (!budgetLineField.hidden) {
+        var budgetLines = await getBudgetLines(values.projectId);
+        var line = budgetLines.filter(function (l) { return l.id === budgetLineSelect.value; })[0] || null;
+        budget = { line: line, spentBefore: line ? await spentOnLine(values.projectId, line.id) : 0 };
+      }
+      var checkResult = await checkAgainstRules(projectFundSourceId[values.projectId], values.confirmedCategory, values.confirmedAmount, evidence, budget);
 
       step2Button.textContent = "กำลังบันทึกข้อมูลใบเสร็จ...";
       var newReceiptId = await nextReceiptId();
@@ -416,6 +484,8 @@ var SAMPLE_VENDORS = [
           ruleItemId: checkResult.ruleItemId,
           findings: checkResult.findings.map(function (f) { return { code: f.code, message: f.message }; }),
         },
+        // null = โครงการยังไม่มีประมาณการ หรือเลือก "ไม่อยู่ในประมาณการ" (ดู ruleCheck.reasonCode แยกสองกรณี)
+        budgetLineId: checkResult.budgetLineId || null,
         // รายการที่นักวิจัยติ๊กยืนยันเอง (ยังไม่ได้ตรวจจากไฟล์จริง) — null คือหมวดนี้ไม่มี checklist
         providedDocumentTypeIds: evidence ? evidence.documentTypeIds : null,
         confirmedAttestations: evidence ? evidence.attestationIds : null,
@@ -471,8 +541,8 @@ var SAMPLE_VENDORS = [
     }
   });
 
-  var STATUS_CHIP_CLASS = { "ผ่าน": "chip-status--pass", "ต้องแก้ไข": "chip-status--fix", "ไม่เข้าเงื่อนไข": "chip-status--reject" };
-  var STATUS_CALLOUT_KIND = { "ผ่าน": "pass", "ต้องแก้ไข": "fix", "ไม่เข้าเงื่อนไข": "reject" };
+  var STATUS_CHIP_CLASS = { "ผ่าน": "chip-status--pass", "ต้องแก้ไข": "chip-status--fix", "ต้องชี้แจง/ขออนุมัติ": "chip-status--approval", "ไม่เข้าเงื่อนไข": "chip-status--reject" };
+  var STATUS_CALLOUT_KIND = { "ผ่าน": "pass", "ต้องแก้ไข": "fix", "ต้องชี้แจง/ขออนุมัติ": "approval", "ไม่เข้าเงื่อนไข": "reject" };
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -515,6 +585,7 @@ var SAMPLE_VENDORS = [
     document.getElementById("confirmedDate").value = "";
     document.getElementById("confirmedVendorName").value = "";
     evidenceChecklistBody.innerHTML = "";
+    budgetLineSelect.value = "";
     goToStep(1);
   });
 })();
