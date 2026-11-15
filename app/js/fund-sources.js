@@ -34,7 +34,7 @@
   var evidenceChainsById = {}; // id -> chainName ใช้ตอนแสดงผลแถว ruleItem
 
   function warn(message) {
-    warningBox.textContent = "⚠️ " + message;
+    warningBox.textContent = message;
     warningBox.style.display = "block";
   }
   function clearWarning() {
@@ -140,7 +140,7 @@
     return (
       '<div class="card">' +
         '<div class="row" style="justify-content:space-between; align-items:flex-start;">' +
-          '<div><h4>' + esc(fs.fundSourceName) + '</h4><p class="text-small text-mono">' + esc(fs.fundSourceCode) + '</p></div>' +
+          '<div><h3>' + esc(fs.fundSourceName) + '</h3><p class="text-small text-mono">' + esc(fs.fundSourceCode) + '</p></div>' +
           '<button type="button" class="btn btn-destructive btn-sm" data-action="delete-fund-source" data-fs-id="' + esc(fsDoc.id) + '">ลบแหล่งทุน</button>' +
         '</div>' +
         (ruleItemsHtml || '<p class="text-small" style="margin-top:8px;">ยังไม่มีกฎใบเสร็จ — เพิ่มด้านล่างได้เลย</p>') +

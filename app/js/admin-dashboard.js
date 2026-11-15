@@ -112,6 +112,7 @@
       Object.keys(researcherIds).length + " / " + Object.keys(projectKeys).length;
     document.getElementById("statPass").textContent = statusCounts["ผ่าน"] || 0;
     document.getElementById("statFix").textContent = statusCounts["ต้องแก้ไข"] || 0;
+    document.getElementById("statApproval").textContent = statusCounts["ต้องชี้แจง/ขออนุมัติ"] || 0;
     document.getElementById("statReject").textContent = statusCounts["ไม่เข้าเงื่อนไข"] || 0;
 
     return statusCounts;
@@ -148,8 +149,9 @@
           '<td>' + esc(formatCurrency(receipt.confirmedAmount)) + '</td>' +
           '<td><span class="chip-status ' + chipClass + '">' + esc(receipt.status || "ไม่ทราบสถานะ") + '</span></td>' +
           '<td>' + (r.fileCount > 0 ? r.fileCount + " ไฟล์" : "-") + '</td>' +
-          '<td class="text-small">' + esc(receipt.aiExplanation) + '</td>' +
-        '</tr>'
+        '</tr>' +
+        // คำอธิบายยาว — แสดงเป็นแถวเต็มความกว้างใต้ใบเสร็จแทนคอลัมน์ที่ตกขอบตาราง
+        '<tr class="explain-row"><td colspan="9">' + esc(receipt.aiExplanation) + '</td></tr>'
       );
     }).join("");
   }

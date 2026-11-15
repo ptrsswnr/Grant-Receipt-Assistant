@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Admin Dashboard — Grant Receipt Assistant</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
@@ -56,7 +57,7 @@
       </div>
 
       <div class="section">
-        <div class="grid-3">
+        <div class="grid-4">
           <div class="stat-tile">
             <div class="stat-tile__value stat-tile__value--pass" id="statPass">-</div>
             <div class="stat-tile__label">ผ่าน</div>
@@ -66,6 +67,10 @@
             <div class="stat-tile__label">ต้องแก้ไข</div>
           </div>
           <div class="stat-tile">
+            <div class="stat-tile__value stat-tile__value--approval" id="statApproval">-</div>
+            <div class="stat-tile__label">ต้องชี้แจง/ขออนุมัติ</div>
+          </div>
+          <div class="stat-tile">
             <div class="stat-tile__value stat-tile__value--reject" id="statReject">-</div>
             <div class="stat-tile__label">ไม่เข้าเงื่อนไข</div>
           </div>
@@ -73,22 +78,22 @@
       </div>
 
       <div class="section">
-        <h3>แยกตามสถานะ</h3>
+        <h2>แยกตามสถานะ</h2>
         <div class="card" id="statusBreakdown"></div>
       </div>
 
       <div class="section">
-        <h3>แยกตามหมวดค่าใช้จ่าย</h3>
+        <h2>แยกตามหมวดค่าใช้จ่าย</h2>
         <div class="card" id="categoryBreakdown"></div>
       </div>
 
       <div class="section">
-        <h3>แยกตามแหล่งทุน</h3>
+        <h2>แยกตามแหล่งทุน</h2>
         <div class="card" id="fundSourceBreakdown"></div>
       </div>
 
       <div class="section">
-        <h3>รายละเอียดใบเสร็จทั้งหมด</h3>
+        <h2>รายละเอียดใบเสร็จทั้งหมด</h2>
         <p class="text-small">เรียงจากล่าสุดไปเก่าสุด — ระบุชื่อ/อีเมลผู้ใช้ที่อัปโหลดแต่ละใบเสร็จ</p>
         <div style="overflow-x:auto;">
           <table class="admin-table" id="receiptTable">
@@ -103,7 +108,6 @@
                 <th>ยอดเงิน</th>
                 <th>สถานะ</th>
                 <th>ไฟล์แนบ</th>
-                <th>คำอธิบาย</th>
               </tr>
             </thead>
             <tbody id="receiptTableBody"></tbody>

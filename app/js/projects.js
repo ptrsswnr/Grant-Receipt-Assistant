@@ -14,7 +14,7 @@
   var projectList = document.getElementById("project-list");
 
   function warn(message) {
-    warningBox.textContent = "⚠️ " + message;
+    warningBox.textContent = message;
     warningBox.style.display = "block";
   }
   function clearWarning() {
@@ -68,7 +68,7 @@
     var fundSourceName = fundSourceNameById[project.fundSourceId] || "(ไม่พบแหล่งทุน)";
     return (
       '<div class="card">' +
-        '<h4>' + esc(project.projectName) + '</h4>' +
+        '<h3>' + esc(project.projectName) + '</h3>' +
         '<p class="text-small">แหล่งทุน: ' + esc(fundSourceName) + '</p>' +
         '<div class="row" style="margin-top:8px;">' +
           '<a class="btn btn-secondary btn-sm" href="receipts.html?projectId=' + esc(projectId) + '">ใบเสร็จในโครงการนี้</a>' +

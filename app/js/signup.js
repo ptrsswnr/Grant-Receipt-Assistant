@@ -15,7 +15,7 @@
   var signupButton = document.getElementById("signupButton");
 
   function warn(message) {
-    warningBox.textContent = "⚠️ " + message;
+    warningBox.textContent = message;
     warningBox.style.display = "block";
   }
 

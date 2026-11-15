@@ -41,3 +41,7 @@ __pycache__/
 # In case a local npm install ever happens in this repo (firebase-tools is installed globally
 # for this project, not locally — see CLAUDE.md)
 node_modules/
+
+# Design-review artifacts: Playwright logs/snapshots and screenshot evidence (regenerated per review)
+.playwright-mcp/
+.impeccable/review/

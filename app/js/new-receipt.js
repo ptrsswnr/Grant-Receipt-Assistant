@@ -283,7 +283,7 @@ var SAMPLE_VENDORS = [
   }
 
   function warn(message) {
-    warningBox.textContent = "⚠️ " + message;
+    warningBox.textContent = message;
     warningBox.style.display = "block";
   }
 
@@ -305,7 +305,7 @@ var SAMPLE_VENDORS = [
   var driveConnectStatus = document.getElementById("driveConnectStatus");
 
   function refreshDriveConnectStatus() {
-    driveConnectStatus.textContent = window.googleDriveIsConnected() ? "✅ เชื่อมต่อแล้ว" : "";
+    driveConnectStatus.textContent = window.googleDriveIsConnected() ? "เชื่อมต่อแล้ว" : "";
   }
   refreshDriveConnectStatus();
 
@@ -316,7 +316,7 @@ var SAMPLE_VENDORS = [
       await window.googleDriveConnect();
       refreshDriveConnectStatus();
     } catch (err) {
-      driveConnectStatus.innerHTML = '<span style="color:var(--color-error);">⚠️ ' + esc(err.message) + '</span>';
+      driveConnectStatus.innerHTML = '<span style="color:var(--color-error);">' + esc(err.message) + '</span>';
     } finally {
       connectDriveButton.disabled = false;
       connectDriveButton.textContent = "เชื่อมต่อ Google Drive";
@@ -327,7 +327,7 @@ var SAMPLE_VENDORS = [
     var files = Array.from(fileInput.files);
     var error = files.length > 0 ? validateFiles(files) : null;
     if (error) {
-      fileStatusBox.innerHTML = '<span style="color:var(--color-error);">⚠️ ' + error + '</span>';
+      fileStatusBox.innerHTML = '<span style="color:var(--color-error);">' + error + '</span>';
     } else if (files.length > 0) {
       fileStatusBox.textContent = "เลือกไว้ " + files.length + " ไฟล์ (" + files.map(function (f) { return f.name; }).join(", ") + ")";
     } else {
@@ -562,7 +562,7 @@ var SAMPLE_VENDORS = [
     document.getElementById("checkResult").innerHTML =
       '<div class="receipt-entry">' +
         '<div class="receipt-card">' +
-          '<div class="receipt-card__thumb">🧾</div>' +
+          '<div class="receipt-card__thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>' +
           '<div class="receipt-card__body">' +
             '<div class="receipt-card__amount">' + esc(formatCurrency(values.confirmedAmount)) + '</div>' +
             '<div class="receipt-card__meta">' + esc(projectName) + ' · ' + esc(values.confirmedDate) + ' · ' + esc(values.confirmedCategory) + ' · ' + esc(values.confirmedVendorName) + '</div>' +

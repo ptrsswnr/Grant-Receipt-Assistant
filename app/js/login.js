@@ -10,7 +10,7 @@
   var loginButton = document.getElementById("loginButton");
 
   function warn(message) {
-    warningBox.textContent = "⚠️ " + message;
+    warningBox.textContent = message;
     warningBox.style.display = "block";
   }
 

@@ -34,8 +34,8 @@
       var navUser = document.getElementById("navUser");
       if (navUser) {
         navUser.innerHTML =
-          esc(user.email) +
-          ' · <a href="#" id="logoutButton">ออกจากระบบ</a>';
+          '<span class="nav-email">' + esc(user.email) + ' · </span>' +
+          '<a href="#" id="logoutButton">ออกจากระบบ</a>';
         var logoutButton = document.getElementById("logoutButton");
         logoutButton.addEventListener("click", function (e) {
           e.preventDefault();

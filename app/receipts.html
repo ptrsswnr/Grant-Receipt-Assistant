@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ใบเสร็จของฉัน (เชื่อม Firestore จริง) — Grant Receipt Assistant</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
@@ -21,11 +22,9 @@
   <div class="section text-left-block" id="pageIntro">
     <h1>ใบเสร็จของฉัน</h1>
     <p class="text-body">
-      หน้านี้อ่านข้อมูลจริงจาก Cloud Firestore (collection <code>receipts</code>) — ถ้ายังไม่มีข้อมูล
-      ให้ไปที่หน้า <a href="projects.html">โครงการของฉัน</a> เพื่อสร้างโครงการก่อน แล้วอัปโหลดใบเสร็จที่หน้า
+      ใบเสร็จทุกใบที่คุณส่งตรวจ พร้อมผลตรวจและสิ่งที่ต้องทำต่อ ถ้ายังไม่มีใบเสร็จ ให้สร้างโครงการที่หน้า
+      <a href="projects.html">โครงการของฉัน</a> ก่อน แล้วอัปโหลดใบเสร็จที่หน้า
       <a href="new-receipt.html">อัปโหลดใบเสร็จใหม่</a>
-      สถานะ/คำอธิบายจาก AI เป็นข้อมูลสมมติ (ยังไม่มี OCR/Rule Engine/LLM จริงเชื่อมต่อ —
-      ดูเหตุผลใน <code>SCOPE.md</code>)
     </p>
   </div>
 
@@ -38,8 +37,7 @@
 </main>
 
 <footer class="page-footer">
-  <p>อ่านข้อมูลจาก Firestore project: <span class="text-mono">grant-receipt-assistant</span> ·
-     collection: <span class="text-mono">receipts</span></p>
+  <p>ผลตรวจเป็นการตรวจเบื้องต้นตามระเบียบที่บันทึกไว้ในระบบ เจ้าหน้าที่การเงินยังเป็นผู้ตรวจรับรองขั้นสุดท้าย</p>
 </footer>
 
 <script src="js/receipts.js" defer></script>

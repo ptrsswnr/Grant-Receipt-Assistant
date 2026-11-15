@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ประมาณการค่าใช้จ่าย — Grant Receipt Assistant</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
 <script src="js/data.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
@@ -22,7 +23,7 @@
 <main class="page-shell">
 
   <div class="section text-left-block">
-    <p class="text-small"><a href="projects.html">← โครงการของฉัน</a></p>
+    <p class="text-small"><a href="projects.html" style="display:inline-flex;align-items:center;gap:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>โครงการของฉัน</a></p>
     <h1>ประมาณการค่าใช้จ่าย</h1>
     <p class="text-body" id="projectNameLine"></p>
     <p class="text-body">
@@ -35,14 +36,14 @@
 
   <div class="section">
     <div class="card">
-      <h3>รายการในประมาณการปัจจุบัน</h3>
+      <h2>รายการในประมาณการปัจจุบัน</h2>
       <div id="currentBudget"><p class="text-body">กำลังโหลด...</p></div>
     </div>
   </div>
 
   <div class="section">
     <div class="card">
-      <h3>นำเข้าประมาณการจากไฟล์</h3>
+      <h2>นำเข้าประมาณการจากไฟล์</h2>
       <p class="text-body">
         ใช้ไฟล์ตัวช่วยทำตาราง 17.2 "รายละเอียดงบประมาณการวิจัยจำแนกตามงบประเภทต่างๆ" ของมหาวิทยาลัยที่กรอกแล้ว
         (ใน Google Sheets ให้เลือก ไฟล์ → ดาวน์โหลด → Microsoft Excel (.xlsx)) การนำเข้าใหม่จะแทนที่ประมาณการเดิมทั้งหมด

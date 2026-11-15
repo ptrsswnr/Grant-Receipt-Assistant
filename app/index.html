@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Grant Receipt Assistant</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
@@ -31,33 +32,33 @@
   </div>
 
   <div class="section">
-    <h3>ขั้นตอนการใช้งาน</h3>
+    <h2>ขั้นตอนการใช้งาน</h2>
     <div class="grid-3">
       <a class="card" href="new-receipt.html" style="text-decoration:none;">
-        <h4>1. อัปโหลดใบเสร็จ</h4>
+        <h3>1. อัปโหลดใบเสร็จ</h3>
         <p class="text-small">แนบไฟล์หลักฐาน แล้วกรอก/ยืนยันยอดเงิน วันที่ และหมวดค่าใช้จ่ายก่อนส่งตรวจ</p>
       </a>
       <a class="card" href="new-receipt.html" style="text-decoration:none;">
-        <h4>2. ระบบตรวจตามเงื่อนไขทุน</h4>
+        <h3>2. ระบบตรวจตามเงื่อนไขทุน</h3>
         <p class="text-small">ระบบประมวลผลตามกฎของทุนวิจัยทันที แล้วสรุปผลเป็นภาษาที่เข้าใจง่าย</p>
       </a>
       <a class="card" href="receipts.html" style="text-decoration:none;">
-        <h4>3. ดูผลตรวจ</h4>
+        <h3>3. ดูผลตรวจ</h3>
         <p class="text-small">ตรวจสอบสถานะและคำอธิบายผลของใบเสร็จแต่ละรายการที่หน้าใบเสร็จของฉัน</p>
       </a>
     </div>
   </div>
 
   <div class="section">
-    <h3>สถานะของใบเสร็จมี 4 ค่า</h3>
+    <h2>ผลตรวจใบเสร็จมี 4 แบบ</h2>
     <div class="card">
-      <p class="text-body">
-        <span class="chip-status chip-status--pass">ผ่าน</span> ·
-        <span class="chip-status chip-status--fix">ต้องแก้ไข</span> ·
-        <span class="chip-status chip-status--reject">ไม่เข้าเงื่อนไข</span> ·
-        <span class="chip-status chip-status--pending">รอตรวจสอบ</span>
-      </p>
-      <p class="text-small">ใบเสร็จแต่ละรายการจะได้หนึ่งในสี่สถานะนี้ พร้อมคำอธิบายเหตุผลประกอบทุกครั้ง</p>
+      <div class="row" style="margin-bottom:var(--sp-3);">
+        <span class="chip-status chip-status--pass">ผ่าน</span>
+        <span class="chip-status chip-status--fix">ต้องแก้ไข</span>
+        <span class="chip-status chip-status--approval">ต้องชี้แจง/ขออนุมัติ</span>
+        <span class="chip-status chip-status--reject">ไม่เข้าเงื่อนไข</span>
+      </div>
+      <p class="text-small">ใบเสร็จแต่ละรายการจะได้ผลใดผลหนึ่ง พร้อมคำอธิบายเหตุผลและสิ่งที่ต้องทำต่อทุกครั้ง ระหว่างที่ระบบกำลังอ่านใบเสร็จจะแสดงเป็น <span class="chip-status chip-status--pending">รอตรวจสอบ</span></p>
     </div>
   </div>
 

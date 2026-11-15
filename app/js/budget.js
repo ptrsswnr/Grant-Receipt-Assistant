@@ -13,7 +13,7 @@
   var user = await window.AUTH_READY;
 
   function warn(message) {
-    warningBox.textContent = "⚠️ " + message;
+    warningBox.textContent = message;
     warningBox.style.display = "block";
   }
 
@@ -58,30 +58,36 @@
       currentBudget.innerHTML = '<p class="text-body">ยังไม่ได้นำเข้าประมาณการ — ใบเสร็จของโครงการนี้จะยังไม่ถูกเทียบกับประมาณการ</p>';
       return;
     }
-    var html = '<div style="overflow-x:auto;"><table class="admin-table"><thead><tr>' +
-      '<th style="min-width:220px;">รายการ</th><th>ตั้งไว้</th><th>ใช้ไปแล้ว</th><th>คงเหลือ</th><th>%</th></tr></thead><tbody style="font-variant-numeric:tabular-nums;">';
+    // data-label ใช้ตอนจอแคบ: style.css แปลงแต่ละแถวเป็นการ์ดที่มีป้ายกำกับตัวเลขทุกช่อง
+    var html = '<div class="budget-table-wrap"><table class="admin-table budget-table"><thead><tr>' +
+      '<th>รายการ</th><th>ตั้งไว้</th><th>ใช้ไปแล้ว</th><th>คงเหลือ</th><th>ใช้ไป</th></tr></thead><tbody>';
     var group = null;
     var totals = { budget: 0, spent: 0 };
     linesSnap.forEach(function (doc) {
       var line = doc.data();
       if (line.group !== group) {
         group = line.group;
-        html += '<tr><td colspan="5"><strong>' + esc(group || "(ไม่ระบุหมวด)") + '</strong></td></tr>';
+        html += '<tr class="group-row"><td colspan="5">' + esc(group || "(ไม่ระบุหมวด)") + '</td></tr>';
       }
       var spent = spentByLine[doc.id] || 0;
       var percent = line.total > 0 ? Math.round((spent / line.total) * 1000) / 10 : 0;
       totals.budget += line.total;
       totals.spent += spent;
       var over = spent > line.total;
-      html += '<tr' + (over ? ' style="color:var(--color-error);"' : '') + '>' +
-        '<td>' + esc(line.itemName) + (line.multiplierText ? '<div class="text-small">' + esc(line.multiplierText) + '</div>' : '') +
+      html += '<tr class="line-row' + (over ? ' is-over' : '') + '">' +
+        '<td class="line-name">' + esc(line.itemName) + (line.multiplierText ? '<div class="text-small">' + esc(line.multiplierText) + '</div>' : '') +
           (line.ruleCategory ? '' : '<div class="text-small" style="color:var(--color-error);">ยังไม่ได้จับคู่หมวดตามระเบียบ</div>') + '</td>' +
-        '<td style="white-space:nowrap;">' + money(line.total) + '</td><td style="white-space:nowrap;">' + money(spent) +
-        '</td><td style="white-space:nowrap;">' + money(line.total - spent) + '</td>' +
-        '<td style="white-space:nowrap;">' + percent + '%' + (over ? ' ⚠️' : '') + '</td></tr>';
+        '<td data-label="ตั้งไว้">' + money(line.total) + '</td>' +
+        '<td data-label="ใช้ไปแล้ว">' + money(spent) + '</td>' +
+        '<td data-label="คงเหลือ">' + money(line.total - spent) + '</td>' +
+        '<td data-label="ใช้ไป" class="usage-cell"><div class="usage">' +
+          '<span class="usage__track"><span class="usage__fill" style="width:' + Math.min(percent, 100) + '%"></span></span>' +
+          '<span class="usage__pct">' + percent + '%</span>' +
+          (over ? '<span class="chip-status chip-status--approval">เกินประมาณการ</span>' : '') +
+        '</div></td></tr>';
     });
-    html += '<tr><td><strong>รวม</strong></td><td><strong>' + money(totals.budget) + '</strong></td><td><strong>' + money(totals.spent) +
-      '</strong></td><td><strong>' + money(totals.budget - totals.spent) + '</strong></td><td></td></tr></tbody></table></div>';
+    html += '<tr class="total-row"><td>รวม</td><td data-label="ตั้งไว้">' + money(totals.budget) + '</td><td data-label="ใช้ไปแล้ว">' + money(totals.spent) +
+      '</td><td data-label="คงเหลือ">' + money(totals.budget - totals.spent) + '</td><td></td></tr></tbody></table></div>';
     var source = linesSnap.docs[0].data().sourceFileName;
     if (source) html += '<p class="text-small">นำเข้าจากไฟล์: ' + esc(source) + '</p>';
     currentBudget.innerHTML = html;
@@ -175,7 +181,7 @@
       linesSnap = await projectRef.collection("budgetLines").orderBy("order").get();
       parsed = null;
       fileInput.value = "";
-      importPreview.innerHTML = '<p class="text-body">✅ บันทึกประมาณการแล้ว</p>';
+      importPreview.innerHTML = '<div class="banner banner--success">บันทึกประมาณการแล้ว</div>';
       renderCurrent();
     } catch (err) {
       warn("บันทึกไม่สำเร็จ: " + err.message + " (ถ้าเป็น permission-denied แปลว่ายังไม่ได้ deploy firestore.rules ที่มีกฎ budgetLines)");

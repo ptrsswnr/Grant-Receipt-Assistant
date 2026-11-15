@@ -47,9 +47,9 @@ function filesHtml(files) {
     .sort(function (a, b) { return (a.sortOrder || 0) - (b.sortOrder || 0); })
     .map(function (f) {
       if (f.fileReference) {
-        return '<a href="' + esc(f.fileReference) + '" target="_blank" rel="noopener">📎 ' + esc(f.originalFileName) + '</a>';
+        return '<a href="' + esc(f.fileReference) + '" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> ' + esc(f.originalFileName) + '</a>';
       }
-      return '<span>📎 ' + esc(f.originalFileName) + ' (mock — ยังไม่มีไฟล์จริงอัปโหลด)</span>';
+      return '<span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="vertical-align:-2px;"><path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg> ' + esc(f.originalFileName) + ' (mock — ยังไม่มีไฟล์จริงอัปโหลด)</span>';
     })
     .join(" · ");
   return '<p class="text-small">ไฟล์แนบ: ' + links + '</p>';
@@ -65,7 +65,7 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
   var html = '<div class="receipt-entry" data-receipt-path="' + esc(receiptPath) + '">';
   html +=
     '<div class="receipt-card">' +
-      '<div class="receipt-card__thumb">🧾</div>' +
+      '<div class="receipt-card__thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>' +
       '<div class="receipt-card__body">' +
         '<div class="receipt-card__amount">' + esc(formatCurrency(receipt.confirmedAmount)) + '</div>' +
         '<div class="receipt-card__meta">' + esc(projectName || "(ไม่พบโครงการ)") + ' · ' + esc(receipt.confirmedDate) + ' · ' + esc(receipt.confirmedCategory) + ' · ' + esc(receipt.confirmedVendorName) + '</div>' +
@@ -88,6 +88,27 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
   return html;
 }
 
+// รายการย่อในแผงสีฟ้าด้านซ้าย (จอใหญ่) — คลิกแล้วแสดงรายละเอียดใบนั้นในแผงขวา
+function paneItemHtml(receiptPath, receipt) {
+  var chipClass = STATUS_CHIP_CLASS[receipt.status] || "chip-status--pending";
+  return '<button type="button" class="receipt-pane__item" data-receipt-path="' + esc(receiptPath) + '">' +
+    '<span class="receipt-pane__amount">' + esc(formatCurrency(receipt.confirmedAmount)) + '</span>' +
+    '<span class="receipt-pane__meta">' + esc(receipt.confirmedCategory) + '</span>' +
+    '<span class="receipt-pane__foot"><span class="chip-status ' + chipClass + '">' + esc(receipt.status || "ไม่ทราบสถานะ") + '</span>' +
+    '<span class="receipt-pane__date">' + esc(receipt.confirmedDate) + '</span></span>' +
+  '</button>';
+}
+
+function paneSummaryHtml(receipts) {
+  var passed = receipts.filter(function (r) { return r.status === "ผ่าน"; }).length;
+  var percent = receipts.length ? Math.round((passed / receipts.length) * 100) : 0;
+  return '<div class="receipt-pane__summary">' +
+    '<span class="receipt-pane__summary-figure">' + passed + ' / ' + receipts.length + '</span>' +
+    '<span class="receipt-pane__summary-label">ใบเสร็จที่ผ่านแล้ว</span>' +
+    '<span class="receipt-pane__track"><span style="width:' + percent + '%"></span></span>' +
+  '</div>';
+}
+
 (function () {
   var loadState = document.getElementById("load-state");
   var list = document.getElementById("receipt-list");
@@ -100,8 +121,8 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
       ? '<div class="banner banner--info"><p class="text-body">โครงการนี้ยังไม่มีใบเสร็จ — ' +
         '<a href="new-receipt.html?projectId=' + esc(filterProjectId) + '">อัปโหลดใบเสร็จแรก</a></p></div>'
       : '<div class="banner banner--warning">' +
-        '<p class="text-body">ยังไม่มีข้อมูลใน collection <code>receipts</code> — ไปที่หน้า ' +
-        '<a href="projects.html">โครงการของฉัน</a> เพื่อสร้างโครงการแล้วอัปโหลดใบเสร็จก่อน</p>' +
+        '<p class="text-body">ยังไม่มีใบเสร็จ ไปที่หน้า ' +
+        '<a href="projects.html">โครงการของฉัน</a> เพื่อสร้างโครงการ แล้วอัปโหลดใบเสร็จใบแรก</p>' +
         '</div>';
     loadState.style.display = "block";
     list.style.display = "none";
@@ -117,7 +138,7 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
         pageIntro.innerHTML =
           '<h1>ใบเสร็จของโครงการ: ' + esc(filterProjectName) + '</h1>' +
           '<p class="text-body">' +
-            '<a href="projects.html">← กลับไปโครงการของฉัน</a> · ' +
+            '<a href="projects.html" style="display:inline-flex;align-items:center;gap:4px;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>กลับไปโครงการของฉัน</a> · ' +
             '<a href="new-receipt.html?projectId=' + esc(filterProjectId) + '" class="btn btn-primary btn-sm">อัปโหลดใบเสร็จในโครงการนี้</a>' +
           '</p>';
       }
@@ -140,7 +161,7 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
         return;
       }
 
-      var htmlParts = await Promise.all(docs.map(async function (doc) {
+      var entries = await Promise.all(docs.map(async function (doc) {
         var filesSnapshot = await doc.ref.collection("files").get();
         var files = filesSnapshot.docs.map(function (f) { return f.data(); });
         var receipt = doc.data();
@@ -154,10 +175,23 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
           projectName = projectSnap.exists ? projectSnap.data().projectName : "(ไม่พบโครงการ)";
         }
 
-        return receiptCardHtml(doc.ref.path, receipt, files, projectName);
+        return { path: doc.ref.path, receipt: receipt, html: receiptCardHtml(doc.ref.path, receipt, files, projectName) };
       }));
 
-      list.innerHTML = htmlParts.join("");
+      // จอใหญ่: แผงรายการสีฟ้า (ซ้าย) + รายละเอียดใบที่เลือก (ขวา) / จอเล็ก: style.css ซ่อนแผงซ้าย
+      // แล้วแสดงทุกใบเรียงต่อกันเหมือนเดิม
+      var uploadHref = filterProjectId ? "new-receipt.html?projectId=" + encodeURIComponent(filterProjectId) : "new-receipt.html";
+      list.innerHTML =
+        '<div class="receipt-master">' +
+          '<div class="receipt-pane">' +
+            '<div class="receipt-pane__head"><h2>รายการใบเสร็จ</h2>' +
+              '<a class="btn btn-sm receipt-pane__new" href="' + esc(uploadHref) + '"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>อัปโหลด</a></div>' +
+            paneSummaryHtml(entries.map(function (e) { return e.receipt; })) +
+            '<div class="receipt-pane__list">' + entries.map(function (e) { return paneItemHtml(e.path, e.receipt); }).join("") + '</div>' +
+          '</div>' +
+          '<div class="receipt-detail">' + entries.map(function (e) { return e.html; }).join("") + '</div>' +
+        '</div>';
+      selectReceipt(entries[0].path);
       list.style.display = "block";
       loadState.style.display = "none";
     } catch (err) {
@@ -190,12 +224,26 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
     }
   }
 
-  // เดลิเกตคลิกปุ่มลบทั้งหมดที่ #receipt-list เดียว (แต่ละใบเสร็จมีปุ่มซ้ำกัน ใช้ id ซ้ำไม่ได้)
+  function selectReceipt(path) {
+    list.querySelectorAll("[data-receipt-path]").forEach(function (el) {
+      var on = el.dataset.receiptPath === path;
+      el.classList.toggle("is-selected", on);
+      if (el.classList.contains("receipt-pane__item")) el.setAttribute("aria-pressed", on ? "true" : "false");
+    });
+  }
+
+  // เดลิเกตคลิกทั้งหมดที่ #receipt-list เดียว (แต่ละใบเสร็จมีปุ่มซ้ำกัน ใช้ id ซ้ำไม่ได้)
   list.addEventListener("click", async function (e) {
+    var paneItem = e.target.closest(".receipt-pane__item");
+    if (paneItem) {
+      selectReceipt(paneItem.dataset.receiptPath);
+      return;
+    }
+
     var button = e.target.closest('button[data-action="delete-receipt"]');
     if (!button) return;
 
-    var entry = button.closest("[data-receipt-path]");
+    var entry = button.closest(".receipt-entry");
     var receiptPath = entry.dataset.receiptPath;
 
     if (!confirm("ลบใบเสร็จนี้? การลบนี้ย้อนกลับไม่ได้")) return;
@@ -211,7 +259,11 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
       await receiptRef.delete();
 
       entry.remove();
-      if (list.children.length === 0) showEmptyState();
+      var paneItemToRemove = list.querySelector('.receipt-pane__item[data-receipt-path="' + CSS.escape(receiptPath) + '"]');
+      if (paneItemToRemove) paneItemToRemove.remove();
+      var remaining = list.querySelector(".receipt-entry");
+      if (remaining) selectReceipt(remaining.dataset.receiptPath);
+      else showEmptyState();
     } catch (err) {
       alert("ลบใบเสร็จไม่สำเร็จ: " + err.message);
       button.disabled = false;

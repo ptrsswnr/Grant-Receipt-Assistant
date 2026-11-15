@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>อัปโหลดใบเสร็จใหม่ — Grant Receipt Assistant</title>
 <link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
 <script src="js/data.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
@@ -39,9 +40,8 @@
     <div class="section text-left-block">
       <h1>อัปโหลดใบเสร็จ</h1>
       <p class="text-body">
-        เลือกโครงการวิจัยที่ใบเสร็จนี้ผูกอยู่ แล้วแนบไฟล์หลักฐาน (ถ้ามี) — ไม่แนบไฟล์จริงตอนนี้ก็ทดลอง
-        ขั้นตอนถัดไปได้เลย เพราะสัปดาห์นี้ยังไม่มี OCR จริงเชื่อมต่อ ระบบจะ<strong>จำลองผลการอ่านข้อมูลด้วย AI</strong>
-        ให้แทน (ดูเหตุผลใน <code>SCOPE.md</code>)
+        เลือกโครงการที่ใบเสร็จนี้เบิกจาก แล้วแนบรูปหรือไฟล์ PDF ของใบเสร็จ ระบบจะอ่านยอดเงิน วันที่ และร้านค้าให้
+        คุณตรวจทานก่อนส่งตรวจ ถ้ายังไม่ได้แนบไฟล์หรือระบบอ่านไม่ได้ จะใช้<strong>ข้อมูลจำลอง</strong>แทนและแจ้งให้ทราบ
       </p>
     </div>
 
@@ -59,7 +59,7 @@
         <label class="dropzone" for="receiptFiles" tabindex="0">
           <input class="dropzone__input" type="file" id="receiptFiles" accept=".jpg,.jpeg,.png,.pdf" multiple>
           <div class="dropzone__icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.7A4 4 0 0 0 6.5 15"></path><polyline points="12 12 12 21"></polyline><polyline points="8.5 15.5 12 12 15.5 15.5"></polyline></svg></div>
-          <h4 style="margin:0;">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</h4>
+          <h2 style="margin:0;">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</h2>
           <p class="text-body" style="margin:0;text-align:center;">รองรับไฟล์ชนิด .jpg, .png และ .pdf เท่านั้น</p>
         </label>
         <div id="fileStatus" class="text-small" style="margin-top:8px;"></div>
@@ -91,14 +91,14 @@
     <div class="section text-left-block">
       <h1>ตรวจสอบและแก้ไขข้อมูล</h1>
       <p class="text-body">
-        ระบบจำลองผลการอ่านข้อมูลด้วย AI (mock OCR) ให้แล้ว — กรุณาตรวจสอบความถูกต้องและแก้ไขก่อนส่งเข้าตรวจ
-        กับ Rule Engine เพื่อป้องกันผลตรวจคลาดเคลื่อน
+        ตรวจทานข้อมูลที่ระบบอ่านจากใบเสร็จ แก้ส่วนที่ไม่ตรง แล้วติ๊กเอกสารที่แนบมาครบ ระบบจะตรวจตามข้อมูลในหน้านี้
+        จึงควรตรงกับใบเสร็จจริง
       </p>
     </div>
 
     <div id="aiProcessing" class="section">
       <div class="card">
-        <p class="text-body">🤖 กำลังจำลองการอ่านข้อมูลด้วย AI...</p>
+        <p class="text-body">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
       </div>
     </div>
 
@@ -107,14 +107,14 @@
         <div class="dropzone__icon" style="width:100%; height:160px; border:1px solid var(--color-divider); border-radius:var(--radius-sm);"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8.5" y1="13" x2="15.5" y2="13"></line><line x1="8.5" y1="17" x2="13" y2="17"></line></svg></div>
         <p class="text-small" id="fileNameDisplay" style="margin-top:12px;"></p>
         <span class="chip-status chip-status--pending">รอตรวจสอบ</span>
-        <div id="aiSuggestionLabel" class="chip-status chip-status--pass" style="display:none; margin-top:8px;">🤖 AI suggestion — โปรดตรวจสอบก่อนบันทึก</div>
+        <div id="aiSuggestionLabel" class="chip-status chip-status--pass" style="display:none; margin-top:8px;">AI suggestion — โปรดตรวจสอบก่อนบันทึก</div>
       </div>
 
       <div class="card" style="flex:1 1 400px;">
         <div class="field">
           <label for="confirmedAmount">ยอดเงิน (บาท)</label>
           <input type="number" id="confirmedAmount" class="input-mono" min="0" step="0.01">
-          <p class="help-text">อ่านโดย AI (ระบบจำลอง) — ตรวจสอบตัวเลขให้ตรงกับใบเสร็จจริงก่อนส่งตรวจ</p>
+          <p class="help-text">ตรวจตัวเลขให้ตรงกับใบเสร็จจริงก่อนส่งตรวจ</p>
         </div>
         <div class="field">
           <label for="confirmedDate">วันที่บนใบเสร็จ</label>
