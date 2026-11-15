@@ -55,10 +55,15 @@ window.RECEIPT_DATA = {
     "ค่าเครื่องบิน (ชั้นประหยัด)",
     "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)",
     "ค่าพาหนะส่วนตัว (ต่อกิโลเมตร)",
+    "ค่าธรรมเนียมการขอจริยธรรมการวิจัยในมนุษย์",
+    "ค่าธรรมเนียมอื่นๆ",
+    "ค่าถ่ายเอกสาร",
+    "ค่าจัดทำรูปเล่มรายงานวิจัย",
     // ── ค่าวัสดุ ──
     "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ในจังหวัด)",
     "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ต่างจังหวัด)",
     "ค่าวัสดุคอมพิวเตอร์",
+    "ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม",
     "ค่าวัสดุสำนักงาน",
     "ค่าวัสดุอื่นๆ",
     // ── ค่าสาธารณูปโภค ──
@@ -70,7 +75,7 @@ window.RECEIPT_DATA = {
   ],
 
   ruleVersions: [
-    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.1", isActive: true, importedByUserId: "user001" },
+    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.2", isActive: true, importedByUserId: "user001" },
   ],
 
   // rateType: "เพดานตามจริง" (เบิกตามจริงไม่เกิน rateAmount) | "เหมาจ่าย" (จ่ายคงที่ rateAmount ต่อ unit)
@@ -90,11 +95,11 @@ window.RECEIPT_DATA = {
     { id: "ruleitem004", ruleVersionId: "ruleversion002", categoryName: "ค่าตอบแทนผู้ทรงคุณวุฒิพิจารณาเครื่องมือ", rateType: "เพดานตามจริง", rateAmount: 2000, unit: "คน", requiredEvidenceType: "ใบสำคัญรับเงิน สำหรับบุคคลภายนอก (วจ.6)", note: "คู่มือฯ ปีงบประมาณ 2570: พิจารณาตามความจำเป็นเหมาะสม", evidenceChainId: "chain-honorarium" },
     { id: "ruleitem005", ruleVersionId: "ruleversion002", categoryName: "ค่าตอบแทนผู้ทรงคุณวุฒิ (ตรวจทาน Manuscript)", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบสำคัญรับเงิน สำหรับบุคคลภายนอก (วจ.6) + CV ผู้ทรงคุณวุฒิ", note: "คู่มือฯ ปีงบประมาณ 2570: สนับสนุนไม่เกิน 10% ของงบประมาณโครงการ ต้องเป็นผู้ทรงคุณวุฒิที่มีความเชี่ยวชาญตรงสาขา แนบ CV ประกอบ", evidenceChainId: "chain-honorarium" },
 
-    { id: "ruleitem006", ruleVersionId: "ruleversion002", categoryName: "ค่าจ้างเหมาบริการ", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน/สัญญาจ้าง + TOR", note: "คู่มือฯ ปีงบประมาณ 2570: จ้างได้ไม่เกิน 25% ของงบประมาณในหมวดค่าใช้สอย เป็นไปตามดุลยพินิจคณะกรรมการพิจารณาข้อเสนอโครงการ ต้องแนบรายละเอียดคุณลักษณะงานจ้าง (TOR)", evidenceChainId: "chain-purchase" },
-    { id: "ruleitem007", ruleVersionId: "ruleversion002", categoryName: "ค่าธรรมเนียมห้องปฏิบัติการ/เครื่องมือ", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: เป็นไปตามอัตราที่หน่วยงานผู้ให้บริการกำหนด ทั้งภายในและภายนอกมหาวิทยาลัย", evidenceChainId: "chain-purchase" },
+    { id: "ruleitem006", ruleVersionId: "ruleversion002", categoryName: "ค่าจ้างเหมาบริการ", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน/สัญญาจ้าง + TOR", note: "คู่มือฯ ปีงบประมาณ 2570: จ้างได้ไม่เกิน 25% ของงบประมาณในหมวดค่าใช้สอย เป็นไปตามดุลยพินิจคณะกรรมการพิจารณาข้อเสนอโครงการ ต้องแนบรายละเอียดคุณลักษณะงานจ้าง (TOR)", evidenceChainId: "chain-service-hire" },
+    { id: "ruleitem007", ruleVersionId: "ruleversion002", categoryName: "ค่าธรรมเนียมห้องปฏิบัติการ/เครื่องมือ", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: เป็นไปตามอัตราที่หน่วยงานผู้ให้บริการกำหนด ทั้งภายในและภายนอกมหาวิทยาลัย", evidenceChainId: "chain-fee-payment" },
     { id: "ruleitem008", ruleVersionId: "ruleversion002", categoryName: "ค่าอาหารกลางวัน (ประชุม/อบรม)", rateType: "เพดานตามจริง", rateAmount: 150, unit: "คน/มื้อ", requiredEvidenceType: "ใบเสร็จรับเงิน + รายชื่อผู้เข้าร่วม", note: "คู่มือฯ ปีงบประมาณ 2570 (ค่าใช้จ่ายจัดประชุม/อบรมที่เกี่ยวข้องกับโครงการวิจัย — Focus group)", evidenceChainId: "chain-meeting-refreshment" },
     { id: "ruleitem009", ruleVersionId: "ruleversion002", categoryName: "ค่าอาหารว่างและเครื่องดื่ม (ประชุม/อบรม)", rateType: "เพดานตามจริง", rateAmount: 50, unit: "คน/มื้อ", requiredEvidenceType: "ใบเสร็จรับเงิน + รายชื่อผู้เข้าร่วม", note: "คู่มือฯ ปีงบประมาณ 2570 (ค่าใช้จ่ายจัดประชุม/อบรมที่เกี่ยวข้องกับโครงการวิจัย — Focus group)", evidenceChainId: "chain-meeting-refreshment" },
-    { id: "ruleitem010", ruleVersionId: "ruleversion002", categoryName: "ค่าเช่ายานพาหนะ (รถตู้)", rateType: "เหมาจ่าย", rateAmount: 2000, unit: "คัน/วัน", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570 (ยานพาหนะอื่นนอกจากรถตู้ ให้เป็นไปตามข้อตกลงระหว่างผู้ให้บริการ)", evidenceChainId: "chain-purchase" },
+    { id: "ruleitem010", ruleVersionId: "ruleversion002", categoryName: "ค่าเช่ายานพาหนะ (รถตู้)", rateType: "เหมาจ่าย", rateAmount: 2000, unit: "คัน/วัน", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570 (ยานพาหนะอื่นนอกจากรถตู้ ให้เป็นไปตามข้อตกลงระหว่างผู้ให้บริการ)", evidenceChainId: "chain-service-hire" },
     { id: "ruleitem011", ruleVersionId: "ruleversion002", categoryName: "ค่าเบี้ยเลี้ยงเดินทาง", rateType: "เหมาจ่าย", rateAmount: 350, unit: "วัน", requiredEvidenceType: "แบบรายงานการเดินทางไปปฏิบัติงาน (วจ.4)", note: "คู่มือฯ ปีงบประมาณ 2570 อ้างอิงระเบียบมหาวิทยาลัยแม่ฟ้าหลวง ว่าด้วยค่าใช้จ่ายในการเดินทางไปปฏิบัติงาน (ฉบับที่ 8) พ.ศ. 2566 — สนับสนุนเฉพาะนักวิจัย/ผู้ร่วมวิจัยที่เป็นผู้เดินทาง", evidenceChainId: "chain-travel-domestic" },
     { id: "ruleitem012", ruleVersionId: "ruleversion002", categoryName: "ค่าที่พัก (เดินทางปฏิบัติงาน)", rateType: "เพดานตามจริง", rateAmount: 1800, unit: "วัน", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: จ่ายตามจริงไม่เกิน 1,800 บาท/วัน หรือเลือกเหมาจ่าย 800 บาท/วันแทนก็ได้ (เลือกวิธีใดวิธีหนึ่ง)", evidenceChainId: "chain-travel-domestic" },
     { id: "ruleitem013", ruleVersionId: "ruleversion002", categoryName: "ค่าเครื่องบิน (ชั้นประหยัด)", rateType: "เพดานตามจริง", rateAmount: 5500, unit: "เที่ยวไป-กลับ", requiredEvidenceType: "ใบเสร็จรับเงิน/ตั๋วโดยสาร", note: "คู่มือฯ ปีงบประมาณ 2570: ไม่เกินชั้นประหยัด ไป-กลับ ไม่เกิน 5,500 บาท", evidenceChainId: "chain-travel-domestic" },
@@ -107,9 +112,15 @@ window.RECEIPT_DATA = {
     { id: "ruleitem019", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุสำนักงาน", rateType: "เพดานตามจริง", rateAmount: 5000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570", evidenceChainId: "chain-purchase" },
     { id: "ruleitem020", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุอื่นๆ", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570 (วัสดุวิทยาศาสตร์/ไฟฟ้า/การเกษตร/งานบ้านงานครัว/เวชภัณฑ์ยาและไม่ใช่ยา) — ให้เป็นไปตามดุลยพินิจคณะกรรมการพิจารณาข้อเสนอโครงการ โดยคำนึงถึงความประหยัดและความเหมาะสม", evidenceChainId: "chain-purchase" },
 
-    { id: "ruleitem021", ruleVersionId: "ruleversion002", categoryName: "ค่าสาธารณูปโภค", rateType: "เพดานตามจริง", rateAmount: 3000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน/ใบแจ้งค่าบริการ", note: "คู่มือฯ ปีงบประมาณ 2570 (ไปรษณีย์/ขนส่งพัสดุ/โทรศัพท์/บัตรเติมเงิน/อินเทอร์เน็ต รวมกันไม่เกิน 3,000 บาท)", evidenceChainId: "chain-purchase" },
+    { id: "ruleitem021", ruleVersionId: "ruleversion002", categoryName: "ค่าสาธารณูปโภค", rateType: "เพดานตามจริง", rateAmount: 3000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน/ใบแจ้งค่าบริการ", note: "คู่มือฯ ปีงบประมาณ 2570 (ไปรษณีย์/ขนส่งพัสดุ/โทรศัพท์/บัตรเติมเงิน/อินเทอร์เน็ต รวมกันไม่เกิน 3,000 บาท)", evidenceChainId: "chain-fee-payment" },
 
-    { id: "ruleitem022", ruleVersionId: "ruleversion002", categoryName: "ค่าครุภัณฑ์", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสนอราคาอย่างน้อย 3 ราย + TOR", note: "คู่มือฯ ปีงบประมาณ 2570: ขอรับงบประมาณได้ไม่เกิน 25% ของงบประมาณโครงการ มหาวิทยาลัยสนับสนุนตามความสำคัญ/ความจำเป็นเร่งด่วน พิจารณาเป็นรายกรณี กรรมสิทธิ์เป็นของมหาวิทยาลัยเมื่อโครงการเสร็จสิ้น", evidenceChainId: "chain-purchase" },
+    { id: "ruleitem022", ruleVersionId: "ruleversion002", categoryName: "ค่าครุภัณฑ์", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสนอราคาอย่างน้อย 3 ราย + TOR", note: "คู่มือฯ ปีงบประมาณ 2570: ขอรับงบประมาณได้ไม่เกิน 25% ของงบประมาณโครงการ มหาวิทยาลัยสนับสนุนตามความสำคัญ/ความจำเป็นเร่งด่วน พิจารณาเป็นรายกรณี กรรมสิทธิ์เป็นของมหาวิทยาลัยเมื่อโครงการเสร็จสิ้น", evidenceChainId: "chain-equipment" },
+    // ── เพิ่ม 2026-11-15: รายการทางการในไฟล์ตัวช่วยทำตาราง 17.2 ที่ยังไม่มีกฎ ──
+    { id: "ruleitem023", ruleVersionId: "ruleversion002", categoryName: "ค่าธรรมเนียมการขอจริยธรรมการวิจัยในมนุษย์", rateType: "เพดานตามจริง", rateAmount: 1500, unit: "โครงการ", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "แบบเสนอโครงการวิจัย RS-01 ปีงบประมาณ 2570 ข้อ 17.2: ค่าธรรมเนียมการขอจริยธรรมการวิจัยในมนุษย์ (ถ้ามี 1,500 บาท/โครงการ)", evidenceChainId: "chain-fee-payment" },
+    { id: "ruleitem024", ruleVersionId: "ruleversion002", categoryName: "ค่าธรรมเนียมอื่นๆ", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน + อัตราค่าบริการหรือใบเสนอราคา", note: "ไฟล์ตัวช่วยทำตาราง 17.2: ค่าธรรมเนียมอื่น - ระบุ (แนบอัตราค่าบริการหรือใบเสนอราคา) ไม่มีเพดานระดับแหล่งทุน", evidenceChainId: "chain-fee-payment" },
+    { id: "ruleitem025", ruleVersionId: "ruleversion002", categoryName: "ค่าถ่ายเอกสาร", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "แบบเสนอโครงการ RS-01 ข้อ 17.2: ค่าบริการถ่ายเอกสาร ไม่มีเพดานระดับแหล่งทุน", evidenceChainId: "chain-fee-payment" },
+    { id: "ruleitem026", ruleVersionId: "ruleversion002", categoryName: "ค่าจัดทำรูปเล่มรายงานวิจัย", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "แบบเสนอโครงการ RS-01 ข้อ 17.2: ค่าบริการจัดทำรูปเล่มรายงานวิจัยฯ ไม่มีเพดานระดับแหล่งทุน", evidenceChainId: "chain-fee-payment" },
+    { id: "ruleitem027", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน + TOR", note: "คู่มือการกรอกแบบฟอร์มฯ ฉบับปรับปรุง หน้า 47: จัดซื้อทุกรายการไม่ว่าราคาเท่าใด ต้องเสนอขอความเห็นชอบจากคณะกรรมการส่งเสริมและพัฒนางานวิจัยฯ ก่อนดำเนินการจัดซื้อเสมอ", evidenceChainId: "chain-equipment" },
 
     // "ค่าตอบแทนคณะผู้วิจัย" ไม่มี ruleItem คู่กันโดยเจตนา — คู่มือฯ ปีงบประมาณ 2570 ระบุชัดว่าเป็นรายการ
     // ที่ "มหาวิทยาลัยไม่สนับสนุนให้ตั้งงบประมาณ" checkAgainstRules() จะคืน "ไม่เข้าเงื่อนไข" ให้เองเพราะ
@@ -140,62 +151,125 @@ window.RECEIPT_DATA = {
     { id: "honorarium-voucher-vj6", documentName: "ใบสำคัญรับเงิน สำหรับบุคคลภายนอก (วจ.6)", formCode: "วจ.6", requiredFields: ["รายการค่าตอบแทน/ที่พัก/พาหนะ (เลือกตามจริง)", "จำนวนเงินรวม", "ตราประทับจ่ายแล้ว", "ลายเซ็นผู้รับเงิน", "ลายเซ็นหัวหน้าโครงการ"], validityChecks: [], sourceExcerpt: "ใช้กับอาสาสมัคร/ผู้ทรงคุณวุฒิ/วิทยากรที่ปฏิบัติงานให้โครงการ รวมค่าใช้จ่ายหลายประเภทในใบเดียว" },
     { id: "timesheet-fulltime-vj7", documentName: "แบบลงเวลาปฏิบัติงานผู้ช่วยวิจัย (Full Time) (วจ.7)", formCode: "วจ.7", requiredFields: ["วันเวลาเข้า-ออกรายวัน", "ภาระงานที่ปฏิบัติ", "ลายเซ็นผู้ปฏิบัติงานทุกวัน", "ลายเซ็นหัวหน้าโครงการ"], validityChecks: ["ลงเวลาและลายเซ็นด้วยปากกาหมึกแห้งเท่านั้น"], sourceExcerpt: "ใช้ประกอบการเบิกค่าตอบแทนผู้ช่วยวิจัยเต็มเวลารายเดือน" },
     { id: "timesheet-parttime-vj8", documentName: "แบบลงเวลาปฏิบัติงานผู้ช่วยวิจัย (นักศึกษาช่วยงาน) (วจ.8)", formCode: "วจ.8", requiredFields: ["วันเวลาเข้า-ออกรายครั้ง", "ภาระงานที่ปฏิบัติ", "ลายเซ็นผู้ปฏิบัติงาน", "ลายเซ็นผู้รับรองการทำงาน", "ลายเซ็นหัวหน้าโครงการ"], validityChecks: ["ระบุเดือนที่ดำเนินการเพียง 1 เดือนต่อคนต่อฉบับ"], sourceExcerpt: "ใช้ประกอบการเบิกค่าตอบแทนนักศึกษาช่วยงาน (part-time)" },
-    { id: "petty-cash-ledger-vj9", documentName: "ทะเบียนคุมเงินสดย่อย (วจ.9)", formCode: "วจ.9", requiredFields: ["วันที่และรายการ", "รับ/จ่าย/คงเหลือ", "เลขที่อ้างอิงใบเสร็จ", "ลายเซ็นผู้เบิกจ่ายเงินสดย่อย", "ลายเซ็นหัวหน้าโครงการ"], validityChecks: ["ต้องตรวจสอบยอดคงเหลือทุกสิ้นเดือน"], sourceExcerpt: "ใช้เมื่อโครงการตั้งวงเงินสดย่อยไว้เบิกจ่ายย่อยหลายรายการ ไม่ผูกกับหมวดค่าใช้จ่ายใดหมวดหนึ่งโดยตรง" },
-    { id: "tax-invoice-full", documentName: "ใบกำกับภาษีเต็มรูปแบบ/ใบเสร็จรับเงิน", formCode: "-", requiredFields: ["เลขประจำตัวผู้เสียภาษีอากร (13 หลัก)", "ชื่อ-ที่อยู่ผู้ขาย", "เลขที่เอกสารและวันที่", "รายการ+ปริมาณ+ราคาต่อหน่วย", "ภาษีมูลค่าเพิ่มแยกแสดง", "ยอดรวมสุทธิ", "ตราประทับจ่ายแล้ว"], validityChecks: ["กรณีซื้อสินค้า/บริการต้องมีตราประทับตรวจรับพัสดุ ลงนามโดยหัวหน้าโครงการเพิ่มด้วย"], sourceExcerpt: "รูปแบบใบเสร็จมาตรฐานสำหรับร้านค้า/บริษัทที่จดทะเบียนภาษีมูลค่าเพิ่ม" },
-    { id: "tax-invoice-abbreviated", documentName: "ใบกำกับภาษีอย่างย่อ", formCode: "-", requiredFields: ["เลขประจำตัวผู้เสียภาษีอากร", "รายการและจำนวนเงิน", "วันที่"], validityChecks: [], sourceExcerpt: "เช่น ใบเสร็จค่าไปรษณีย์ — ถ้าไม่มีรายละเอียดสินค้าครบ ต้องแนบใบกำกับภาษี/ใบส่งของ/ใบแจ้งหนี้ประกอบเพิ่ม" },
+    { id: "tax-invoice-full", documentName: "ใบเสร็จรับเงิน/ใบกำกับภาษีเต็มรูปแบบ", formCode: "-", requiredFields: ["เลขประจำตัวผู้เสียภาษีอากร (13 หลัก)", "ชื่อ-ที่อยู่ผู้ขาย", "เลขที่เอกสารและวันที่", "รายการ+ปริมาณ+ราคาต่อหน่วย", "ภาษีมูลค่าเพิ่มแยกแสดง", "ยอดรวมสุทธิ", "ตราประทับจ่ายแล้ว"], validityChecks: ["กรณีซื้อสินค้า/บริการต้องมีตราประทับตรวจรับพัสดุ ลงนามโดยหัวหน้าโครงการเพิ่มด้วย", "ต้องเป็นใบเสร็จรับเงิน — ใบกำกับสินค้า/ใบส่งของ/ใบแจ้งหนี้อย่างเดียวใช้เบิกไม่ได้ (คู่มือฉบับปรับปรุง หน้า 40)"], sourceExcerpt: "รูปแบบใบเสร็จมาตรฐานสำหรับร้านค้า/บริษัทที่จดทะเบียนภาษีมูลค่าเพิ่ม" },
+    { id: "tax-invoice-abbreviated", documentName: "ใบกำกับภาษีอย่างย่อ", formCode: "-", requiredFields: ["เลขประจำตัวผู้เสียภาษีอากร", "รายการและจำนวนเงิน", "วันที่"], validityChecks: ["ค่าไปรษณีย์: แนบใบรับรองการจ่ายเงิน และสำเนาใบเสร็จที่ลงนามรับรองสำเนาถูกต้อง เพราะต้นฉบับเป็นกระดาษคาร์บอนที่ตัวอักษรเลือนได้ (คู่มือฉบับปรับปรุง หน้า 41)"], sourceExcerpt: "เช่น ใบเสร็จค่าไปรษณีย์ — ถ้าไม่มีรายละเอียดสินค้าครบ ต้องแนบใบกำกับภาษี/ใบส่งของ/ใบแจ้งหนี้ประกอบเพิ่ม" },
     { id: "procurement-committee-cert", documentName: "ใบตรวจรับพัสดุ (กรรมการ 3 คน)", formCode: "-", requiredFields: ["ลายเซ็นกรรมการตรวจรับอย่างน้อย 3 คน"], validityChecks: [], sourceExcerpt: "บังคับเฉพาะกรณีซื้อ/จ้างเกิน 100,000 บาท — แทนที่การลงนามคนเดียวของหัวหน้าโครงการตามปกติ" },
     { id: "attendee-signin-sheet", documentName: "รายชื่อผู้เข้าร่วมกิจกรรมพร้อมลายมือชื่อ", formCode: "-", requiredFields: ["ชื่อ-นามสกุลผู้เข้าร่วมทุกคน", "ลายมือชื่อผู้เข้าร่วมทุกคน", "วันที่และชื่อกิจกรรม"], validityChecks: [], sourceExcerpt: "แนบคู่กับค่าอาหารว่าง/ค่าตอบแทนวิทยากรของกิจกรรมกลุ่ม (ประชุม/อบรม/สัมภาษณ์กลุ่ม)" },
+    // เพิ่ม 2026-11-15 ตามคู่มือฉบับปรับปรุง
+    { id: "committee-pre-approval", documentName: "หนังสืออนุมัติจากคณะกรรมการส่งเสริมและพัฒนางานวิจัยฯ (ก่อนดำเนินการ)", formCode: "-", requiredFields: ["รายการที่ขออนุมัติ", "วันที่อนุมัติ (ก่อนวันดำเนินการ)"], validityChecks: ["วันที่อนุมัติต้องก่อนวันที่ดำเนินการ/จ่ายเงินจริง", "รายการที่ไม่อยู่ในข้อเสนอโครงการต้องขออนุมัติเพิ่มรายการ"], sourceExcerpt: "ค่าตอบแทน ค่าจ้างเหมาที่มี TOR ค่าเดินทาง และงบครุภัณฑ์ ต้องได้รับอนุมัติก่อนการดำเนินการทุกกรณี (คู่มือฉบับปรับปรุง หน้า 3, 47–48)" },
+    { id: "tor-document", documentName: "รายละเอียดงานจ้าง (TOR)", formCode: "-", requiredFields: ["ขอบเขตงาน", "ผลงานที่ต้องส่งมอบ", "ระยะเวลา", "ค่าจ้าง"], validityChecks: [], sourceExcerpt: "แนบกับค่าจ้างเหมาบริการและค่าเช่ายานพาหนะ (รายการตัวเลือกในไฟล์ตัวช่วยทำตาราง 17.2 ระบุ \"แนบ TOR\")" },
+    { id: "inspection-photos", documentName: "รูปถ่ายพัสดุ ณ เวลาที่ตรวจรับ", formCode: "-", requiredFields: ["เห็นพัสดุที่ตรวจรับชัดเจนและถูกต้อง", "เห็นคณะกรรมการ/ผู้ตรวจรับขณะตรวจรับหรือทดสอบการใช้งาน"], validityChecks: [], sourceExcerpt: "ทุกครั้งที่มีการตรวจรับพัสดุ ให้ถ่ายรูปพัสดุ ณ เวลาที่ตรวจรับ แนบประกอบใบตรวจรับพัสดุหรือใบเสร็จรับเงิน (คู่มือฉบับปรับปรุง หน้า 49)" },
   ],
 
   // evidenceChain: นิยาม "ชุดเอกสาร" ที่ต้องมาครบสำหรับค่าใช้จ่ายประเภทหนึ่ง — ruleItems.evidenceChainId
-  // อ้างมาที่นี่ (many ruleItems ต่อ 1 chain ได้ — เช่นหมวดย่อยของ "ซื้อวัสดุ/จ้างเหมา/ครุภัณฑ์" หลาย
-  // รายการใช้ chain-purchase ร่วมกัน, หมวดย่อยของการเดินทางทั้ง 5 หมวดใช้ chain-travel-domestic ร่วมกัน)
-  // steps[].documentTypeIds เป็น array เพราะบางขั้นตอนมีเอกสารทางเลือกที่ใช้แทนกันได้ (เช่น จ่ายเงินสด
-  // ให้บุคคลใช้ วจ.1 หรือ วจ.2 อย่างใดอย่างหนึ่งก็ได้ ไม่ต้องมีทั้งคู่)
+  // อ้างมาที่นี่ (many ruleItems ต่อ 1 chain ได้) steps[].documentTypeIds เป็น array เพราะบางขั้นตอนมีเอกสาร
+  // ทางเลือกที่ใช้แทนกันได้ (เช่น จ่ายเงินสดให้บุคคลใช้ วจ.1 หรือ วจ.2 อย่างใดอย่างหนึ่ง)
+  // ปรับตาม "คู่มือการกรอกแบบฟอร์มและตัวอย่างใบเสร็จ ฉบับปรับปรุง" (52 หน้า) เมื่อ 2026-11-15:
+  //  - ทุกชุดต้องยืนยันตรา "จ่ายแล้ว" (หน้า 6, 8, 23, 25–27)
+  //  - ค่าตอบแทน ค่าจ้างเหมาที่มี TOR ค่าเดินทาง และครุภัณฑ์ ต้องได้รับอนุมัติจากคณะกรรมการส่งเสริมฯ
+  //    ก่อนดำเนินการทุกกรณี (หน้า 3) — โปรแกรมคอมพิวเตอร์/ลิขสิทธิ์ก็เช่นกัน ไม่ว่าราคาเท่าใด (หน้า 47)
+  //  - ซื้อสินค้า/จ้างทำของ: ตรา "ตรวจรับพัสดุ" ลงนามโดยหัวหน้าโครงการ (หน้า 6) และรูปถ่ายพัสดุขณะ
+  //    ตรวจรับทุกครั้ง (หน้า 49)
+  //  - ค่าธรรมเนียม/ค่าบริการที่ไม่ใช่พัสดุ แยกเป็น chain-fee-payment จึงไม่ต้องมีตราตรวจรับพัสดุ
+  // attestations: สิ่งที่ต้องมี "บนตัวเอกสาร" (ตราประทับ/ลายเซ็น) ไม่ใช่เอกสารแยกใบ ให้นักวิจัยยืนยันเอง
+  // จนกว่าจะตรวจจับจากภาพได้อัตโนมัติ
   evidenceChains: [
     {
       id: "chain-travel-domestic", chainName: "เดินทางในประเทศ",
       steps: [
-        { order: 1, timing: "before", required: true, documentTypeIds: ["travel-approval-vj3"] },
-        { order: 2, timing: "before", required: true, documentTypeIds: ["hr-leave-form"] },
-        { order: 3, timing: "after", required: true, documentTypeIds: ["travel-report-vj4"] },
-        { order: 4, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "voucher-vj1", "payment-cert-vj2"], note: "หลักฐานการจ่ายจริงต่อรายการ (ที่พัก/ตั๋ว/แท็กซี่/น้ำมัน) เลือกตามประเภทผู้รับเงิน" },
-        { order: 5, timing: "with", required: false, documentTypeIds: ["id-card-copy"], note: "จำเป็นเฉพาะกรณีจ่ายเงินสดให้บุคคลด้วย วจ.1/วจ.2" },
-        { order: 6, timing: "with", required: false, documentTypeIds: ["vehicle-registration-copy"], note: "จำเป็นเฉพาะกรณีเบิกค่าน้ำมัน/ระยะทางด้วยรถยนต์ส่วนตัว" },
+        { order: 1, timing: "before", required: true, documentTypeIds: ["committee-pre-approval"], note: "ค่าเดินทางต้องได้รับอนุมัติก่อนเดินทาง (คู่มือฉบับปรับปรุง หน้า 3)" },
+        { order: 2, timing: "before", required: true, documentTypeIds: ["travel-approval-vj3"] },
+        { order: 3, timing: "before", required: true, documentTypeIds: ["hr-leave-form"] },
+        { order: 4, timing: "after", required: true, documentTypeIds: ["travel-report-vj4"] },
+        { order: 5, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "voucher-vj1", "payment-cert-vj2"], note: "หลักฐานการจ่ายจริงต่อรายการ (ที่พัก/ตั๋ว/แท็กซี่/น้ำมัน) เลือกตามประเภทผู้รับเงิน" },
+        { order: 6, timing: "with", required: false, documentTypeIds: ["id-card-copy"], note: "จำเป็นเฉพาะกรณีจ่ายเงินสดให้บุคคลด้วย วจ.1/วจ.2" },
+        { order: 7, timing: "with", required: false, documentTypeIds: ["vehicle-registration-copy"], note: "จำเป็นเฉพาะกรณีเบิกค่าน้ำมัน/ระยะทางด้วยรถยนต์ส่วนตัว" },
       ],
       conditionalSteps: [],
+      attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
+      ],
     },
     {
       id: "chain-honorarium", chainName: "ค่าตอบแทนบุคคลภายนอก (วิทยากร/ผู้ทรงคุณวุฒิ/อาสาสมัคร)",
       steps: [
-        { order: 1, timing: "with", required: true, documentTypeIds: ["honorarium-voucher-vj6", "voucher-vj1"] },
-        { order: 2, timing: "with", required: true, documentTypeIds: ["id-card-copy"] },
-        { order: 3, timing: "with", required: false, documentTypeIds: ["attendee-signin-sheet"], note: "จำเป็นเฉพาะกิจกรรมกลุ่ม (ประชุม/อบรม/สัมภาษณ์กลุ่ม) ไม่ใช่การจ่ายรายบุคคลทั่วไป" },
+        { order: 1, timing: "before", required: true, documentTypeIds: ["committee-pre-approval"], note: "ค่าตอบแทนต้องได้รับอนุมัติก่อนดำเนินการ (คู่มือฉบับปรับปรุง หน้า 3)" },
+        { order: 2, timing: "with", required: true, documentTypeIds: ["honorarium-voucher-vj6", "voucher-vj1"] },
+        { order: 3, timing: "with", required: true, documentTypeIds: ["id-card-copy"] },
+        { order: 4, timing: "with", required: false, documentTypeIds: ["attendee-signin-sheet"], note: "จำเป็นเฉพาะกิจกรรมกลุ่ม (ประชุม/อบรม/สัมภาษณ์กลุ่ม) ไม่ใช่การจ่ายรายบุคคลทั่วไป" },
       ],
       conditionalSteps: [],
+      attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
+      ],
     },
     {
       id: "chain-research-assistant", chainName: "ค่าตอบแทนผู้ช่วยวิจัย/นักศึกษาช่วยงาน",
       steps: [
-        { order: 1, timing: "with", required: true, documentTypeIds: ["timesheet-fulltime-vj7", "timesheet-parttime-vj8"], note: "เลือกตามประเภทการจ้าง (เต็มเวลา/นักศึกษาช่วยงาน)" },
-        { order: 2, timing: "with", required: true, documentTypeIds: ["voucher-vj1"] },
-        { order: 3, timing: "with", required: true, documentTypeIds: ["id-card-copy"] },
+        { order: 1, timing: "before", required: true, documentTypeIds: ["committee-pre-approval"], note: "ค่าตอบแทนต้องได้รับอนุมัติก่อนดำเนินการ (คู่มือฉบับปรับปรุง หน้า 3)" },
+        { order: 2, timing: "with", required: true, documentTypeIds: ["timesheet-fulltime-vj7", "timesheet-parttime-vj8"], note: "เลือกตามประเภทการจ้าง (เต็มเวลา/นักศึกษาช่วยงาน)" },
+        { order: 3, timing: "with", required: true, documentTypeIds: ["voucher-vj1"] },
+        { order: 4, timing: "with", required: true, documentTypeIds: ["id-card-copy"] },
       ],
       conditionalSteps: [],
+      attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
+      ],
     },
     {
-      id: "chain-purchase", chainName: "ซื้อวัสดุ/จ้างเหมาบริการ/ครุภัณฑ์/สาธารณูปโภค",
+      id: "chain-purchase", chainName: "ซื้อวัสดุ",
       steps: [
-        { order: 1, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "tax-invoice-abbreviated"] },
+        { order: 1, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "tax-invoice-abbreviated", "voucher-vj1"], note: "ใบกำกับสินค้า/ใบส่งของ/ใบแจ้งหนี้อย่างเดียวใช้เบิกไม่ได้ (คู่มือฉบับปรับปรุง หน้า 40)" },
+        { order: 2, timing: "with", required: true, documentTypeIds: ["inspection-photos"] },
       ],
       conditionalSteps: [
-        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อ/จ้างเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม แทนหัวหน้าโครงการคนเดียว" } },
+        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม แทนหัวหน้าโครงการคนเดียว" } },
       ],
-      // attestations: สิ่งที่ต้องมี "บนตัวเอกสาร" (ตราประทับ/ลายเซ็น) ไม่ใช่เอกสารแยกใบ — ให้นักวิจัยยืนยันเอง
-      // จนกว่าจะตรวจจับจากภาพได้อัตโนมัติ ที่มา: validityChecks ของ tax-invoice-full ด้านบน และเป็นหนึ่งใน
-      // ข้อผิดพลาดที่ฝ่ายการเงินพบบ่อยที่สุด (ลืมปั๊มตรวจรับพัสดุ)
       attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
         { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ และหัวหน้าโครงการลงนามแล้ว" },
+      ],
+    },
+    {
+      id: "chain-service-hire", chainName: "จ้างเหมาบริการ / เช่ายานพาหนะ (มี TOR)",
+      steps: [
+        { order: 1, timing: "before", required: true, documentTypeIds: ["committee-pre-approval"], note: "ค่าจ้างเหมาที่มี TOR ต้องได้รับอนุมัติก่อนดำเนินการ (คู่มือฉบับปรับปรุง หน้า 3)" },
+        { order: 2, timing: "before", required: true, documentTypeIds: ["tor-document"] },
+        { order: 3, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "voucher-vj1"], note: "ใบแจ้งหนี้อย่างเดียวใช้เบิกไม่ได้ (คู่มือฉบับปรับปรุง หน้า 40)" },
+        { order: 4, timing: "with", required: false, documentTypeIds: ["id-card-copy"], note: "จำเป็นเฉพาะกรณีผู้รับจ้างเป็นบุคคลและใช้ วจ.1" },
+        { order: 5, timing: "with", required: false, documentTypeIds: ["inspection-photos"], note: "แนบเมื่องานจ้างมีชิ้นงานให้ตรวจรับ (คู่มือฉบับปรับปรุง หน้า 49)" },
+      ],
+      conditionalSteps: [
+        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "จ้างเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม" } },
+      ],
+      attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
+        { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ และหัวหน้าโครงการลงนามแล้ว" },
+      ],
+    },
+    {
+      id: "chain-equipment", chainName: "ครุภัณฑ์ / โปรแกรมคอมพิวเตอร์",
+      steps: [
+        { order: 1, timing: "before", required: true, documentTypeIds: ["committee-pre-approval"], note: "ต้องได้รับความเห็นชอบก่อนจัดซื้อทุกรายการ ไม่ว่าราคาเท่าใด และรายการนอกข้อเสนอโครงการต้องขออนุมัติเพิ่ม (คู่มือฉบับปรับปรุง หน้า 47–48)" },
+        { order: 2, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "tax-invoice-abbreviated"] },
+        { order: 3, timing: "with", required: true, documentTypeIds: ["inspection-photos"] },
+      ],
+      conditionalSteps: [
+        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม" } },
+      ],
+      attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
+        { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ และหัวหน้าโครงการลงนามแล้ว" },
+      ],
+    },
+    {
+      id: "chain-fee-payment", chainName: "ค่าธรรมเนียม / ค่าบริการ / สาธารณูปโภค",
+      steps: [
+        { order: 1, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "tax-invoice-abbreviated"], note: "ใบแจ้งหนี้อย่างเดียวใช้เบิกไม่ได้ ใบกำกับภาษีอย่างย่อค่าไปรษณีย์ให้แนบใบรับรองการจ่ายเงินและสำเนาใบเสร็จที่ลงนามรับรอง (คู่มือฉบับปรับปรุง หน้า 40–41)" },
+      ],
+      conditionalSteps: [],
+      attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
       ],
     },
     {
@@ -206,6 +280,9 @@ window.RECEIPT_DATA = {
         { order: 3, timing: "with", required: true, documentTypeIds: ["attendee-signin-sheet"] },
       ],
       conditionalSteps: [],
+      attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
+      ],
     },
   ],
 

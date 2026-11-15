@@ -19,7 +19,7 @@ const data = loadSeedData();
 const ruleSet2570 = {
   fundSourceId: "fundsource002",
   ruleVersionId: "ruleversion002",
-  versionLabel: "2570.1",
+  versionLabel: "2570.2",
   ruleItems: data.ruleItems.filter((ri) => ri.ruleVersionId === "ruleversion002"),
   evidenceChains: Object.fromEntries(data.evidenceChains.map((c) => [c.id, c])),
 };
@@ -79,7 +79,7 @@ test("per-proposal category passes but is flagged as not auto-verified", () => {
 });
 
 const officeLine = { id: "line-office", itemName: "ค่าวัสดุสำนักงาน", total: 5000 };
-const completePurchase = { documentTypeIds: ["tax-invoice-full"], attestationIds: ["inspection-stamp"] };
+const completePurchase = { documentTypeIds: ["tax-invoice-full", "inspection-photos"], attestationIds: ["paid-stamp", "inspection-stamp"] };
 
 test("only fully verified when the estimate, cap and evidence were all checked", () => {
   const full = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 100, evidence: completePurchase, budget: { line: officeLine, spentBefore: 0 } }, ruleSet2570);
@@ -131,25 +131,61 @@ test("no evidence given → amount verdict stands but is not auto-verified", () 
   assert.ok(r.findings.some((f) => f.code === REASON.EVIDENCE_NOT_CHECKED));
 });
 
-test("purchase with tax invoice and inspection stamp confirmed → pass", () => {
-  const r = withDocs("ค่าวัสดุสำนักงาน", 1000, ["tax-invoice-full"], ["inspection-stamp"]);
+test("purchase with receipt, inspection photos and both stamps confirmed → pass", () => {
+  const r = withDocs("ค่าวัสดุสำนักงาน", 1000, ["tax-invoice-full", "inspection-photos"], ["paid-stamp", "inspection-stamp"]);
   assert.equal(r.status, STATUS.PASS);
   assert.equal(r.reasonCode, REASON.WITHIN_CAP);
 });
 
 test("purchase without inspection stamp confirmed → needs fix", () => {
-  const r = withDocs("ค่าวัสดุสำนักงาน", 1000, ["tax-invoice-full"], []);
+  const r = withDocs("ค่าวัสดุสำนักงาน", 1000, ["tax-invoice-full", "inspection-photos"], ["paid-stamp"]);
   assert.equal(r.status, STATUS.FIX);
   assert.equal(r.reasonCode, REASON.MISSING_ATTESTATION);
   assert.match(r.explanation, /ตรวจรับพัสดุ/);
 });
 
 test("either alternative document satisfies a step (abbreviated tax invoice is enough)", () => {
-  assert.equal(withDocs("ค่าสาธารณูปโภค", 500, ["tax-invoice-abbreviated"], ["inspection-stamp"]).status, STATUS.PASS);
+  assert.equal(withDocs("ค่าสาธารณูปโภค", 500, ["tax-invoice-abbreviated"], ["paid-stamp"]).status, STATUS.PASS);
+});
+
+// คู่มือฉบับปรับปรุง หน้า 6: ตรา "ตรวจรับพัสดุ" เฉพาะซื้อสินค้า/บริการ — ค่าธรรมเนียม/สาธารณูปโภคไม่ใช่พัสดุ
+test("fees and utilities need the paid stamp but not the inspection stamp", () => {
+  const required = RuleEngine.requiredEvidence("ค่าสาธารณูปโภค", 500, ruleSet2570);
+  assert.equal(required.attestations.map((a) => a.id).join(","), "paid-stamp");
+});
+
+// คู่มือฉบับปรับปรุง หน้า 6, 25–27: ตรา "จ่ายแล้ว" ทุกเอกสารการจ่าย
+test("every evidence chain requires the paid stamp", () => {
+  for (const chain of data.evidenceChains) {
+    assert.ok((chain.attestations || []).some((a) => a.id === "paid-stamp"), chain.id);
+  }
+});
+
+// คู่มือฉบับปรับปรุง หน้า 3, 47–48: ต้องได้รับอนุมัติจากคณะกรรมการก่อนดำเนินการ
+test("compensation, travel, TOR hire, equipment and software require committee pre-approval", () => {
+  const needsApproval = ["ค่าตอบแทนนักศึกษาช่วยงาน (วิชาการ)", "ค่าตอบแทนอาสาสมัคร/ผู้ให้ข้อมูล", "ค่าที่พัก (เดินทางปฏิบัติงาน)",
+    "ค่าจ้างเหมาบริการ", "ค่าเช่ายานพาหนะ (รถตู้)", "ค่าครุภัณฑ์", "ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม"];
+  for (const category of needsApproval) {
+    const step = RuleEngine.requiredEvidence(category, 1000, ruleSet2570).steps.find((s) => s.documentTypeIds.includes("committee-pre-approval"));
+    assert.ok(step && step.required && step.timing === "before", category);
+  }
+  const materials = RuleEngine.requiredEvidence("ค่าวัสดุสำนักงาน", 1000, ruleSet2570).steps;
+  assert.ok(!materials.some((s) => s.documentTypeIds.includes("committee-pre-approval")));
+});
+
+test("goods purchases require inspection photos", () => {
+  const r = withDocs("ค่าวัสดุสำนักงาน", 1000, ["tax-invoice-full"], ["paid-stamp", "inspection-stamp"]);
+  assert.equal(r.reasonCode, REASON.MISSING_EVIDENCE);
+  assert.match(r.explanation, /รูปถ่ายพัสดุ/);
+});
+
+// คู่มือฉบับปรับปรุง หน้า 34: วจ.9 ยกเลิกแล้ว
+test("the cancelled petty-cash ledger (วจ.9) is gone", () => {
+  assert.ok(!data.documentTypes.some((d) => d.formCode === "วจ.9"));
 });
 
 test("domestic travel missing the pre-trip approval (วจ.3) → needs fix, names the form", () => {
-  const r = withDocs("ค่าที่พัก (เดินทางปฏิบัติงาน)", 1500, ["hr-leave-form", "travel-report-vj4", "tax-invoice-full"]);
+  const r = withDocs("ค่าที่พัก (เดินทางปฏิบัติงาน)", 1500, ["committee-pre-approval", "hr-leave-form", "travel-report-vj4", "tax-invoice-full"], ["paid-stamp"]);
   assert.equal(r.status, STATUS.FIX);
   assert.equal(r.reasonCode, REASON.MISSING_EVIDENCE);
   assert.match(r.explanation, /วจ\.3/);
@@ -158,7 +194,7 @@ test("domestic travel missing the pre-trip approval (วจ.3) → needs fix, na
 });
 
 test("optional steps (e.g. ID card copy for travel) are not required", () => {
-  const r = withDocs("ค่าที่พัก (เดินทางปฏิบัติงาน)", 1500, ["travel-approval-vj3", "hr-leave-form", "travel-report-vj4", "tax-invoice-full"]);
+  const r = withDocs("ค่าที่พัก (เดินทางปฏิบัติงาน)", 1500, ["committee-pre-approval", "travel-approval-vj3", "hr-leave-form", "travel-report-vj4", "tax-invoice-full"], ["paid-stamp"]);
   assert.equal(r.status, STATUS.PASS);
 });
 
@@ -167,7 +203,7 @@ test("equipment over ฿100,000 also requires the procurement committee certific
   assert.ok(!steps(100000).includes("procurement-committee-cert"));
   assert.ok(steps(100000.01).includes("procurement-committee-cert"));
 
-  const r = withDocs("ค่าครุภัณฑ์", 150000, ["tax-invoice-full"], ["inspection-stamp"]);
+  const r = withDocs("ค่าครุภัณฑ์", 150000, ["committee-pre-approval", "tax-invoice-full", "inspection-photos"], ["paid-stamp", "inspection-stamp"]);
   assert.equal(r.reasonCode, REASON.MISSING_EVIDENCE);
   assert.match(r.explanation, /กรรมการ 3 คน/);
 });
@@ -188,7 +224,7 @@ test("rejected category skips the evidence check entirely", () => {
 
 // ─── เทียบกับประมาณการ ───
 const lunchLine = { id: "line-lunch", itemName: "ค่าอาหารกลางวัน (ประชุม/อบรม)", total: 6000 }; // 150 × 20 คน × 2 มื้อ
-const meetingDocs = { documentTypeIds: ["attendee-signin-sheet", "tax-invoice-full"], attestationIds: [] };
+const meetingDocs = { documentTypeIds: ["attendee-signin-sheet", "tax-invoice-full"], attestationIds: ["paid-stamp"] };
 const lunch = (amount, spentBefore, line = lunchLine) =>
   evaluate({ category: "ค่าอาหารกลางวัน (ประชุม/อบรม)", amount, evidence: meetingDocs, budget: { line, spentBefore } }, ruleSet2570, documentNames);
 

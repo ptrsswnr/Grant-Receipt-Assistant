@@ -160,7 +160,7 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
 - **Access control**: same pattern as `fundSources` exactly — top-level, no owner, `allow read: if request.auth != null; allow write: if isAdmin();` for both new collections in `firestore.rules`. **Deployed live 2026-09-12** (`firebase deploy --only firestore:rules`).
 - **Seed data**: `app/js/data.js` has 16 `documentTypes` (วจ.1–วจ.9 plus generic ones: ID card copy, vehicle registration copy, full/abbreviated tax invoice, procurement-committee certificate, attendee sign-in sheet) and 5 `evidenceChains` (`chain-travel-domestic`, `chain-honorarium`, `chain-research-assistant`, `chain-purchase`, `chain-meeting-refreshment`) derived directly from the source manual's forms. `app/js/seed.js` writes both collections inside the same admin-only try/catch as `fundSources`/`ruleVersions`/`ruleItems` (same "silently skipped for non-admin, reported as ข้าม in the result message" behavior).
 - **What's still NOT built**: nothing reads `evidenceChainId`/`evidenceChains`/`documentTypes` at receipt-check time yet — `new-receipt.js`'s `checkAgainstRules()` still only checks `rateType`/`rateAmount` as before. This section is schema + seed data only, laid down ahead of the still-unimplemented real OCR/LLM check (FR-02/FR-04/FR-05, see `SCOPE.md`/`BACKLOG.md`) so that whenever that gets built, the LLM prompt can look up just the one `evidenceChain` (and only the `documentTypes` inside its `steps`) relevant to the receipt's category — not the whole 47-page manual — which was the actual token-economy motivation for this design (see chat log / no separate doc for that reasoning yet).
-- **`petty-cash-ledger-vj9` (วจ.9) is a `documentType` but not referenced by any `evidenceChain`** — it's a project-level running ledger (rับ/จ่าย/คงเหลือ), not a per-category requirement, so nothing hooks it up automatically; it's seeded for completeness/reference only.
+- **วจ.9 (`petty-cash-ledger-vj9`) was removed from `data.js` on 2026-11-15:** the revised manual (p.34) marks it ยกเลิก (cancelled). A live Firestore doc with that ID may still exist from earlier seeding. It's harmless, since no chain references it, and can be deleted with `firebase firestore:delete documentTypes/petty-cash-ledger-vj9`.
 
 ## แนบไฟล์จริงผ่าน Google Drive (แทน Firebase Storage) — added 2026-09-16
 
@@ -237,6 +237,25 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
 - **`new-receipt.html` step 2** shows "ตัดจากรายการไหนในประมาณการ" only when the project has `budgetLines`; choosing a line sets the category from `line.ruleCategory`; a choice is required (including "ไม่อยู่ในประมาณการ"). `spentBefore` is a plain `where("budgetLineId", "==", id)` query on the project's own `receipts` subcollection. Receipts store `budgetLineId` (`null` for not-in-estimate or no estimate).
 - **`firestore.rules`** gained `match /budgetLines/{lineId}` under projects (owner write, owner/admin read). **Not yet deployed** — saving an estimate on the live site gets `permission-denied` until `firebase deploy --only firestore:rules`.
 - **Known pending work from the revised manual (not done)**: วจ.9 is cancelled (p.34); every payment document needs a "จ่ายแล้ว" stamp; the "ตรวจรับพัสดุ" stamp also applies to วจ.1/2/6 and needs inspection photos; compensation, TOR hire, travel and equipment need committee approval before acting; a tax invoice or delivery note alone isn't valid without a receipt or voucher. `data.js` still reflects the unrevised manual.
+
+### Rules updated to the revised forms manual — 2026-11-15 (rule set 2570.2)
+
+- **Source:** "คู่มือการกรอกแบบฟอร์มและตัวอย่างใบเสร็จ ฉบับปรับปรุง" (52 pages). Each change below was checked against the PDF text itself; pages 49–50 are image-only and were checked visually. Each rule cites its page in its `note` or step `note`.
+- **Paid stamp:** every evidence chain now requires the `paid-stamp` attestation ("จ่ายแล้ว", pp.6, 8, 23, 25–27).
+- **Committee pre-approval:** a new `committee-pre-approval` document type is a required `before` step for compensation (`chain-honorarium`, `chain-research-assistant`), travel (`chain-travel-domestic`), TOR service hire and van rental (new `chain-service-hire`, which also requires the new `tor-document`), and equipment plus software (new `chain-equipment`). Sources: p.3, and pp.47–48 ("ไม่ว่าราคาเท่าใด").
+- **`chain-purchase` is now goods only** (materials, computer materials, other materials, fuel). It requires the new `inspection-photos` document type (p.49: "ทุกครั้งที่มีการตรวจรับพัสดุ") plus the `paid-stamp` and `inspection-stamp` attestations.
+- **New `chain-fee-payment`** covers lab fees, utilities, ethics fee, other fees, photocopying and report binding. It needs only a receipt and the paid stamp: fees aren't parcels, and p.6 limits the inspection stamp to purchases of goods and services.
+- **Receipts:** `tax-invoice-full` is renamed "ใบเสร็จรับเงิน/ใบกำกับภาษีเต็มรูปแบบ" and its validity check says an invoice, delivery note or bill alone is not valid (p.40). `tax-invoice-abbreviated` notes the postage rule: payment certificate plus a certified copy of the receipt (p.41; the manual prints "วจ.4", which looks like a typo for วจ.2).
+- **Five new categories and `ruleItems`** (`ruleitem023`–`027`) cover the official 17.2 line items that had no rule:
+  - ค่าธรรมเนียมการขอจริยธรรมการวิจัยในมนุษย์: cap ฿1,500 per project, from the RS-01 proposal template, not the 2570 budget manual;
+  - ค่าธรรมเนียมอื่นๆ;
+  - ค่าถ่ายเอกสาร;
+  - ค่าจัดทำรูปเล่มรายงานวิจัย;
+  - ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม, split out from computer materials because software needs pre-approval.
+  
+  The 17.2 importer's matcher (`budget-parser.js`) now maps every official item.
+- **Open question for finance, deliberately not encoded:** p.50's example shows a 3-person inspection committee and an inspection form for a ฿3,243 chemicals purchase, but p.37 frames the 3-signature rule as applying above ฿100,000. The ฿100,000 conditional step is kept until finance confirms.
+- **Live Firestore** gets these only when an admin presses "อัปเดตเฉพาะระเบียบ/กฎ" on `seed.html`.
 
 ## UI/shared code conventions
 
