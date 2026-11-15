@@ -19,6 +19,25 @@
     return isFinite(n) ? n : 0;
   }
 
+  // แยกตัวคูณของรายการ เช่น "60 บาท x 100 ชม." หรือ "200 กม. x 2 x 4 บาท x 3 ครั้ง"
+  // ตัวที่มีคำว่า "บาท" คือราคาต่อหน่วย; ตัวเลขที่เหลือคูณกันเป็นจำนวนหน่วย (ชั่วโมง, กม., คน×มื้อ, คืน ...)
+  // ถ้ายังเป็นแบบฟอร์มเปล่า ("....... บาท x … คน") หรือไม่มีตัวคูณ คืน null ให้ระบบรู้ว่าตรวจอัตราไม่ได้
+  function parseMultiplier(text) {
+    var none = { unitPrice: null, quantity: null };
+    if (!text || !/[x×*]/i.test(text)) return none;
+    var unitPrice = null;
+    var quantity = null;
+    var factors = String(text).split(/\s*[x×*]\s*/i);
+    for (var i = 0; i < factors.length; i++) {
+      var m = factors[i].match(/\d[\d,]*(?:\.\d+)?/);
+      if (!m) return none;
+      var n = parseFloat(m[0].replace(/,/g, ""));
+      if (/บาท/.test(factors[i]) && unitPrice === null) unitPrice = n;
+      else quantity = (quantity === null ? 1 : quantity) * n;
+    }
+    return { unitPrice: unitPrice, quantity: quantity };
+  }
+
   function cell(row, i) {
     var v = row[i];
     return v == null ? "" : String(v).trim();
@@ -50,10 +69,17 @@
       if (installmentSum > 0 && Math.abs(installmentSum - total) > 0.5) {
         warnings.push("แถว " + (idx + 1) + " \"" + b + "\" ยอดงวด 1–3 รวมกัน (" + installmentSum + ") ไม่เท่ากับยอดรวม (" + total + ")");
       }
+      var multiplier = parseMultiplier(cell(row, COL.multiplier));
+      if (multiplier.unitPrice !== null && multiplier.quantity !== null &&
+          Math.abs(multiplier.unitPrice * multiplier.quantity - total) > 0.5) {
+        warnings.push("แถว " + (idx + 1) + " \"" + b + "\" ตัวคูณ (" + multiplier.unitPrice + " × " + multiplier.quantity + ") ไม่เท่ากับยอดรวม (" + total + ")");
+      }
       lines.push({
         group: group,
         itemName: b,
         multiplierText: cell(row, COL.multiplier),
+        unitPrice: multiplier.unitPrice,
+        quantity: multiplier.quantity,
         installmentAmounts: installments,
         total: Math.round(total * 100) / 100,
         ruleCategory: guessRuleCategory(b, group),
@@ -84,7 +110,8 @@
     [/น้ำมันเชื้อเพลิงพาหนะเช่า.*ต่างจังหวัด/, "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ต่างจังหวัด)"],
     [/น้ำมันเชื้อเพลิงพาหนะเช่า/, "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ในจังหวัด)"],
     [/รถตู้|เช่ายานพาหนะ/, "ค่าเช่ายานพาหนะ (รถตู้)"],
-    [/ที่พัก/, "ค่าที่พัก (เดินทางปฏิบัติงาน)"],
+    [/ที่พัก.*(เหมาจ่าย|บ้านญาติ|บ้านตนเอง)|(เหมาจ่าย|บ้านญาติ).*ที่พัก/, "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)"],
+    [/ที่พัก/, "ค่าที่พัก (โรงแรม)"],
     [/เบี้ยเลี้ยง/, "ค่าเบี้ยเลี้ยงเดินทาง"],
     [/จริยธรรม/, "ค่าธรรมเนียมการขอจริยธรรมการวิจัยในมนุษย์"],
     [/ค่าธรรมเนียมอื่น/, "ค่าธรรมเนียมอื่นๆ"],
@@ -110,5 +137,5 @@
     return sheetNames.filter(function (n) { return /17\.2/.test(n); })[0] || sheetNames[0];
   }
 
-  return { parseRows: parseRows, guessRuleCategory: guessRuleCategory, pickSheetName: pickSheetName };
+  return { parseRows: parseRows, parseMultiplier: parseMultiplier, guessRuleCategory: guessRuleCategory, pickSheetName: pickSheetName };
 });

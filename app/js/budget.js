@@ -170,6 +170,8 @@
           group: line.group,
           itemName: line.itemName,
           multiplierText: line.multiplierText,
+          unitPrice: line.unitPrice,
+          quantity: line.quantity,
           installmentAmounts: line.installmentAmounts,
           total: line.total,
           ruleCategory: line.ruleCategory,

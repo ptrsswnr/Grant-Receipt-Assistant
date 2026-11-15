@@ -11,7 +11,7 @@
   else root.RuleEngine = api;
 })(typeof self !== "undefined" ? self : this, function () {
   // เพิ่มเลขนี้ทุกครั้งที่ตรรกะการตัดสินเปลี่ยน — บันทึกลงใบเสร็จทุกใบ เพื่อให้รู้ว่าผลแต่ละใบมาจากตรรกะชุดไหน
-  var ENGINE_VERSION = "1.2.0";
+  var ENGINE_VERSION = "1.3.1";
 
   var STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", APPROVAL: "ต้องชี้แจง/ขออนุมัติ", REJECT: "ไม่เข้าเงื่อนไข" };
 
@@ -31,6 +31,9 @@
     OVER_ESTIMATE: "OVER_ESTIMATE",
     WITHIN_ESTIMATE: "WITHIN_ESTIMATE",
     ESTIMATE_NOT_CHECKED: "ESTIMATE_NOT_CHECKED",
+    OVER_RATE_ALLOWANCE: "OVER_RATE_ALLOWANCE",
+    WITHIN_RATE_ALLOWANCE: "WITHIN_RATE_ALLOWANCE",
+    PER_PROPOSAL_VIA_ESTIMATE: "PER_PROPOSAL_VIA_ESTIMATE",
   };
 
   var CAPPED_RATE_TYPES = ["เพดานตามจริง", "เหมาจ่าย"];
@@ -182,8 +185,10 @@
       parts.push(group === "evidence" ? "เอกสารประกอบยังไม่ครบตามชุด \"" + chainName + "\": " + msgs.join("; ") : msgs.join("; "));
     });
     var infoText = infos.map(function (f) { return f.message; }).join(" — ");
-    if (!parts.length) return infoText;
-    return parts.join(" — ") + (infoText ? " — ส่วนที่ผ่านแล้ว: " + infoText : "");
+    // สิ่งที่ระบบยังตรวจไม่ได้ (เช่น ยังไม่มีไฟล์ประมาณการ) ต่อท้ายเสมอ เพื่อให้ผู้ใช้รู้ว่าต้องทำอะไรต่อ
+    var todo = findings.filter(function (f) { return f.unverified; }).map(function (f) { return f.message; }).join(" — ");
+    var text = !parts.length ? infoText : parts.join(" — ") + (infoText ? " — ส่วนที่ผ่านแล้ว: " + infoText : "");
+    return todo ? (text ? text + " — " : "") + todo : text;
   }
 
   // receipt: {
@@ -198,7 +203,8 @@
   // documentNames: { documentTypeId: ชื่อเอกสาร } ใช้แค่ทำคำอธิบายให้อ่านง่าย ไม่มีผลต่อการตัดสิน
   function evaluate(receipt, ruleSet, documentNames) {
     var hasBudget = !!receipt.budget;
-    var result = evaluateAmount(receipt, ruleSet, { perUnitViaEstimate: hasBudget && !!receipt.budget.line });
+    var line = hasBudget ? receipt.budget.line : null;
+    var result = evaluateAmount(receipt, ruleSet, { hasEstimate: hasBudget, line: line, spentBefore: hasBudget ? receipt.budget.spentBefore || 0 : 0 });
     var regulationFinding = { group: "regulation", status: result.status, code: result.reasonCode, message: result.explanation };
     if (result.status === STATUS.REJECT || result.reasonCode === REASON.INVALID_AMOUNT) {
       result.findings = [regulationFinding];
@@ -209,7 +215,7 @@
     if (hasBudget) findings = findings.concat(checkBudget(receipt));
     else {
       result.autoVerified = false;
-      findings.push({ group: "budget", status: STATUS.PASS, code: REASON.ESTIMATE_NOT_CHECKED, message: "โครงการนี้ยังไม่ได้นำเข้าประมาณการ จึงยังไม่ได้เทียบกับประมาณการ", unverified: true });
+      findings.push({ group: "budget", status: STATUS.PASS, code: REASON.ESTIMATE_NOT_CHECKED, message: "ทุกรายจ่ายต้องเป็นไปตามประมาณการที่อนุมัติแล้ว แต่โครงการนี้ยังไม่มีไฟล์ประมาณการในระบบ กรุณาอัปโหลดไฟล์ประมาณการ (ตาราง 17.2) ที่ปุ่ม \"ประมาณการ\" ในหน้าโครงการของฉัน เพื่อให้ระบบตรวจกับประมาณการ", unverified: true });
     }
     findings.push(regulationFinding);
     var evidence = checkEvidenceFindings(receipt, ruleSet, documentNames);
@@ -235,10 +241,30 @@
     return result;
   }
 
-  // opts.perUnitViaEstimate: ใบเสร็จผูกกับรายการในประมาณการแล้ว — เพดาน "ต่อคน/ต่อคืน/ต่อมื้อ" ของระเบียบ
-  // ห้ามเอายอดรวมทั้งใบไปเทียบตรงๆ (อาหาร 10 คน ฿1,500 ไม่ได้เกินเพดาน ฿150/คน/มื้อ) ให้ใช้การเทียบยอดกับ
-  // ประมาณการที่อนุมัติตามอัตราระเบียบแล้วแทน
+  // อัตราตามระเบียบ × จำนวนหน่วยจากตัวคูณในประมาณการ (line.quantity เช่น 100 ชม., 1,200 กม., 40 คน×มื้อ)
+  // = ยอดสูงสุดที่ระเบียบอนุญาตสำหรับรายการนี้ เทียบกับยอดสะสมของรายการ (รวมใบนี้)
+  function checkRateAllowance(item, receipt, opts, result) {
+    var allowance = item.rateAmount * opts.line.quantity;
+    var spentAfter = (opts.spentBefore || 0) + receipt.amount;
+    var calc = rateText(item) + " × " + opts.line.quantity.toLocaleString("en-US") + " (ตามตัวคูณในประมาณการ) = " + formatCurrency(allowance);
+    if (spentAfter > allowance) {
+      result.status = STATUS.FIX;
+      result.reasonCode = REASON.OVER_RATE_ALLOWANCE;
+      result.explanation = withNote("ยอดสะสมของรายการนี้ (" + formatCurrency(spentAfter) + ") เกินยอดที่ระเบียบอนุญาต: " + calc + " กรุณาตรวจสอบอัตราหรือจำนวนที่เบิก", item);
+    } else {
+      result.status = STATUS.PASS;
+      result.reasonCode = REASON.WITHIN_RATE_ALLOWANCE;
+      result.explanation = withNote("อยู่ในอัตราตามระเบียบ: " + calc + " ยอดสะสมรวมใบนี้ " + formatCurrency(spentAfter), item);
+    }
+    return result;
+  }
+
+  // opts.line: รายการในประมาณการที่ใบเสร็จนี้ผูกอยู่ (ถ้ามี) — เพดาน "ต่อคน/ต่อคืน/ต่อมื้อ/ต่อชั่วโมง/ต่อ กม."
+  // ห้ามเอายอดรวมทั้งใบไปเทียบตรงๆ (อาหาร 10 คน ฿1,500 ไม่ได้เกินเพดาน ฿150/คน/มื้อ) ถ้าประมาณการมีตัวคูณ
+  // ให้เทียบกับ อัตรา × จำนวนหน่วย; ถ้าไม่มี ให้พึ่งการเทียบยอดกับประมาณการและแจ้งว่ายังตรวจอัตราไม่ได้
   function evaluateAmount(receipt, ruleSet, opts) {
+    opts = opts || {};
+    var hasQuantity = !!(opts.line && typeof opts.line.quantity === "number" && opts.line.quantity > 0);
     var result = {
       engineVersion: ENGINE_VERSION,
       fundSourceId: ruleSet ? ruleSet.fundSourceId || null : null,
@@ -285,11 +311,12 @@
     }
 
     if (CAPPED_RATE_TYPES.indexOf(item.rateType) !== -1 && item.rateAmount != null) {
-      if (opts && opts.perUnitViaEstimate && item.unit) {
+      if (opts.line && item.unit && hasQuantity) return checkRateAllowance(item, receipt, opts, result);
+      if (opts.line && item.unit) {
         result.status = STATUS.PASS;
         result.reasonCode = REASON.PER_UNIT_CAP_VIA_ESTIMATE;
         result.autoVerified = false;
-        result.explanation = withNote("หมวด \"" + category + "\" มีเพดานต่อหน่วย (" + rateText(item) + ") ซึ่งตรวจจากยอดรวมใบเสร็จไม่ได้ ระบบจึงเทียบกับประมาณการที่อนุมัติแล้วแทน", item);
+        result.explanation = withNote("หมวด \"" + category + "\" มีเพดานต่อหน่วย (" + rateText(item) + ") ซึ่งตรวจจากยอดรวมใบเสร็จไม่ได้ " + "ประมาณการที่อัปโหลดไว้ไม่ได้ระบุจำนวน (เช่น ชั่วโมง กม. คน×มื้อ คืน) ในช่องตัวคูณของรายการนี้ กรุณาอัปโหลดไฟล์ประมาณการอีกครั้งโดยระบุตัวคูณ เพื่อให้ระบบตรวจอัตรากับประมาณการ", item);
         return result;
       }
       if (amount > item.rateAmount) {
@@ -304,14 +331,29 @@
       return result;
     }
 
-    // "ต่อหน่วย" ต้องรู้ปริมาณ (เช่น กม.) ที่ระบบยังไม่เก็บ; "ตามข้อเสนอโครงการ" ไม่มีเพดานระดับแหล่งทุน
+    if (item.rateType === "ต่อหน่วย" && item.rateAmount != null && hasQuantity) return checkRateAllowance(item, receipt, opts, result);
+
+    // "ตามข้อเสนอโครงการ": ไม่มีเพดานระดับแหล่งทุน — ประมาณการที่อนุมัติแล้วคือเพดาน จึงตรวจครบเมื่อผูกกับรายการในประมาณการ
+    if (item.rateType === "ตามข้อเสนอโครงการ" && opts.line) {
+      result.status = STATUS.PASS;
+      result.reasonCode = REASON.PER_PROPOSAL_VIA_ESTIMATE;
+      result.explanation = withNote("หมวด \"" + category + "\" ไม่มีเพดานระดับแหล่งทุน ใช้ยอดในประมาณการที่อนุมัติแล้วเป็นเพดาน", item);
+      return result;
+    }
+
+    // "ต่อหน่วย" ที่ไม่รู้จำนวนหน่วย (ไม่มีประมาณการหรือตัวคูณ) และ "ตามข้อเสนอโครงการ" ที่ไม่มีประมาณการ: ตรวจเองไม่ได้
     var rateNote = item.rateType === "ต่อหน่วย" && item.rateAmount != null
-      ? "อัตราอ้างอิง " + rateText(item)
-      : "ไม่มีเพดานระดับแหล่งทุน อ้างอิงจากข้อเสนอโครงการของโครงการนี้เอง";
+      ? "อัตรา " + rateText(item)
+      : "ไม่มีเพดานระดับแหล่งทุน ใช้ยอดในประมาณการที่อนุมัติแล้วเป็นเพดาน";
+    // ใบที่ผูกกับรายการแต่ไม่มีตัวคูณ → ให้อัปโหลดใหม่พร้อมตัวคูณ; ยังไม่มีประมาณการ → ให้อัปโหลด;
+    // ใบที่ระบุว่าไม่อยู่ในประมาณการ → ส่วนประมาณการแจ้งให้ขออนุมัติอยู่แล้ว
+    var nextStep = opts.line ? "ประมาณการที่อัปโหลดไว้ไม่ได้ระบุจำนวน (เช่น ชั่วโมง กม. คน×มื้อ คืน) ในช่องตัวคูณของรายการนี้ กรุณาอัปโหลดไฟล์ประมาณการอีกครั้งโดยระบุตัวคูณ เพื่อให้ระบบตรวจอัตรากับประมาณการ"
+      : !opts.hasEstimate ? "ตรวจยอดได้เมื่อมีประมาณการ"
+      : "รายการนี้ไม่อยู่ในประมาณการ จึงต้องขออนุมัติก่อน";
     result.status = STATUS.PASS;
     result.reasonCode = REASON.NO_FIXED_CAP;
     result.autoVerified = false;
-    result.explanation = withNote("หมวด \"" + category + "\" เป็นประเภท " + item.rateType + " (" + rateNote + ") — ระบบยังตรวจอัตโนมัติแบบเต็มรูปแบบไม่ได้ กรุณาให้เจ้าหน้าที่การเงินตรวจสอบยอดเงินอีกครั้ง", item);
+    result.explanation = withNote("หมวด \"" + category + "\" เป็นประเภท " + item.rateType + " (" + rateNote + ") — " + nextStep, item);
     return result;
   }
 

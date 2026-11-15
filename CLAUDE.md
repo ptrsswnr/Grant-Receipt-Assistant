@@ -257,6 +257,24 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
 - **Open question for finance, deliberately not encoded:** p.50's example shows a 3-person inspection committee and an inspection form for a ฿3,243 chemicals purchase, but p.37 frames the 3-signature rule as applying above ฿100,000. The ฿100,000 conditional step is kept until finance confirms.
 - **Live Firestore** gets these only when an admin presses "อัปเดตเฉพาะระเบียบ/กฎ" on `seed.html`.
 
+### Rate × quantity check, fuel and lodging corrections — 2026-11-15 (engine 1.3.0, rule set 2570.3)
+
+- **Rate × quantity from the estimate:** the owner said hours and kilometres are stated in the estimate's multiplier column (for example "60 บาท x 100 ชม.", "200 กม. x 2 x 4 บาท x 3 ครั้ง").
+  - At import, `budget-parser.js` `parseMultiplier()` stores `unitPrice` (the factor containing "บาท") and `quantity` (the product of the other factors) on each `budgetLines` doc.
+  - It warns at import when unitPrice × quantity ≠ the line total.
+  - Blank template dots or text without "x" give `null`.
+- **How the engine uses it:** when a receipt's estimate line has a `quantity`, the regulation allowance = `rateAmount × quantity`. Cumulative spending on the line above that allowance gives `OVER_RATE_ALLOWANCE` (ต้องแก้ไข); otherwise the result is `WITHIN_RATE_ALLOWANCE`, which counts as fully auto-verified.
+  - This applies to `ต่อหน่วย` items (student assistant pay per hour, mileage per km).
+  - It also applies to capped items that have a unit (per person/meal, per night, per day). Those were previously only `PER_UNIT_CAP_VIA_ESTIMATE` (not verified).
+  - Lines imported before this change have no `quantity`. They keep the old not-verified behaviour until the estimate is re-imported.
+- **Per-proposal items:** `ตามข้อเสนอโครงการ` items tied to an estimate line now give `PER_PROPOSAL_VIA_ESTIMATE` and count as verified, because the approved estimate is their cap.
+- **Fuel (`ruleitem016`/`017`):** changed to `ตามข้อเสนอโครงการ`. The manual says ฿1,500/฿2,000 per vehicle-day is for budgeting only, and actual reimbursement follows the receipt. It was previously, and wrongly, used as a cap.
+- **Lodging split into two categories:**
+  - "ค่าที่พัก (โรงแรม)" (`ruleitem012`): actual cost ≤ ฿1,800/day, receipt required.
+  - "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)" (`ruleitem028`): flat ฿800/day. It uses the new `chain-travel-flat-lodging`, whose payment step is a payment certificate (วจ.2) instead of a receipt. The owner said this "น่าจะ" (probably) applies, so it still needs confirming with finance.
+  - The importer guesses hotel unless the item mentions เหมาจ่าย or บ้านญาติ.
+- **Wording when a check can't run (engine 1.3.1):** the owner said every expense must follow the approved estimate. So instead of "can't auto-verify, ask finance", the explanation tells the researcher to upload the estimate file (no estimate yet), or to re-upload it with the multiplier filled in (line has no quantity). `explain()` now always appends unverified findings at the end; before, the "no estimate" note was dropped for capped categories.
+
 ## UI/shared code conventions
 
 - **Code identifiers are English, UI text is Thai.** All `.js`/`.html` variable names, function names, and DOM `id`/`name` attributes that JS hooks into (`getElementById`, etc.) must be English — e.g. `warningBox`, `signupButton`, `nextProjectId()`. Thai stays in: `.textContent`/`.innerHTML` string literals shown to the user, `<label>`/button visible text, `<option>` text, banner/warning messages, and comments (comments may stay Thai — existing convention). Mock/reference *data content* in `app/js/data.js` (fund source names, categories, Thai vendor names) is real domain data, not a code identifier — leave it Thai. This was a full repo-wide migration on 2026-09-10 (the codebase previously used Thai variable/function names and Thai DOM ids like `id="ข้อความเตือน"` throughout `app/js/*.js`); don't reintroduce Thai identifiers in new code.

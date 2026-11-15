@@ -163,7 +163,7 @@ test("every evidence chain requires the paid stamp", () => {
 
 // คู่มือฉบับปรับปรุง หน้า 3, 47–48: ต้องได้รับอนุมัติจากคณะกรรมการก่อนดำเนินการ
 test("compensation, travel, TOR hire, equipment and software require committee pre-approval", () => {
-  const needsApproval = ["ค่าตอบแทนนักศึกษาช่วยงาน (วิชาการ)", "ค่าตอบแทนอาสาสมัคร/ผู้ให้ข้อมูล", "ค่าที่พัก (เดินทางปฏิบัติงาน)",
+  const needsApproval = ["ค่าตอบแทนนักศึกษาช่วยงาน (วิชาการ)", "ค่าตอบแทนอาสาสมัคร/ผู้ให้ข้อมูล", "ค่าที่พัก (โรงแรม)",
     "ค่าจ้างเหมาบริการ", "ค่าเช่ายานพาหนะ (รถตู้)", "ค่าครุภัณฑ์", "ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม"];
   for (const category of needsApproval) {
     const step = RuleEngine.requiredEvidence(category, 1000, ruleSet2570).steps.find((s) => s.documentTypeIds.includes("committee-pre-approval"));
@@ -185,7 +185,7 @@ test("the cancelled petty-cash ledger (วจ.9) is gone", () => {
 });
 
 test("domestic travel missing the pre-trip approval (วจ.3) → needs fix, names the form", () => {
-  const r = withDocs("ค่าที่พัก (เดินทางปฏิบัติงาน)", 1500, ["committee-pre-approval", "hr-leave-form", "travel-report-vj4", "tax-invoice-full"], ["paid-stamp"]);
+  const r = withDocs("ค่าที่พัก (โรงแรม)", 1500, ["committee-pre-approval", "hr-leave-form", "travel-report-vj4", "tax-invoice-full"], ["paid-stamp"]);
   assert.equal(r.status, STATUS.FIX);
   assert.equal(r.reasonCode, REASON.MISSING_EVIDENCE);
   assert.match(r.explanation, /วจ\.3/);
@@ -194,7 +194,7 @@ test("domestic travel missing the pre-trip approval (วจ.3) → needs fix, na
 });
 
 test("optional steps (e.g. ID card copy for travel) are not required", () => {
-  const r = withDocs("ค่าที่พัก (เดินทางปฏิบัติงาน)", 1500, ["committee-pre-approval", "travel-approval-vj3", "hr-leave-form", "travel-report-vj4", "tax-invoice-full"], ["paid-stamp"]);
+  const r = withDocs("ค่าที่พัก (โรงแรม)", 1500, ["committee-pre-approval", "travel-approval-vj3", "hr-leave-form", "travel-report-vj4", "tax-invoice-full"], ["paid-stamp"]);
   assert.equal(r.status, STATUS.PASS);
 });
 
@@ -274,6 +274,63 @@ test("whole-amount caps (no unit) still apply when an estimate line is given", (
   assert.equal(r.reasonCode, REASON.AMOUNT_EXCEEDS_CAP);
 });
 
+// ─── อัตราตามระเบียบ × จำนวนหน่วยจากตัวคูณในประมาณการ ───
+const studentLine = { id: "line-ra", itemName: "ค่าตอบแทน – นักศึกษาช่วยงานด้านวิชาการ", total: 8000, quantity: 100 }; // ตั้งไว้ 80 บาท × 100 ชม. แต่ระเบียบให้ 60
+const raDocs = { documentTypeIds: ["committee-pre-approval", "timesheet-parttime-vj8", "voucher-vj1", "id-card-copy"], attestationIds: ["paid-stamp"] };
+const ra = (amount, spentBefore, line = studentLine) =>
+  evaluate({ category: "ค่าตอบแทนนักศึกษาช่วยงาน (วิชาการ)", amount, evidence: raDocs, budget: { line, spentBefore } }, ruleSet2570, documentNames);
+
+test("per-hour rate × hours from the estimate: within ฿60 × 100 h passes and is fully verified", () => {
+  const r = ra(3000, 3000);
+  assert.equal(r.status, STATUS.PASS);
+  assert.ok(r.findings.some((f) => f.code === REASON.WITHIN_RATE_ALLOWANCE));
+  assert.equal(r.autoVerified, true);
+});
+
+test("per-hour rate × hours: over ฿6,000 needs fix even though the estimate line (฿8,000) isn't used up", () => {
+  const r = ra(1000, 5500);
+  assert.equal(r.status, STATUS.FIX);
+  assert.equal(r.reasonCode, REASON.OVER_RATE_ALLOWANCE);
+  assert.match(r.explanation, /6,000/);
+});
+
+test("mileage: ฿4/km × 1,200 km from the estimate multiplier", () => {
+  const line = { id: "line-car", itemName: "ค่าพาหนะ (รถยนต์ส่วนบุคคล)", total: 6000, quantity: 1200 }; // ประมาณการตั้งไว้สูงกว่าที่ระเบียบให้ (4 × 1,200 = 4,800)
+  const docs = { documentTypeIds: ["committee-pre-approval", "travel-approval-vj3", "hr-leave-form", "travel-report-vj4", "payment-cert-vj2"], attestationIds: ["paid-stamp"] };
+  const ok = evaluate({ category: "ค่าพาหนะส่วนตัว (ต่อกิโลเมตร)", amount: 1600, evidence: docs, budget: { line, spentBefore: 3200 } }, ruleSet2570, documentNames);
+  assert.equal(ok.status, STATUS.PASS);
+  const over = evaluate({ category: "ค่าพาหนะส่วนตัว (ต่อกิโลเมตร)", amount: 1700, evidence: docs, budget: { line, spentBefore: 3200 } }, ruleSet2570, documentNames);
+  assert.equal(over.reasonCode, REASON.OVER_RATE_ALLOWANCE);
+});
+
+test("per-person meal cap uses persons × meals from the estimate when it is known", () => {
+  const r = lunch(3000, 0, { ...lunchLine, quantity: 40 });
+  assert.ok(r.findings.some((f) => f.code === REASON.WITHIN_RATE_ALLOWANCE));
+  assert.equal(r.autoVerified, true);
+});
+
+test("without a quantity in the estimate the rate can't be checked and the receipt is not auto-verified", () => {
+  const r = ra(3000, 0, { ...studentLine, quantity: null });
+  assert.equal(r.autoVerified, false);
+  assert.ok(r.findings.some((f) => f.code === REASON.NO_FIXED_CAP));
+});
+
+test("fuel is reimbursed at actual cost against the estimate, not capped at the budgeting rate", () => {
+  const line = { id: "line-fuel", itemName: "ค่าน้ำมันเชื้อเพลิง", total: 9000 };
+  const docs = { documentTypeIds: ["tax-invoice-full", "inspection-photos"], attestationIds: ["paid-stamp", "inspection-stamp"] };
+  const r = evaluate({ category: "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ต่างจังหวัด)", amount: 2600, evidence: docs, budget: { line, spentBefore: 0 } }, ruleSet2570, documentNames);
+  assert.equal(r.status, STATUS.PASS);
+  assert.ok(r.findings.some((f) => f.code === REASON.PER_PROPOSAL_VIA_ESTIMATE));
+});
+
+test("flat-rate lodging (relative's or own home) needs a payment certificate (วจ.2), not a hotel receipt", () => {
+  const steps = RuleEngine.requiredEvidence("ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)", 800, ruleSet2570).steps;
+  const payment = steps.find((s) => s.order === 5);
+  assert.equal(payment.documentTypeIds.join(","), "payment-cert-vj2");
+  assert.equal(check("ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)", 900).reasonCode, REASON.AMOUNT_EXCEEDS_CAP);
+  assert.equal(check("ค่าที่พัก (โรงแรม)", 1800).reasonCode, REASON.WITHIN_CAP);
+});
+
 test("same input always gives the same output", () => {
-  assert.deepEqual(check("ค่าที่พัก (เดินทางปฏิบัติงาน)", 2000), check("ค่าที่พัก (เดินทางปฏิบัติงาน)", 2000));
+  assert.deepEqual(check("ค่าที่พัก (โรงแรม)", 2000), check("ค่าที่พัก (โรงแรม)", 2000));
 });

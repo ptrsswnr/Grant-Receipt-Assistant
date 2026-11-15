@@ -1,7 +1,7 @@
 // Run: node --test tests/budget-parser.test.js
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { parseRows, guessRuleCategory, pickSheetName } = require("../app/js/budget-parser.js");
+const { parseRows, parseMultiplier, guessRuleCategory, pickSheetName } = require("../app/js/budget-parser.js");
 
 // หัวตารางตรงตามชีต "ตาราง ข้อ 17.2" ของไฟล์ตัวช่วยมหาวิทยาลัย; รายการเป็นตัวอย่างที่กรอกเอง
 const sheet = [
@@ -105,6 +105,36 @@ test("every guessed category exists in data.js", () => {
   assert.deepEqual(unmapped, []);
   assert.equal(guessRuleCategory("ค่าวัสดุโปรแกรมคอมพิวเตอร์หรือค่าลิขสิทธิ์โปรแกรมคอมพิวเตอร์ (แนบ TOR)"), "ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม");
   assert.equal(guessRuleCategory("ค่าวัสดุคอมพิวเตอร์ "), "ค่าวัสดุคอมพิวเตอร์");
+});
+
+test("reads unit price and quantity from the multiplier column", () => {
+  const cases = [
+    ["60 บาท x 100 ชม.", 60, 100],
+    ["200 กม. x 2 x 4 บาท x 3 ครั้ง", 4, 1200],
+    ["150 บาท x 20 คน x 2 มื้อ", 150, 40],
+    ["1,800 บาท × 2 คน × 3 คืน", 1800, 6],
+  ];
+  for (const [text, unitPrice, quantity] of cases) {
+    const r = parseMultiplier(text);
+    assert.equal(r.unitPrice, unitPrice, text);
+    assert.equal(r.quantity, quantity, text);
+  }
+  for (const text of ["ไม่เกิน 5,000 บาท", "....... บาท x … คน x ..... ครั้ง", ""]) {
+    assert.equal(parseMultiplier(text).quantity, null, text);
+  }
+});
+
+test("parsed lines carry quantity, and a multiplier that doesn't match the total is flagged", () => {
+  const { lines, warnings } = parseRows(sheet);
+  assert.equal(lines[0].quantity, 100);
+  assert.equal(lines[0].unitPrice, 60);
+  const odd = parseRows([["ลำดับ", "รายการค่าใช้จ่าย"], ["1", "ค่าตอบแทน – ผู้ให้ข้อมูล", "100 บาท x 30 คน", 2000, 0, 0, 2000]]);
+  assert.ok(odd.warnings.some((w) => /ตัวคูณ/.test(w)));
+});
+
+test("lodging guesses hotel unless the item says flat-rate or relative's home", () => {
+  assert.equal(guessRuleCategory("ค่าที่พัก "), "ค่าที่พัก (โรงแรม)");
+  assert.equal(guessRuleCategory("ค่าที่พัก (เหมาจ่าย 800 บาท)"), "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)");
 });
 
 test("picks the 17.2 sheet by name, else the first sheet", () => {

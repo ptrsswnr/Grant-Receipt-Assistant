@@ -51,7 +51,8 @@ window.RECEIPT_DATA = {
     "ค่าอาหารว่างและเครื่องดื่ม (ประชุม/อบรม)",
     "ค่าเช่ายานพาหนะ (รถตู้)",
     "ค่าเบี้ยเลี้ยงเดินทาง",
-    "ค่าที่พัก (เดินทางปฏิบัติงาน)",
+    "ค่าที่พัก (โรงแรม)",
+    "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)",
     "ค่าเครื่องบิน (ชั้นประหยัด)",
     "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)",
     "ค่าพาหนะส่วนตัว (ต่อกิโลเมตร)",
@@ -75,7 +76,7 @@ window.RECEIPT_DATA = {
   ],
 
   ruleVersions: [
-    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.2", isActive: true, importedByUserId: "user001" },
+    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.3", isActive: true, importedByUserId: "user001" },
   ],
 
   // rateType: "เพดานตามจริง" (เบิกตามจริงไม่เกิน rateAmount) | "เหมาจ่าย" (จ่ายคงที่ rateAmount ต่อ unit)
@@ -101,13 +102,13 @@ window.RECEIPT_DATA = {
     { id: "ruleitem009", ruleVersionId: "ruleversion002", categoryName: "ค่าอาหารว่างและเครื่องดื่ม (ประชุม/อบรม)", rateType: "เพดานตามจริง", rateAmount: 50, unit: "คน/มื้อ", requiredEvidenceType: "ใบเสร็จรับเงิน + รายชื่อผู้เข้าร่วม", note: "คู่มือฯ ปีงบประมาณ 2570 (ค่าใช้จ่ายจัดประชุม/อบรมที่เกี่ยวข้องกับโครงการวิจัย — Focus group)", evidenceChainId: "chain-meeting-refreshment" },
     { id: "ruleitem010", ruleVersionId: "ruleversion002", categoryName: "ค่าเช่ายานพาหนะ (รถตู้)", rateType: "เหมาจ่าย", rateAmount: 2000, unit: "คัน/วัน", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570 (ยานพาหนะอื่นนอกจากรถตู้ ให้เป็นไปตามข้อตกลงระหว่างผู้ให้บริการ)", evidenceChainId: "chain-service-hire" },
     { id: "ruleitem011", ruleVersionId: "ruleversion002", categoryName: "ค่าเบี้ยเลี้ยงเดินทาง", rateType: "เหมาจ่าย", rateAmount: 350, unit: "วัน", requiredEvidenceType: "แบบรายงานการเดินทางไปปฏิบัติงาน (วจ.4)", note: "คู่มือฯ ปีงบประมาณ 2570 อ้างอิงระเบียบมหาวิทยาลัยแม่ฟ้าหลวง ว่าด้วยค่าใช้จ่ายในการเดินทางไปปฏิบัติงาน (ฉบับที่ 8) พ.ศ. 2566 — สนับสนุนเฉพาะนักวิจัย/ผู้ร่วมวิจัยที่เป็นผู้เดินทาง", evidenceChainId: "chain-travel-domestic" },
-    { id: "ruleitem012", ruleVersionId: "ruleversion002", categoryName: "ค่าที่พัก (เดินทางปฏิบัติงาน)", rateType: "เพดานตามจริง", rateAmount: 1800, unit: "วัน", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: จ่ายตามจริงไม่เกิน 1,800 บาท/วัน หรือเลือกเหมาจ่าย 800 บาท/วันแทนก็ได้ (เลือกวิธีใดวิธีหนึ่ง)", evidenceChainId: "chain-travel-domestic" },
+    { id: "ruleitem012", ruleVersionId: "ruleversion002", categoryName: "ค่าที่พัก (โรงแรม)", rateType: "เพดานตามจริง", rateAmount: 1800, unit: "วัน", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: พักโรงแรม/ที่พักทั่วไปในประเทศ จ่ายตามจริงไม่เกิน 1,800 บาท/วัน (ถ้าพักบ้านญาติหรือบ้านตนเอง ให้ใช้หมวดค่าที่พักแบบเหมาจ่ายแทน)", evidenceChainId: "chain-travel-domestic" },
     { id: "ruleitem013", ruleVersionId: "ruleversion002", categoryName: "ค่าเครื่องบิน (ชั้นประหยัด)", rateType: "เพดานตามจริง", rateAmount: 5500, unit: "เที่ยวไป-กลับ", requiredEvidenceType: "ใบเสร็จรับเงิน/ตั๋วโดยสาร", note: "คู่มือฯ ปีงบประมาณ 2570: ไม่เกินชั้นประหยัด ไป-กลับ ไม่เกิน 5,500 บาท", evidenceChainId: "chain-travel-domestic" },
     { id: "ruleitem014", ruleVersionId: "ruleversion002", categoryName: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)", rateType: "เหมาจ่าย", rateAmount: 700, unit: "คน", requiredEvidenceType: "ใบรับรองการจ่ายเงิน (วจ.2)", note: "คู่มือฯ ปีงบประมาณ 2570: เหมาจ่ายเป็นรายบุคคลรวมเที่ยวไป-กลับ ไม่เกิน 700 บาท/คน (เฉพาะการเดินทางระหว่างที่พัก/สถานที่ปฏิบัติงานกับสถานียานพาหนะ)", evidenceChainId: "chain-travel-domestic" },
     { id: "ruleitem015", ruleVersionId: "ruleversion002", categoryName: "ค่าพาหนะส่วนตัว (ต่อกิโลเมตร)", rateType: "ต่อหน่วย", rateAmount: 4, unit: "กม.", requiredEvidenceType: "สำเนาทะเบียนรถ", note: "คู่มือฯ ปีงบประมาณ 2570: อัตรา 4 บาท/กิโลเมตร (ประมาณการระยะทางจากกรมทางหลวง DOH to Travel หรือ Google Map) เฉพาะหัวหน้าโครงการ/ผู้ร่วมวิจัยที่เป็นผู้เดินทาง", evidenceChainId: "chain-travel-domestic" },
 
-    { id: "ruleitem016", ruleVersionId: "ruleversion002", categoryName: "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ในจังหวัด)", rateType: "เหมาจ่าย", rateAmount: 1500, unit: "คัน/วัน", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: อัตราเพื่อการตั้งคำของบประมาณเท่านั้น การเบิกจ่ายจริงให้จ่ายตามจริงโดยใช้หลักฐานใบเสร็จรับเงิน", evidenceChainId: "chain-purchase" },
-    { id: "ruleitem017", ruleVersionId: "ruleversion002", categoryName: "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ต่างจังหวัด)", rateType: "เหมาจ่าย", rateAmount: 2000, unit: "คัน/วัน", requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: อัตราเพื่อการตั้งคำของบประมาณเท่านั้น การเบิกจ่ายจริงให้จ่ายตามจริงโดยใช้หลักฐานใบเสร็จรับเงิน", evidenceChainId: "chain-purchase" },
+    { id: "ruleitem016", ruleVersionId: "ruleversion002", categoryName: "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ในจังหวัด)", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: 1,500 บาท/คัน/วัน เป็นอัตราเพื่อการตั้งคำของบประมาณเท่านั้น การเบิกจ่ายจริงให้จ่ายตามจริงโดยใช้หลักฐานใบเสร็จรับเงิน จึงตรวจยอดกับประมาณการที่อนุมัติแล้ว ไม่ใช้ตัวเลขนี้เป็นเพดาน", evidenceChainId: "chain-purchase" },
+    { id: "ruleitem017", ruleVersionId: "ruleversion002", categoryName: "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ต่างจังหวัด)", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570: 2,000 บาท/คัน/วัน เป็นอัตราเพื่อการตั้งคำของบประมาณเท่านั้น การเบิกจ่ายจริงให้จ่ายตามจริงโดยใช้หลักฐานใบเสร็จรับเงิน จึงตรวจยอดกับประมาณการที่อนุมัติแล้ว ไม่ใช้ตัวเลขนี้เป็นเพดาน", evidenceChainId: "chain-purchase" },
     { id: "ruleitem018", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุคอมพิวเตอร์", rateType: "เพดานตามจริง", rateAmount: 5000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570 (มูลค่าต่อหน่วย/ชุดไม่เกิน 20,000 บาท จึงจัดเป็นวัสดุ ไม่ใช่ครุภัณฑ์ — เช่น internal hard disk, หมึกเครื่องพิมพ์)", evidenceChainId: "chain-purchase" },
     { id: "ruleitem019", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุสำนักงาน", rateType: "เพดานตามจริง", rateAmount: 5000, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570", evidenceChainId: "chain-purchase" },
     { id: "ruleitem020", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุอื่นๆ", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "คู่มือฯ ปีงบประมาณ 2570 (วัสดุวิทยาศาสตร์/ไฟฟ้า/การเกษตร/งานบ้านงานครัว/เวชภัณฑ์ยาและไม่ใช่ยา) — ให้เป็นไปตามดุลยพินิจคณะกรรมการพิจารณาข้อเสนอโครงการ โดยคำนึงถึงความประหยัดและความเหมาะสม", evidenceChainId: "chain-purchase" },
@@ -121,6 +122,7 @@ window.RECEIPT_DATA = {
     { id: "ruleitem025", ruleVersionId: "ruleversion002", categoryName: "ค่าถ่ายเอกสาร", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "แบบเสนอโครงการ RS-01 ข้อ 17.2: ค่าบริการถ่ายเอกสาร ไม่มีเพดานระดับแหล่งทุน", evidenceChainId: "chain-fee-payment" },
     { id: "ruleitem026", ruleVersionId: "ruleversion002", categoryName: "ค่าจัดทำรูปเล่มรายงานวิจัย", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "แบบเสนอโครงการ RS-01 ข้อ 17.2: ค่าบริการจัดทำรูปเล่มรายงานวิจัยฯ ไม่มีเพดานระดับแหล่งทุน", evidenceChainId: "chain-fee-payment" },
     { id: "ruleitem027", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน + TOR", note: "คู่มือการกรอกแบบฟอร์มฯ ฉบับปรับปรุง หน้า 47: จัดซื้อทุกรายการไม่ว่าราคาเท่าใด ต้องเสนอขอความเห็นชอบจากคณะกรรมการส่งเสริมและพัฒนางานวิจัยฯ ก่อนดำเนินการจัดซื้อเสมอ", evidenceChainId: "chain-equipment" },
+    { id: "ruleitem028", ruleVersionId: "ruleversion002", categoryName: "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)", rateType: "เหมาจ่าย", rateAmount: 800, unit: "วัน", requiredEvidenceType: "ใบรับรองการจ่ายเงิน (วจ.2)", note: "คู่มือฯ ปีงบประมาณ 2570: เลือกเหมาจ่าย 800 บาท/วันแทนการจ่ายตามจริงได้ ใช้เมื่อพักบ้านญาติหรือบ้านตนเองที่ต่างจังหวัด ไม่มีใบเสร็จค่าที่พัก หลักฐานคือใบรับรองการจ่ายเงิน (ตามที่เจ้าของโปรเจกต์ระบุ 2026-11-15 — ยังควรยืนยันกับฝ่ายการเงิน)", evidenceChainId: "chain-travel-flat-lodging" },
 
     // "ค่าตอบแทนคณะผู้วิจัย" ไม่มี ruleItem คู่กันโดยเจตนา — คู่มือฯ ปีงบประมาณ 2570 ระบุชัดว่าเป็นรายการ
     // ที่ "มหาวิทยาลัยไม่สนับสนุนให้ตั้งงบประมาณ" checkAgainstRules() จะคืน "ไม่เข้าเงื่อนไข" ให้เองเพราะ
@@ -184,6 +186,20 @@ window.RECEIPT_DATA = {
         { order: 5, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "voucher-vj1", "payment-cert-vj2"], note: "หลักฐานการจ่ายจริงต่อรายการ (ที่พัก/ตั๋ว/แท็กซี่/น้ำมัน) เลือกตามประเภทผู้รับเงิน" },
         { order: 6, timing: "with", required: false, documentTypeIds: ["id-card-copy"], note: "จำเป็นเฉพาะกรณีจ่ายเงินสดให้บุคคลด้วย วจ.1/วจ.2" },
         { order: 7, timing: "with", required: false, documentTypeIds: ["vehicle-registration-copy"], note: "จำเป็นเฉพาะกรณีเบิกค่าน้ำมัน/ระยะทางด้วยรถยนต์ส่วนตัว" },
+      ],
+      conditionalSteps: [],
+      attestations: [
+        { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
+      ],
+    },
+    {
+      id: "chain-travel-flat-lodging", chainName: "ค่าที่พักแบบเหมาจ่าย (เดินทางในประเทศ)",
+      steps: [
+        { order: 1, timing: "before", required: true, documentTypeIds: ["committee-pre-approval"], note: "ค่าเดินทางต้องได้รับอนุมัติก่อนเดินทาง (คู่มือฉบับปรับปรุง หน้า 3)" },
+        { order: 2, timing: "before", required: true, documentTypeIds: ["travel-approval-vj3"] },
+        { order: 3, timing: "before", required: true, documentTypeIds: ["hr-leave-form"] },
+        { order: 4, timing: "after", required: true, documentTypeIds: ["travel-report-vj4"] },
+        { order: 5, timing: "with", required: true, documentTypeIds: ["payment-cert-vj2"], note: "พักบ้านญาติ/บ้านตนเองไม่มีใบเสร็จค่าที่พัก ใช้ใบรับรองการจ่ายเงินแทน" },
       ],
       conditionalSteps: [],
       attestations: [
@@ -307,7 +323,7 @@ window.RECEIPT_DATA = {
     },
     {
       id: "receipt004", projectId: "project002", confirmedAmount: 1500, confirmedDate: "2026-08-23",
-      confirmedCategory: "ค่าที่พัก (เดินทางปฏิบัติงาน)", confirmedVendorName: "บริษัท ทัวร์แอนด์แทรเวล จำกัด",
+      confirmedCategory: "ค่าที่พัก (โรงแรม)", confirmedVendorName: "บริษัท ทัวร์แอนด์แทรเวล จำกัด",
       status: "ผ่าน", aiExplanation: "ใบเสร็จนี้ผ่านเกณฑ์เพราะอยู่ในหมวดที่อนุญาตและไม่เกินวงเงินที่กำหนด (฿1,800.00 / วัน) หมายเหตุ: คู่มือฯ ปีงบประมาณ 2570: จ่ายตามจริงไม่เกิน 1,800 บาท/วัน หรือเลือกเหมาจ่าย 800 บาท/วันแทนก็ได้ (เลือกวิธีใดวิธีหนึ่ง)",
       isExported: false,
     },
