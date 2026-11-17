@@ -76,7 +76,7 @@ window.RECEIPT_DATA = {
   ],
 
   ruleVersions: [
-    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.3", isActive: true, importedByUserId: "user001" },
+    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.4", isActive: true, importedByUserId: "user001" },
   ],
 
   // rateType: "เพดานตามจริง" (เบิกตามจริงไม่เกิน rateAmount) | "เหมาจ่าย" (จ่ายคงที่ rateAmount ต่อ unit)
@@ -122,7 +122,7 @@ window.RECEIPT_DATA = {
     { id: "ruleitem025", ruleVersionId: "ruleversion002", categoryName: "ค่าถ่ายเอกสาร", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "แบบเสนอโครงการ RS-01 ข้อ 17.2: ค่าบริการถ่ายเอกสาร ไม่มีเพดานระดับแหล่งทุน", evidenceChainId: "chain-fee-payment" },
     { id: "ruleitem026", ruleVersionId: "ruleversion002", categoryName: "ค่าจัดทำรูปเล่มรายงานวิจัย", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน", note: "แบบเสนอโครงการ RS-01 ข้อ 17.2: ค่าบริการจัดทำรูปเล่มรายงานวิจัยฯ ไม่มีเพดานระดับแหล่งทุน", evidenceChainId: "chain-fee-payment" },
     { id: "ruleitem027", ruleVersionId: "ruleversion002", categoryName: "ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม", rateType: "ตามข้อเสนอโครงการ", rateAmount: null, unit: null, requiredEvidenceType: "ใบเสร็จรับเงิน + TOR", note: "คู่มือการกรอกแบบฟอร์มฯ ฉบับปรับปรุง หน้า 47: จัดซื้อทุกรายการไม่ว่าราคาเท่าใด ต้องเสนอขอความเห็นชอบจากคณะกรรมการส่งเสริมและพัฒนางานวิจัยฯ ก่อนดำเนินการจัดซื้อเสมอ", evidenceChainId: "chain-equipment" },
-    { id: "ruleitem028", ruleVersionId: "ruleversion002", categoryName: "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)", rateType: "เหมาจ่าย", rateAmount: 800, unit: "วัน", requiredEvidenceType: "ใบรับรองการจ่ายเงิน (วจ.2)", note: "คู่มือฯ ปีงบประมาณ 2570: เลือกเหมาจ่าย 800 บาท/วันแทนการจ่ายตามจริงได้ ใช้เมื่อพักบ้านญาติหรือบ้านตนเองที่ต่างจังหวัด ไม่มีใบเสร็จค่าที่พัก หลักฐานคือใบรับรองการจ่ายเงิน (ตามที่เจ้าของโปรเจกต์ระบุ 2026-11-15 — ยังควรยืนยันกับฝ่ายการเงิน)", evidenceChainId: "chain-travel-flat-lodging" },
+    { id: "ruleitem028", ruleVersionId: "ruleversion002", categoryName: "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)", rateType: "เหมาจ่าย", rateAmount: 800, unit: "วัน", requiredEvidenceType: "ใบรับรองการจ่ายเงิน (วจ.2)", note: "คู่มือฯ ปีงบประมาณ 2570: เลือกเหมาจ่าย 800 บาท/วันแทนการจ่ายตามจริงได้ ใช้เมื่อพักบ้านญาติหรือบ้านตนเองที่ต่างจังหวัด ไม่มีใบเสร็จค่าที่พัก หลักฐานคือใบรับรองการจ่ายเงิน (วจ.2) อย่างเดียว (ฝ่ายการเงินยืนยัน 2026-11-17)", evidenceChainId: "chain-travel-flat-lodging" },
 
     // "ค่าตอบแทนคณะผู้วิจัย" ไม่มี ruleItem คู่กันโดยเจตนา — คู่มือฯ ปีงบประมาณ 2570 ระบุชัดว่าเป็นรายการ
     // ที่ "มหาวิทยาลัยไม่สนับสนุนให้ตั้งงบประมาณ" checkAgainstRules() จะคืน "ไม่เข้าเงื่อนไข" ให้เองเพราะ
@@ -155,7 +155,7 @@ window.RECEIPT_DATA = {
     { id: "timesheet-parttime-vj8", documentName: "แบบลงเวลาปฏิบัติงานผู้ช่วยวิจัย (นักศึกษาช่วยงาน) (วจ.8)", formCode: "วจ.8", requiredFields: ["วันเวลาเข้า-ออกรายครั้ง", "ภาระงานที่ปฏิบัติ", "ลายเซ็นผู้ปฏิบัติงาน", "ลายเซ็นผู้รับรองการทำงาน", "ลายเซ็นหัวหน้าโครงการ"], validityChecks: ["ระบุเดือนที่ดำเนินการเพียง 1 เดือนต่อคนต่อฉบับ"], sourceExcerpt: "ใช้ประกอบการเบิกค่าตอบแทนนักศึกษาช่วยงาน (part-time)" },
     { id: "tax-invoice-full", documentName: "ใบเสร็จรับเงิน/ใบกำกับภาษีเต็มรูปแบบ", formCode: "-", requiredFields: ["เลขประจำตัวผู้เสียภาษีอากร (13 หลัก)", "ชื่อ-ที่อยู่ผู้ขาย", "เลขที่เอกสารและวันที่", "รายการ+ปริมาณ+ราคาต่อหน่วย", "ภาษีมูลค่าเพิ่มแยกแสดง", "ยอดรวมสุทธิ", "ตราประทับจ่ายแล้ว"], validityChecks: ["กรณีซื้อสินค้า/บริการต้องมีตราประทับตรวจรับพัสดุ ลงนามโดยหัวหน้าโครงการเพิ่มด้วย", "ต้องเป็นใบเสร็จรับเงิน — ใบกำกับสินค้า/ใบส่งของ/ใบแจ้งหนี้อย่างเดียวใช้เบิกไม่ได้ (คู่มือฉบับปรับปรุง หน้า 40)"], sourceExcerpt: "รูปแบบใบเสร็จมาตรฐานสำหรับร้านค้า/บริษัทที่จดทะเบียนภาษีมูลค่าเพิ่ม" },
     { id: "tax-invoice-abbreviated", documentName: "ใบกำกับภาษีอย่างย่อ", formCode: "-", requiredFields: ["เลขประจำตัวผู้เสียภาษีอากร", "รายการและจำนวนเงิน", "วันที่"], validityChecks: ["ค่าไปรษณีย์: แนบใบรับรองการจ่ายเงิน และสำเนาใบเสร็จที่ลงนามรับรองสำเนาถูกต้อง เพราะต้นฉบับเป็นกระดาษคาร์บอนที่ตัวอักษรเลือนได้ (คู่มือฉบับปรับปรุง หน้า 41)"], sourceExcerpt: "เช่น ใบเสร็จค่าไปรษณีย์ — ถ้าไม่มีรายละเอียดสินค้าครบ ต้องแนบใบกำกับภาษี/ใบส่งของ/ใบแจ้งหนี้ประกอบเพิ่ม" },
-    { id: "procurement-committee-cert", documentName: "ใบตรวจรับพัสดุ (กรรมการ 3 คน)", formCode: "-", requiredFields: ["ลายเซ็นกรรมการตรวจรับอย่างน้อย 3 คน"], validityChecks: [], sourceExcerpt: "บังคับเฉพาะกรณีซื้อ/จ้างเกิน 100,000 บาท — แทนที่การลงนามคนเดียวของหัวหน้าโครงการตามปกติ" },
+    { id: "procurement-committee-cert", documentName: "ใบตรวจรับพัสดุ (กรรมการ 3 คน)", formCode: "-", requiredFields: ["ลายเซ็นกรรมการตรวจรับอย่างน้อย 3 คน"], validityChecks: [], sourceExcerpt: "บังคับเฉพาะกรณีซื้อ/จ้างเกิน 100,000 บาท — แทนที่การลงนามคนเดียวของหัวหน้าโครงการตามปกติ (คู่มือฉบับปรับปรุง หน้า 37; ฝ่ายการเงินยืนยัน 2026-11-17 ว่าไม่ต้องใช้ทุกครั้ง ตัวอย่างหน้า 50 ที่มีกรรมการ 3 คนเป็นเพียงตัวอย่าง)" },
     { id: "attendee-signin-sheet", documentName: "รายชื่อผู้เข้าร่วมกิจกรรมพร้อมลายมือชื่อ", formCode: "-", requiredFields: ["ชื่อ-นามสกุลผู้เข้าร่วมทุกคน", "ลายมือชื่อผู้เข้าร่วมทุกคน", "วันที่และชื่อกิจกรรม"], validityChecks: [], sourceExcerpt: "แนบคู่กับค่าอาหารว่าง/ค่าตอบแทนวิทยากรของกิจกรรมกลุ่ม (ประชุม/อบรม/สัมภาษณ์กลุ่ม)" },
     // เพิ่ม 2026-11-15 ตามคู่มือฉบับปรับปรุง
     { id: "committee-pre-approval", documentName: "หนังสืออนุมัติจากคณะกรรมการส่งเสริมและพัฒนางานวิจัยฯ (ก่อนดำเนินการ)", formCode: "-", requiredFields: ["รายการที่ขออนุมัติ", "วันที่อนุมัติ (ก่อนวันดำเนินการ)"], validityChecks: ["วันที่อนุมัติต้องก่อนวันที่ดำเนินการ/จ่ายเงินจริง", "รายการที่ไม่อยู่ในข้อเสนอโครงการต้องขออนุมัติเพิ่มรายการ"], sourceExcerpt: "ค่าตอบแทน ค่าจ้างเหมาที่มี TOR ค่าเดินทาง และงบครุภัณฑ์ ต้องได้รับอนุมัติก่อนการดำเนินการทุกกรณี (คู่มือฉบับปรับปรุง หน้า 3, 47–48)" },
@@ -199,7 +199,7 @@ window.RECEIPT_DATA = {
         { order: 2, timing: "before", required: true, documentTypeIds: ["travel-approval-vj3"] },
         { order: 3, timing: "before", required: true, documentTypeIds: ["hr-leave-form"] },
         { order: 4, timing: "after", required: true, documentTypeIds: ["travel-report-vj4"] },
-        { order: 5, timing: "with", required: true, documentTypeIds: ["payment-cert-vj2"], note: "พักบ้านญาติ/บ้านตนเองไม่มีใบเสร็จค่าที่พัก ใช้ใบรับรองการจ่ายเงินแทน" },
+        { order: 5, timing: "with", required: true, documentTypeIds: ["payment-cert-vj2"], note: "พักบ้านญาติ/บ้านตนเองไม่มีใบเสร็จค่าที่พัก ใช้ใบรับรองการจ่ายเงิน (วจ.2) แทนได้เลย (ฝ่ายการเงินยืนยัน 2026-11-17)" },
       ],
       conditionalSteps: [],
       attestations: [
@@ -239,7 +239,7 @@ window.RECEIPT_DATA = {
         { order: 2, timing: "with", required: true, documentTypeIds: ["inspection-photos"] },
       ],
       conditionalSteps: [
-        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม แทนหัวหน้าโครงการคนเดียว" } },
+        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม แทนหัวหน้าโครงการคนเดียว (ไม่เกินแสนไม่ต้องใช้ — ฝ่ายการเงินยืนยัน 2026-11-17)" } },
       ],
       attestations: [
         { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
@@ -256,7 +256,7 @@ window.RECEIPT_DATA = {
         { order: 5, timing: "with", required: false, documentTypeIds: ["inspection-photos"], note: "แนบเมื่องานจ้างมีชิ้นงานให้ตรวจรับ (คู่มือฉบับปรับปรุง หน้า 49)" },
       ],
       conditionalSteps: [
-        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "จ้างเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม" } },
+        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "จ้างเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม (ไม่เกินแสนไม่ต้องใช้ — ฝ่ายการเงินยืนยัน 2026-11-17)" } },
       ],
       attestations: [
         { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
@@ -271,7 +271,7 @@ window.RECEIPT_DATA = {
         { order: 3, timing: "with", required: true, documentTypeIds: ["inspection-photos"] },
       ],
       conditionalSteps: [
-        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม" } },
+        { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม (ไม่เกินแสนไม่ต้องใช้ — ฝ่ายการเงินยืนยัน 2026-11-17)" } },
       ],
       attestations: [
         { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },

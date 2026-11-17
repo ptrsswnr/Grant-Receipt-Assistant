@@ -257,7 +257,7 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - ค่าวัสดุโปรแกรมคอมพิวเตอร์/ค่าลิขสิทธิ์โปรแกรม, split out from computer materials because software needs pre-approval.
   
   The 17.2 importer's matcher (`budget-parser.js`) now maps every official item.
-- **Open question for finance, deliberately not encoded:** p.50's example shows a 3-person inspection committee and an inspection form for a ฿3,243 chemicals purchase, but p.37 frames the 3-signature rule as applying above ฿100,000. The ฿100,000 conditional step is kept until finance confirms.
+- **3-person inspection committee — confirmed by finance 2026-11-17:** required only above ฿100,000 (p.37). The p.50 example with a 3-person committee on a ฿3,243 purchase is just an example. The ฿100,000 conditional step stays as is.
 - **Live Firestore** gets these only when an admin presses "อัปเดตเฉพาะระเบียบ/กฎ" on `seed.html`.
 
 ### Rate × quantity check, fuel and lodging corrections — 2026-11-15 (engine 1.3.0, rule set 2570.3)
@@ -274,7 +274,7 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
 - **Fuel (`ruleitem016`/`017`):** changed to `ตามข้อเสนอโครงการ`. The manual says ฿1,500/฿2,000 per vehicle-day is for budgeting only, and actual reimbursement follows the receipt. It was previously, and wrongly, used as a cap.
 - **Lodging split into two categories:**
   - "ค่าที่พัก (โรงแรม)" (`ruleitem012`): actual cost ≤ ฿1,800/day, receipt required.
-  - "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)" (`ruleitem028`): flat ฿800/day. It uses the new `chain-travel-flat-lodging`, whose payment step is a payment certificate (วจ.2) instead of a receipt. The owner said this "น่าจะ" (probably) applies, so it still needs confirming with finance.
+  - "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)" (`ruleitem028`): flat ฿800/day. It uses the new `chain-travel-flat-lodging`, whose payment step is a payment certificate (วจ.2) instead of a receipt. Finance confirmed on 2026-11-17 that วจ.2 alone is enough (rule set 2570.4 records this in the notes; no logic change).
   - The importer guesses hotel unless the item mentions เหมาจ่าย or บ้านญาติ.
 - **Wording when a check can't run (engine 1.3.1):** the owner said every expense must follow the approved estimate. So instead of "can't auto-verify, ask finance", the explanation tells the researcher to upload the estimate file (no estimate yet), or to re-upload it with the multiplier filled in (line has no quantity). `explain()` now always appends unverified findings at the end; before, the "no estimate" note was dropped for capped categories.
 
