@@ -1,80 +1,90 @@
 # Detailed Design — Dashboard สรุปภาพรวมใบเสร็จของโครงการ
 
 > การออกแบบระดับ component สำหรับ [[feature-list#5. Dashboard สรุปภาพรวมใบเสร็จของโครงการ|ฟีเจอร์ที่ 5]]
-> แปลงจาก [[user-journey#Journey 2: นักวิจัยติดตามภาพรวมโครงการและจัดการใบเสร็จที่มีปัญหาผ่าน Dashboard และการแจ้งเตือน|Journey 2 ขั้นตอนที่ 3]]
-> อ้างอิง operation จริงจาก [[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard)|OP-08]] เท่านั้น
->
-> **หมายเหตุชื่อไฟล์**: ไฟล์นี้ยังคงใช้ชื่อ `fund-dashboard.md` (ไม่เปลี่ยนเป็น `project-dashboard.md`)
-> เพื่อให้ตรงกับ slug ที่ `test-writer` ใช้ตั้งชื่อไฟล์ test case ของฟีเจอร์เดียวกันแล้ว
-> (`docs/03-testing/01-test-plan/test-cases/fund-dashboard.md`) — เนื้อหาภายในสะท้อนโมเดลข้อมูล
-> ปัจจุบัน (Project ไม่ใช่ Fund) ทั้งหมด
+> แปลงจาก [[user-journey#Journey 2: นักวิจัยติดตามภาพรวมโครงการและจัดการใบเสร็จที่มีปัญหาผ่าน Dashboard และการแจ้งเตือน|Journey 2]]
+> อ้างอิง operation จริง: OP-08 (เป้าหมาย), OP-26 (ใช้แทนบางส่วนปัจจุบัน), OP-18, OP-05
+> test case: [[03-testing/01-test-plan/test-cases/fund-dashboard|fund-dashboard]]
 
-## 0. สถานะเอกสารนี้
+## 0. สถานะเอกสารและสถานะการสร้าง
 
-- สร้างครั้งแรกเมื่อ 2026-08-23 ครอบคลุม FR-08, FR-21 (ส่วน `canExport` flag) ตามที่
-  [[feature-list#5. Dashboard สรุปภาพรวมใบเสร็จของโครงการ|ฟีเจอร์ที่ 5]] กำหนดไว้
-- **อัปเดต 2026-09-03 (sync กับ [[architecture]]/[[api-spec]]/[[db-spec]] รอบแก้ไขโมเดลข้อมูล FR-23):**
-  เดิม operation นี้รับ `fundId` และตรวจสอบเจ้าของผ่าน `Fund.ownerUserId` — แก้เป็น **`projectId`**
-  และตรวจสอบผ่าน `Project.ownerUserId` แทน ปรับรหัส entity ให้ตรงกับ [[db-spec]] ที่จัดเรียงใหม่
-  (Receipt = E-04, Project = E-03) เปลี่ยนคำเรียกบทบาทเป็น "นักวิจัย/เจ้าของโครงการ"
+- **เขียนใหม่ 2026-11-17** (ของเดิมนับสถานะ 3 ระดับและมี "รอผลตรวจ") ชื่อไฟล์ `fund-dashboard` คงเดิมเพราะตรงกับ test case ทั้งที่ฟีเจอร์เป็น Dashboard ระดับ**โครงการ**
+
+| ส่วน | Operation | สถานะ |
+|---|---|---|
+| Dashboard จำนวนใบเสร็จตามสถานะ 4 ระดับ + `canExport` | OP-08 | **Backlog** (FR-08 ยังไม่ได้สร้าง) |
+| ยอดใช้ไป/คงเหลือ/% รายรายการประมาณการ (ใช้แทนบางส่วนปัจจุบัน) | OP-26 | สร้างแล้ว |
+| หน้ารายการใบเสร็จรายโครงการของนักวิจัย | OP-40 ดูรายการใบเสร็จของตนเอง (ทั้งหมด/รายโครงการ) | สร้างแล้ว |
+| Dashboard ข้ามผู้ใช้ของ Admin | OP-30 | สร้างแล้ว (ดู [[02-design/02-technical/detailed-design/admin-dashboard\|admin-dashboard]]) |
 
 ## 1. ภาพรวม
 
-ฟีเจอร์นี้มี operation เดียวคือ [[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard)|OP-08]]
-เป็น **read-only aggregation** ทั้งหมด — นับจำนวนใบเสร็จของโครงการวิจัยหนึ่งโครงการแยกตามสถานะ และ
-คำนวณ flag `canExport` (จริง เมื่อมีใบเสร็จ `status` = "ผ่าน" อย่างน้อย 1 ใบ) เพื่อควบคุมว่าปุ่ม Export
-ของ [[export-verified-report]] ใช้งานได้หรือไม่ (เชื่อม FR-21)
+นักวิจัยเลือกโครงการของตน แล้วเห็นจำนวนใบเสร็จตามสถานะ ผ่าน / ต้องแก้ไข / ต้องชี้แจง-ขออนุมัติ / ไม่เข้าเงื่อนไข และสถานะปุ่ม Export (ฟีเจอร์ที่ 7)
+ไม่มีสถานะ "รอ OCR/รอตรวจทาน/รอผลตรวจ" เพราะไม่บันทึกถาวร ข้อมูลทั้งหมดคำนวณจาก `Receipt.status` ไม่มี entity เก็บสรุป
+Component: Client, Primary Data Store
 
-Component ที่เกี่ยวข้อง: Client, Backend Service, Primary Data Store
-
-## 2. Sequence Diagram
+## 2. Sequence Diagram (เป้าหมาย OP-08)
 
 ```mermaid
 sequenceDiagram
-    actor R as นักวิจัย/เจ้าของโครงการ
+    actor R as นักวิจัย
     participant C as Client
-    participant B as Backend Service
     participant DS as Primary Data Store
 
-    R->>C: เปิด Dashboard ของโครงการวิจัยที่ต้องการดู
-    C->>B: OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (projectId)
-    B->>DS: ตรวจสอบเจ้าของ projectId (กฎ cross-cutting — ดู [[access-control]])
+    R->>C: เปิด Dashboard เลือกโครงการ
+    C->>DS: OP-18 ดูรายการโครงการของตนเอง
+    DS-->>C: รายการ Project
+    R->>C: เลือก projectId
+    C->>DS: OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ
     alt projectId ไม่ใช่ของผู้เรียก
-        B-->>C: ปฏิเสธ (กฎ cross-cutting)
-    else เป็นเจ้าของจริง
-        DS-->>B: จำนวน Receipt แยกตาม status ทั้งหมดของโครงการนี้
-        B->>B: คำนวณ canExport = จริง เมื่อมี status = "ผ่าน" อย่างน้อย 1 ใบ
-        B-->>C: แสดงจำนวนแยกตามสถานะ + canExport flag
+        DS-->>C: ปฏิเสธ
+    else เป็นเจ้าของ
+        DS->>DS: นับ Receipt ของโครงการตาม status 4 ค่า
+        DS-->>C: จำนวนต่อสถานะ (ไม่มีใบเสร็จ = 0 ทุกสถานะ) + canExport
+        C-->>R: แสดงจำนวนด้วยสี ไอคอน ข้อความ
+        opt เจาะดูรายการ
+            R->>C: เลือกสถานะหรือใบเสร็จ
+            C->>DS: OP-40 ดูรายการใบเสร็จรายโครงการ แล้ว OP-05 ดูรายละเอียดผลตรวจ
+        end
     end
 ```
 
 ## 3. Operation ↔ Entity ที่กระทบ
 
-| Operation | Entity ที่กระทบ | การกระทำ | ลำดับ/เงื่อนไข |
+| Operation | Entity | การกระทำ | เงื่อนไข |
 |---|---|---|---|
-| [[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard)\|OP-08]] | [[db-spec#E-03 โครงการวิจัย (Project)\|Project]] (E-03) | อ่าน (`ownerUserId`) | ตรวจสอบเจ้าของก่อนคืนข้อมูล (กฎ cross-cutting) — ไม่ใช่ผ่าน `Fund` อีกต่อไป |
-| OP-08 | [[db-spec#E-04 ใบเสร็จ (Receipt)\|Receipt]] (E-04) | อ่าน (`status` ทุก record ของโครงการนี้) | นับจำนวนแยกตามสถานะ — ไม่มีการแก้ไข entity ใดในฟีเจอร์นี้ |
+| [[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard ของนักวิจัย)\|OP-08]] | Project (E-03) | อ่านตรวจเจ้าของ | `ownerUserId` = ผู้เรียก |
+| OP-08 | Receipt (E-04) | อ่านนับตาม `status` | `canExport` = จริงเมื่อมี "ผ่าน" ≥ 1 (เชื่อม FR-21) |
+| [[api-spec#OP-26 ดูสรุปยอดใช้ไป/คงเหลือ/% รายรายการ\|OP-26]] | EstimateLine (E-16), Receipt (E-04) | อ่าน | ใช้ติดตามยอดประมาณการ ดู [[02-design/02-technical/detailed-design/budget-estimate-check\|budget-estimate-check]] |
+| [[api-spec#OP-18 ดูรายการโครงการวิจัยของตนเอง\|OP-18]] | Project, FundSource | อ่าน | เลือกโครงการ |
 
-## 4. State Diagram
+## 4. State Diagram — ปุ่ม Export (ค่าที่คำนวณจากสถานะ)
 
-ไม่มี — ฟีเจอร์นี้เป็น read-only aggregation ทั้งหมด ไม่มีการเปลี่ยนแปลงสถานะของ entity ใดๆ
+ฟีเจอร์นี้ไม่มีสถานะของ entity เอง สถานะที่เปลี่ยนคือค่า `canExport` ที่คำนวณทุกครั้งที่เรียก OP-08
+
+```mermaid
+stateDiagram-v2
+    [*] --> Export_ปิด : ไม่มีใบเสร็จผ่าน
+    Export_ปิด --> Export_เปิด : มีใบเสร็จ ผ่าน อย่างน้อย 1 ใบ
+    Export_เปิด --> Export_ปิด : ใบเสร็จผ่านใบสุดท้ายถูกลบ (OP-17)
+```
 
 ## 5. Edge Case และวิธีจัดการ
 
 | # | Edge Case | วิธีจัดการ | อ้างอิง |
 |---|---|---|---|
-| 1 | `projectId` ไม่ใช่ของผู้เรียก | ปฏิเสธ (กฎ cross-cutting) | [[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard)\|OP-08]] |
-| 2 | โครงการที่ยังไม่มีใบเสร็จเลย | แสดงจำนวนทุกสถานะเป็น 0 ไม่ใช่ error | FR-08 AC-2 |
-| 3 | โครงการมีใบเสร็จหลายสถานะปนกัน | แสดงจำนวนแยกตามสถานะให้ถูกต้องตรงกับข้อมูลจริง | FR-08 AC-1 |
-| 4 | ยังไม่มีใบเสร็จสถานะ "ผ่าน" เลย | `canExport` = เท็จ — ปิดปุ่ม Export ที่ [[export-verified-report]] | FR-21 AC-1 |
+| 1 | โครงการยังไม่มีใบเสร็จ | แสดง 0 ทุกสถานะ ไม่ใช่ error `canExport` = เท็จ | OP-08 |
+| 2 | `projectId` ไม่ใช่ของผู้เรียก | ปฏิเสธ | OP-08 |
+| 3 | Admin ต้องการภาพรวมข้ามคน | ไม่ใช้ OP-08 ใช้ OP-30 (อ่านอย่างเดียว) | FR-33 |
+| 4 | โครงการผูกแหล่งทุนที่ปิดใช้งาน (FR-35) | ยังแสดงชื่อแหล่งทุนปกติ ตัวเลขไม่เปลี่ยน | OP-18 |
+| 5 | ใบเสร็จเก่าไม่มีข้อมูลย้อนรอย | นับจาก `Receipt.status` ได้ตามปกติ | db-spec E-04 |
+| 6 | ใบเสร็จถูกลบระหว่างเปิดหน้า | คำนวณใหม่เมื่อเรียกครั้งถัดไป ไม่มี cache ที่ระบุใน spec | OP-17 |
+
+## 6. ช่องว่าง api-spec/db-spec ที่พบ
+
+- ไม่มีช่องว่างค้าง: G-1 ปิดแล้วด้วย **OP-40 ดูรายการใบเสร็จของตนเอง (ทั้งหมด/รายโครงการ)** (สร้างแล้ว) เป็นจุดเริ่มของ OP-05, OP-17, OP-06, OP-07
+  ขั้น "เปิดรายการใบเสร็จ" ในเอกสาร detailed-design ทั้งหมดคือ OP-40 (นักวิจัยเจาะดูรายใบจาก OP-40 แล้วเรียก OP-05)
 
 ## เอกสารที่เกี่ยวข้อง
 
-- [[feature-list#5. Dashboard สรุปภาพรวมใบเสร็จของโครงการ|feature-list ฟีเจอร์ที่ 5]]
-- [[user-journey#Journey 2: นักวิจัยติดตามภาพรวมโครงการและจัดการใบเสร็จที่มีปัญหาผ่าน Dashboard และการแจ้งเตือน|user-journey Journey 2]]
-- [[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard)|api-spec OP-08]]
-- [[db-spec#E-04 ใบเสร็จ (Receipt)|db-spec E-04]], [[db-spec#E-03 โครงการวิจัย (Project)|E-03]]
-- [[pending-issue-notification]] — ฟีเจอร์ที่เกี่ยวข้องกัน (แจ้งเตือนจากสถานะเดียวกัน)
-- [[export-verified-report]] — ใช้ `canExport` flag จากฟีเจอร์นี้
-- [[access-control]] — กฎ cross-cutting เรื่องเจ้าของ `projectId`
-- test case: `docs/03-testing/01-test-plan/test-cases/fund-dashboard.md`
+- [[feature-list#5. Dashboard สรุปภาพรวมใบเสร็จของโครงการ|feature-list ฟีเจอร์ที่ 5]], [[user-journey#Journey 2: นักวิจัยติดตามภาพรวมโครงการและจัดการใบเสร็จที่มีปัญหาผ่าน Dashboard และการแจ้งเตือน|Journey 2]], [[api-spec]], [[db-spec]]
+- [[02-design/02-technical/detailed-design/export-verified-report|export-verified-report]], [[02-design/02-technical/detailed-design/pending-issue-notification|pending-issue-notification]], [[02-design/02-technical/detailed-design/admin-dashboard|admin-dashboard]]

@@ -2,106 +2,90 @@
 
 > การออกแบบระดับ component สำหรับ [[feature-list#7. Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว|ฟีเจอร์ที่ 7]]
 > แปลงจาก [[user-journey#Journey 3: นักวิจัย Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้วเพื่อยื่นเจ้าหน้าที่การเงิน|Journey 3]]
-> อ้างอิง operation จริงจาก [[api-spec#OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว|OP-10]] เท่านั้น
-> (ใช้ผลลัพธ์ `canExport` จาก [[fund-dashboard]]/[[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard)|OP-08]])
+> อ้างอิง operation จริง: OP-08 (`canExport`), OP-10, OP-17 (ผลของ `isExported`)
+> test case: [[03-testing/01-test-plan/test-cases/export-verified-report|export-verified-report]]
 
-## 0. สถานะเอกสารนี้
+## 0. สถานะเอกสารและสถานะการสร้าง
 
-- สร้างครั้งแรกเมื่อ 2026-08-23 ครอบคลุม FR-10, FR-21 ตามที่
-  [[feature-list#7. Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว|ฟีเจอร์ที่ 7]] กำหนดไว้
-- **อัปเดต 2026-09-03 (sync กับ [[architecture]]/[[api-spec]]/[[db-spec]] รอบแก้ไขโมเดลข้อมูล FR-23):**
-  เดิม OP-10 รับ `fundId` และตรวจสอบเจ้าของผ่าน `Fund.ownerUserId` — แก้เป็น **`projectId`** และ
-  ตรวจสอบผ่าน `Project.ownerUserId` แทน (export เป็นรายโครงการวิจัย) ปรับรหัส entity ให้ตรงกับ
-  [[db-spec]] ที่จัดเรียงใหม่ (Receipt = E-04, ExportBatch = E-12, ExportBatchReceipt = E-13)
-  เปลี่ยนคำเรียกบทบาทเป็น "นักวิจัย/เจ้าของโครงการ"
+- **สถานะฟีเจอร์: Backlog ทั้งหมด** (FR-10, FR-21 ยังไม่ได้สร้าง) **ปรับ 2026-11-17** ให้ตรงมติสถาปัตยกรรมผสม: Export ทำที่ **Client** ภายใต้กฎสิทธิ์ของที่เก็บข้อมูลหลัก
+  (ไม่ใช่ Trusted Server Service) ปรับเฉพาะถ้อยคำสถานะ 4 ระดับและ component
+
+| Operation | สถานะ |
+|---|---|
+| OP-08 ดูภาพรวม (ใช้ `canExport`) | Backlog |
+| OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว | Backlog |
 
 ## 1. ภาพรวม
 
-ฟีเจอร์นี้มี operation เดียวคือ [[api-spec#OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว|OP-10]] —
-สร้าง `ExportBatch` ใหม่พร้อม `ExportBatchReceipt` รวม `Receipt` ทุกใบที่ `status` = "ผ่าน" ของ
-โครงการวิจัยนั้น ณ ขณะ export (รวมใบเก่าที่เคย export แล้วด้วยเสมอ ไม่ใช่แค่ใบใหม่) แล้วล็อกใบเสร็จ
-เหล่านั้นไม่ให้ลบเองผ่าน UI ต่อจากนี้ (เชื่อมกับ [[right-to-erasure]]) — ปุ่ม Export ถูกปิดตั้งแต่ระดับ
-UI (จาก `canExport` ของ [[fund-dashboard]]) ถ้ายังไม่มีใบเสร็จสถานะผ่านเลย ไม่ปล่อยให้เรียก operation
-นี้ได้เลย
-
-Component ที่เกี่ยวข้อง: Client, Backend Service, Primary Data Store
+เจ้าหน้าที่การเงินไม่ใช่ user ของระบบ เป็นเพียงผู้รับไฟล์ที่ดาวน์โหลดออกไปนอกระบบ ปุ่ม Export ปิดไว้จนกว่าจะมีใบเสร็จ "ผ่าน" ≥ 1 ใบ (FR-21)
+หลัง Export ใบเสร็จที่ถูกรวม `isExported` เป็นจริงถาวรและเป็นเงื่อนไขล็อกการลบเองรายใบ (ฟีเจอร์ที่ 12)
+Component: Client, Primary Data Store (รูปแบบไฟล์รายงานยังเป็น open point — [[db-spec]] 5.2)
 
 ## 2. Sequence Diagram
 
 ```mermaid
 sequenceDiagram
-    actor R as นักวิจัย/เจ้าของโครงการ
+    actor R as นักวิจัย
     participant C as Client
-    participant B as Backend Service
     participant DS as Primary Data Store
 
-    R->>C: เข้าสู่ระบบ เลือกโครงการวิจัยที่ต้องการยื่น
-    C->>B: OP-08 ขอสถานะใบเสร็จของโครงการ (ดู [[fund-dashboard]])
-    B-->>C: canExport flag
-    alt canExport = เท็จ (ไม่มีใบเสร็จสถานะผ่านเลย)
-        C-->>R: ปุ่ม Export ถูกปิดการใช้งาน พร้อมข้อความแจ้งเหตุผล (FR-21 AC-1) — กลับไปแก้ไขใบเสร็จก่อน
-    else canExport = จริง
-        R->>C: กด Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว
-        C->>B: OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว (projectId)
-        B->>DS: ตรวจสอบเจ้าของ projectId (กฎ cross-cutting)
-        alt projectId ไม่ใช่ของผู้เรียก
-            B-->>C: ปฏิเสธ (กฎ cross-cutting)
-        else ไม่มีใบเสร็จสถานะผ่านเลย (race condition — สถานะเปลี่ยนไปตั้งแต่เปิดหน้าจนถึงกด Export)
-            B-->>C: ปฏิเสธพร้อมข้อความอธิบายเหตุผล (FR-21 AC-1)
-        else มีใบเสร็จสถานะผ่านอย่างน้อย 1 ใบ
-            B->>DS: รวบรวม Receipt ทุกใบ status = "ผ่าน" ของโครงการนี้ ณ ขณะนี้ (รวมใบที่เคย export แล้วด้วย)
-            B->>DS: สร้าง ExportBatch ใหม่ (projectId, fileReference, exportedByUserId, exportedAt)
-            B->>DS: สร้าง ExportBatchReceipt ต่อ Receipt ที่รวมทุกใบ
-            B->>DS: ตั้ง Receipt.isExported = จริง + firstExportedAt (ถ้ายังไม่เคยมีค่า) ให้ทุกใบที่รวมใน batch นี้
-            DS-->>B: บันทึกสำเร็จ + ไฟล์รายงานพร้อม
-            B-->>C: ส่งไฟล์ให้ดาวน์โหลด (FR-10 AC-1)
-            C-->>R: ดาวน์โหลดไฟล์ นำไปยื่นเจ้าหน้าที่การเงินของมหาวิทยาลัยเอง (นอกระบบ)
+    R->>C: เปิดหน้า Export ของโครงการ
+    C->>DS: OP-08 ขอ canExport
+    DS-->>C: canExport
+    alt canExport เป็นเท็จ (ไม่มีใบเสร็จผ่าน)
+        C-->>R: ปิดปุ่ม Export พร้อมเหตุผล ยังไม่มีใบเสร็จที่ผ่านการตรวจ
+    else เป็นจริง
+        R->>C: กด Export
+        C->>DS: OP-10 projectId
+        alt ไม่ใช่เจ้าของโครงการ หรือไม่มีใบเสร็จผ่าน
+            DS-->>C: ปฏิเสธพร้อมเหตุผล
+        else ผ่าน
+            DS->>DS: รวม Receipt ที่ status เป็น ผ่าน ทั้งหมดของโครงการ
+            DS->>DS: สร้าง ExportBatch และ ExportBatchReceipt ต่อใบเสร็จ
+            DS->>DS: ตั้ง Receipt.isExported เป็นจริง และ firstExportedAt ถ้ายังไม่มี
+            DS-->>C: fileReference ของรายงาน
+            C-->>R: ดาวน์โหลดไฟล์ไปยื่นเจ้าหน้าที่การเงินเอง
         end
     end
 ```
 
 ## 3. Operation ↔ Entity ที่กระทบ
 
-| Operation | Entity ที่กระทบ | การกระทำ | ลำดับ/เงื่อนไข |
+| Operation | Entity | การกระทำ | ลำดับ/เงื่อนไข |
 |---|---|---|---|
-| [[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard)\|OP-08]] | [[db-spec#E-04 ใบเสร็จ (Receipt)\|Receipt]] (E-04) | อ่าน (`canExport` คำนวณจาก `status`) | เกิดก่อน OP-10 เสมอ เพื่อควบคุมปุ่ม Export ที่ UI |
-| [[api-spec#OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว\|OP-10]] | [[db-spec#E-03 โครงการวิจัย (Project)\|Project]] (E-03) | อ่าน (`ownerUserId`) | ตรวจสอบเจ้าของก่อนดำเนินการ (กฎ cross-cutting) — ไม่ใช่ผ่าน `Fund` อีกต่อไป |
-| OP-10 | Receipt (E-04) | อ่าน (`status` = "ผ่าน" ทุกใบของโครงการนี้) แล้วแก้ไข (`isExported`, `firstExportedAt`) | รวบรวมก่อน แล้วล็อกทุกใบที่รวมในการดำเนินการเดียวกัน — `isExported` เปลี่ยนทางเดียว (db-spec กฎข้อ 4) |
-| OP-10 | [[db-spec#E-12 รอบการ Export (ExportBatch)\|ExportBatch]] (E-12) | สร้าง | 1 record ต่อการกด Export 1 ครั้ง (`projectId` — ไม่ใช่ `fundId` อีกต่อไป) |
-| OP-10 | [[db-spec#E-13 ใบเสร็จในรอบ Export (ExportBatchReceipt)\|ExportBatchReceipt]] (E-13) | สร้าง (N records) | ผูกกับ `ExportBatch` ที่สร้างในคำขอเดียวกัน — ใบเสร็จหนึ่งใบอาจถูกรวมได้หลายรอบ |
+| [[api-spec#OP-08 ดูภาพรวมสถานะใบเสร็จของโครงการ (Dashboard ของนักวิจัย)\|OP-08]] | Receipt (E-04) | อ่านนับ "ผ่าน" | ได้ `canExport` |
+| [[api-spec#OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว\|OP-10]] | Project (E-03) | อ่านตรวจเจ้าของ | ก่อนสุด |
+| OP-10 | Receipt (E-04) | อ่านที่ `status` = "ผ่าน" แล้วแก้ `isExported`, `firstExportedAt` | `isExported` เปลี่ยนเป็นจริงได้ทางเดียว (db-spec กฎข้อ 4) |
+| OP-10 | ExportBatch (E-12) | สร้าง (`projectId`, `exportedByUserId`, `exportedAt`, `fileReference`) | หนึ่ง record ต่อการกด Export |
+| OP-10 | ExportBatchReceipt (E-13) | สร้างต่อใบเสร็จที่รวม | ลำดับ: ExportBatch ก่อน แล้ว ExportBatchReceipt |
 
-## 4. State Diagram
+## 4. State Diagram — Receipt.isExported
 
 ```mermaid
 stateDiagram-v2
-    state "isExported = เท็จ" as s_notexported
-    state "isExported = จริง" as s_exported
-
-    [*] --> s_notexported : Receipt ถูกสร้าง (ค่าตั้งต้น — ดู [[receipt-upload-ocr]])
-    s_notexported --> s_exported : OP-10 export สำเร็จ (เมื่อ Receipt.status = "ผ่าน" และถูกรวมใน batch)
-    s_exported --> s_exported : OP-10 ครั้งถัดไป (ยังคง "จริง" — เปลี่ยนทางเดียวเท่านั้น, db-spec กฎข้อ 4)
+    state "ยังไม่ export" as notExported
+    state "export แล้ว" as exported
+    [*] --> notExported : สร้างใบเสร็จ (isExported เท็จ)
+    notExported --> exported : OP-10 รวมใบเสร็จผ่านเข้า ExportBatch
+    exported --> exported : export รอบถัดไปรวมซ้ำได้
+    exported --> [*] : ลบทั้งแถวได้เฉพาะถอนความยินยอม (OP-35)
 ```
 
-> หมายเหตุ: `isExported` เปลี่ยนกลับเป็นเท็จไม่ได้ ยกเว้น record ถูกลบทั้งแถวไปเลย (กรณีถอนความยินยอม
-> ทั้งหมด — ดู [[consent-management]])
+`isExported` ห้ามกลับเป็นเท็จ การลบรายใบ (OP-17) ถูกล็อกเมื่อเป็นจริง
 
 ## 5. Edge Case และวิธีจัดการ
 
 | # | Edge Case | วิธีจัดการ | อ้างอิง |
 |---|---|---|---|
-| 1 | ยังไม่มีใบเสร็จสถานะ "ผ่าน" เลย | ปิดปุ่ม Export ที่ระดับ UI ตั้งแต่ [[fund-dashboard]] ไม่ปล่อยให้เรียก OP-10 ได้เลย | FR-21 AC-1 |
-| 2 | `projectId` ไม่ใช่ของผู้เรียก | ปฏิเสธ (กฎ cross-cutting) | [[api-spec#OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว\|OP-10]] |
-| 3 | สถานะเปลี่ยนไปหลังเปิดหน้า (race condition ระหว่างเปิด Dashboard กับกด Export จริง) | Backend ตรวจสอบซ้ำที่ OP-10 เอง ไม่พึ่ง `canExport` จาก UI เพียงอย่างเดียว — ถ้าไม่มีใบผ่านแล้วจริง ปฏิเสธพร้อมข้อความอธิบาย | FR-21 AC-1 (ตีความการตรวจสอบซ้ำนี้จากหลักการ authoritative validation เดียวกับที่ [[architecture#5.1 ตำแหน่งของการตรวจสอบไฟล์อัปโหลด (FR-19) — Client หรือ Backend Service\|architecture 5.1]] ใช้กับ OP-01) |
-| 4 | Export ครั้งถัดไปของโครงการเดียวกัน | รวบรวม "ใบเสร็จสถานะผ่านทั้งหมด" ใหม่เสมอ (รวมใบเก่าที่เคย export แล้วด้วย) ไม่ใช่แค่ใบที่ผ่านใหม่ล่าสุด | [[api-spec#OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว\|OP-10]] กฎทางธุรกิจข้อ 3 |
-| 5 | ใบเสร็จที่ export แล้วถูกพยายามลบผ่าน UI | ล็อกไม่ให้ลบ (เชื่อมกับ [[right-to-erasure]]/FR-18) | FR-10 AC-2 |
+| 1 | ไม่มีใบเสร็จ "ผ่าน" เลย | ปิดปุ่มพร้อมเหตุผล และ OP-10 ปฏิเสธถ้าถูกเรียกตรง | FR-21, OP-10 |
+| 2 | โครงการไม่ใช่ของผู้เรียก | ปฏิเสธ (Admin Export แทนไม่ได้) | หัวข้อ 2 ของ api-spec |
+| 3 | Export ซ้ำ | รวมใบ "ผ่านทั้งหมด" ใหม่เสมอ สร้าง ExportBatch ใหม่ ใบที่เคยรวมถูกรวมซ้ำได้ | OP-10 |
+| 4 | ใบเสร็จไม่ผ่าน (3 ระดับ) | ไม่รวมใน Export (เฉพาะ "ผ่าน") | OP-10 |
+| 5 | ใบเสร็จ "ผ่าน" แต่ `autoVerified` เป็นเท็จ (ผ่านเพราะตรงหมวดหรือตรวจบางด้านไม่ได้) | api-spec กำหนดรวมทุกใบที่ `status` = "ผ่าน" ไม่แยกตาม `autoVerified` — ไม่เพิ่มกติกาเอง | OP-10 |
+| 6 | รูปแบบไฟล์รายงาน | ยังไม่กำหนด (open point db-spec 5.2) ไม่ระบุในเอกสารนี้ | db-spec 5.2 |
+| 7 | ผู้ใช้ถอนความยินยอมหลัง Export | `ExportBatchReceipt` และใบเสร็จถูกลบ `ExportBatch` ตัวมันเองไม่ถูกลบ | db-spec กฎข้อ 6 |
 
 ## เอกสารที่เกี่ยวข้อง
 
-- [[feature-list#7. Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว|feature-list ฟีเจอร์ที่ 7]]
-- [[user-journey#Journey 3: นักวิจัย Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้วเพื่อยื่นเจ้าหน้าที่การเงิน|user-journey Journey 3]]
-- [[api-spec#OP-10 Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว|api-spec OP-10]]
-- [[db-spec#E-12 รอบการ Export (ExportBatch)|db-spec E-12]], [[db-spec#E-13 ใบเสร็จในรอบ Export (ExportBatchReceipt)|E-13]]
-- [[fund-dashboard]] — ที่มาของ `canExport` flag
-- [[right-to-erasure]] — ผลกระทบของ `isExported` ต่อการลบใบเสร็จ
-- [[access-control]] — กฎ cross-cutting เรื่องเจ้าของ `projectId`
-- test case: `docs/03-testing/01-test-plan/test-cases/export-verified-report.md`
+- [[feature-list#7. Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว|feature-list ฟีเจอร์ที่ 7]], [[user-journey#Journey 3: นักวิจัย Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้วเพื่อยื่นเจ้าหน้าที่การเงิน|Journey 3]], [[architecture]] 3.3, [[api-spec]], [[db-spec]]
+- [[02-design/02-technical/detailed-design/fund-dashboard|fund-dashboard]], [[02-design/02-technical/detailed-design/right-to-erasure|right-to-erasure]]

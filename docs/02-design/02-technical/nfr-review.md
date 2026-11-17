@@ -1,106 +1,66 @@
 # NFR Review — Grant Receipt Assistant
 
-> ตรวจสอบว่าเอกสารเชิงเทคนิคทั้งหมด ([[architecture]], [[api-spec]], [[db-spec]], และไฟล์ใน
-> `detailed-design/` ทั้ง 12 ฟีเจอร์) มีการออกแบบมารองรับทุก NFR ใน [[backlog]] จริงหรือไม่ —
-> เอกสารนี้เป็นผลของการ**ตรวจสอบและรายงานเท่านั้น** ไม่ใช่การออกแบบเพิ่มเติม (งานออกแบบจริงเป็นของ
-> `sync-architecture`/`sync-api-db`/`sync-detailed-design` เท่านั้น)
+> ตรวจว่าเอกสารเชิงเทคนิค ([[architecture]], [[api-spec]], [[db-spec]] และ 23 ไฟล์ใน `detailed-design/`)
+> มีการออกแบบรองรับทุก NFR ใน [[backlog]] (NFR-01–NFR-15) หรือไม่ — เอกสารนี้เป็น**ผลการตรวจและรายงานเท่านั้น**
+> ไม่ใช่การออกแบบเพิ่ม (งานออกแบบเป็นของ `sync-architecture` / `sync-api-db` / `sync-detailed-design`)
 
 ## 0. สถานะเอกสารนี้
 
-- สร้างครั้งแรกเมื่อ 2026-08-23 หลัง [[architecture]], [[api-spec]], [[db-spec]] และ
-  `detailed-design/` ครบ 12 ฟีเจอร์ ถูกเขียนเสร็จสมบูรณ์ในวันเดียวกัน ครอบคลุม [[backlog]] ล่าสุด
-  (FR-01–FR-22, NFR-01–NFR-11)
-- **อัปเดต 2026-09-03 (รอบตรวจซ้ำหลังแก้ไขโมเดลข้อมูล FundSource/Project/Researcher + เพิ่ม
-  FR-23):** เอกสารเชิงเทคนิคทั้งสาย ([[architecture]] → [[api-spec]]/[[db-spec]] →
-  `detailed-design/` ครบ 13 ฟีเจอร์ รวมไฟล์ใหม่ [[project-setup]]) ถูกแก้ไขทั้งหมดในวันเดียวกันเพื่อ
-  แยก entity เดิม "Fund" (ปนแนวคิดแหล่งทุน+โครงการ) ออกเป็น **FundSource** (แหล่งทุน — Admin ดูแล,
-  1:N Project), **Project** (โครงการวิจัย — เจ้าของ 1 คน, ใบเสร็จผูกกับ Project โดยตรง), **Researcher**
-  (= User ที่ roleType = นักวิจัย) ตรวจสอบซ้ำทั้ง **11 รายการ NFR เดิม** (ไม่มี NFR ใหม่จากรอบนี้
-  เพราะ backlog ไม่ได้เพิ่ม NFR ใหม่ มีแต่ FR-23) โดยเน้นตรวจ **NFR-03 (Explainability)**,
-  **NFR-04 (Audit Trail)**, **NFR-05 (Access Control)** เป็นพิเศษตามที่ผู้ขอให้ตรวจระบุไว้ — พบว่า
-  ทั้ง 3 รายการนี้ถูก sync ครบถ้วนสอดคล้องกันทั้ง 4 ชั้นเอกสาร ไม่มีจุดที่ตกหล่น (รายละเอียดดูตาราง
-  ด้านล่าง คอลัมน์ "เอกสาร/ส่วนที่พบ" อัปเดตให้ชี้ไปยัง entity/operation ชื่อใหม่ทั้งหมดแล้ว) — grep
-  ยืนยันแล้วว่าไม่มีการอ้างอิง `fundId`/`Fund.ownerUserId` ที่เป็นโค้ด/field จริงหลงเหลืออยู่ในเอกสารใด
-  เลย (มีเพียงข้อความอธิบายประวัติการแก้ไขที่จงใจอ้างชื่อเดิมไว้เพื่อบันทึกเหตุผล)
-- ตรวจสอบ NFR ทั้งหมด **11 รายการ** (NFR-01–NFR-11) จาก [[backlog#Non-Functional Requirements|backlog หัวข้อ Non-Functional Requirements]) เทียบกับเอกสารเชิงเทคนิคทั้ง 4 ชั้น
-- ผลสรุป (ไม่เปลี่ยนจากรอบก่อนหน้า แม้ผ่านการแก้ไขโมเดลข้อมูลครั้งใหญ่): **6 รายการรองรับแล้ว
-  (Addressed)**, **2 รายการรองรับบางส่วน (Partial)** (NFR-06, NFR-07), **0 รายการยังไม่รองรับเลย
-  (Missing)** — อีก 3 รายการ (NFR-08, NFR-09, NFR-10) เป็น NFR เชิงองค์กร/กระบวนการ
-  (organizational/process) ที่เอกสารเชิงเทคนิคทำได้เพียงระบุขอบเขตจุดเชื่อมต่อที่ต้องมีมาตรการ ซึ่งถือว่า
-  "รองรับแล้ว" ในระดับที่การออกแบบซอฟต์แวร์ทำได้จริง (ดูรายละเอียดต่อรายการด้านล่าง)
+- **เขียนทับทั้งไฟล์ 2026-11-17** เป็นรายงานรอบใหม่ หลังเอกสารเทคนิคทั้งสายถูก sync วันเดียวกัน (ครอบคลุม FR-01–FR-37, NFR-01–NFR-15)
+  แทนรายงานรอบ 2026-08-23/2026-09-03 ที่ตรวจเพียง NFR-01–NFR-11 และ 12–13 ฟีเจอร์
+- แยกการประเมินเป็น **2 มิติ** ตามที่เอกสารเทคนิคระบุสถานะไว้ทุกส่วน:
+  1. **สถานะการออกแบบ** — มีการระบุ component/operation/entity ที่รับผิดชอบและแนวทางสอดคล้องเจตนา NFR หรือไม่
+     (รองรับแล้ว / รองรับบางส่วน / ยังไม่รองรับ)
+  2. **สถานะการสร้างจริง** — ตามที่ [[backlog]] และเอกสารเทคนิคระบุ (สร้างแล้ว / สร้างบางส่วน / Backlog)
+  "ออกแบบรองรับแล้ว" **ไม่ได้แปลว่าสร้างแล้ว** — หลาย NFR ออกแบบครบแต่ยังเป็น Backlog
 
-## 1. ตารางสรุปผลการตรวจสอบ
+## 1. สรุปผล
 
-| รหัส | คำอธิบายสั้น | สถานะ | เอกสาร/ส่วนที่พบ | สิ่งที่ยังขาด | แนะนำให้รันอะไรต่อ |
-|---|---|---|---|---|---|
-| NFR-01 | ภาษา (Localization) — OCR/LLM ต้องรองรับภาษาไทยเต็มรูปแบบ | **รองรับแล้ว** | [[architecture#4. NFR Mapping\|architecture 4]] (mapping ไปยัง External OCR/LLM Service), [[api-spec#OP-02 อ่านข้อมูลใบเสร็จด้วย OCR (internal)\|api-spec OP-02]]/[[api-spec#OP-04 ยืนยันข้อมูลใบเสร็จและส่งเข้าตรวจ\|OP-04]] ("ต้องอ่านเป็นภาษาไทยได้เต็มรูปแบบ"/"explanationText ต้องเป็นภาษาไทยทั้งหมด"), [[receipt-upload-ocr]] edge case #8, [[rule-engine-verification]] edge case #8 | ไม่มี — ครอบคลุมทั้ง 3 ชั้น (component/operation/edge case) | ไม่มี |
-| NFR-02 | Usability/การสื่อสาร — ภาษาที่เข้าใจง่ายสำหรับคนไม่มีพื้นฐานการเงิน | **รองรับแล้ว** | [[architecture#4. NFR Mapping\|architecture 4]], [[api-spec#OP-01 อัปโหลดใบเสร็จ\|api-spec OP-01]] (error message ภาษาไทยชัดเจน), [[api-spec#OP-04 ยืนยันข้อมูลใบเสร็จและส่งเข้าตรวจ\|OP-04]] (explanationText ต้องแปลงศัพท์การเงิน), [[receipt-upload-ocr]] หัวข้อ 5 (error ภาษาไทยทุก edge case) | ไม่มี | ไม่มี |
-| NFR-03 | Explainability — ผลตรวจต้องอ้างอิงข้อระเบียบของ FundSource ที่ถูกต้องได้เสมอ | **รองรับแล้ว** (ตรวจซ้ำ 2026-09-03 หลังแยกโมเดล FundSource/Project — ยังครบถ้วน) | [[architecture#4. NFR Mapping\|architecture 4]], [[db-spec#E-09 ข้อระเบียบที่อ้างอิงในผลตรวจ (VerificationRuleCitation)\|db-spec E-09]] (entity เฉพาะทางรองรับที่ระดับโครงสร้างข้อมูล ไม่ใช่แค่ข้อความลอยๆ — รหัส entity เปลี่ยนจาก E-07 เป็น E-09 ตามการจัดเรียงใหม่ แต่เนื้อหาเดิมไม่เปลี่ยน), [[api-spec#OP-04 ยืนยันข้อมูลใบเสร็จและส่งเข้าตรวจ\|api-spec OP-04]] (บังคับ ≥1 citation เสมอ + ลำดับใหม่: หา `Project.fundSourceId` ก่อนเลือก `RuleVersion` ที่ตรงกับ FundSource นั้น เพื่อให้อ้างอิงระเบียบของ FundSource ที่ถูกต้องจริง ไม่ใช่ระเบียบเดียวรวมทั้งระบบเหมือนเดิม), [[rule-engine-verification]] edge case #6 (และ edge case #3/#10 ใหม่ที่ครอบคลุมกรณี FundSource ไม่มีระเบียบ/Project เปลี่ยน FundSource ภายหลัง) | ไม่มี — รองรับตั้งแต่ระดับ entity ถึงระดับ edge case ครบถ้วนหลังการแยกโมเดล | ไม่มี |
-| NFR-04 | Audit Trail — บันทึกกฎ/เวอร์ชันระเบียบของ FundSource/ผลลัพธ์ต่อใบเสร็จ | **รองรับแล้ว** (ตรวจซ้ำ 2026-09-03 — ยังครบถ้วน) | [[architecture#4. NFR Mapping\|architecture 4]] (Audit Trail Store — ระบุชัดว่าเวอร์ชันระเบียบที่บันทึกเป็นของ **FundSource** ที่ **Project** สังกัดอยู่ ณ ขณะตรวจ), [[db-spec#E-08 ผลตรวจใบเสร็จ (VerificationResult)\|db-spec E-08]]/[[db-spec#E-14 บันทึกเหตุการณ์ตรวจสอบย้อนหลัง (AuditLogEntry)\|E-14]] (append-only, `ruleVersionId` เป็น snapshot ของ FundSource ที่ Project สังกัด ณ ขณะตรวจ — ระบุตรงๆ ว่าแม้ Project จะเปลี่ยน FundSource ที่ผูกภายหลัง ผลตรวจเก่าต้องไม่เปลี่ยนตาม, `AuditLogEntry.affectedProjectId` แทน `affectedFundId` เดิม), [[rule-engine-verification]], [[admin-rule-management]], [[right-to-erasure]], [[consent-management]], [[project-setup]] (ทุกไฟล์เขียน AuditLogEntry ในจุดที่เกี่ยวข้อง — รวมถึง OP-20 แก้ไข Project ที่ยืนยันชัดว่าไม่กระทบ `ruleVersionId` เดิมที่ snapshot ไว้) | ไม่มี | ไม่มี |
-| NFR-05 | Security/Access Control — ownership check ต้องอยู่ที่ระดับ Project | **รองรับแล้ว** (ตรวจซ้ำ 2026-09-03 — ยืนยันว่า ownership check ย้ายจาก `Fund.ownerUserId` เดิมไป `Project.ownerUserId` ครบทุกจุดแล้ว) | [[architecture#4. NFR Mapping\|architecture 4]] (ระบุตรงๆ ว่าต้องตรวจสอบสิทธิ์ตามเจ้าของ **Project** ทุก request), [[api-spec#2. กฎการเข้าถึงข้อมูลแบบ Cross-Cutting (Access Control)\|api-spec หัวข้อ 2]] (กฎข้อ 1 ระบุตรงๆ ว่า "แก้ไข 2026-09-03: เดิมกฎนี้ตรวจสอบผ่าน `Fund.ownerUserId` ซึ่งผิด" พร้อมเพิ่มกฎข้อ 3 เรื่อง `fundSourceId` ไม่มีเจ้าของเป็นนักวิจัย), [[access-control]] (ตารางบังคับใช้กฎ cross-cutting ครบทั้ง 21 operation รวม OP-18–OP-21 ใหม่ของ Project Setup, edge case #5 ครอบคลุมกรณีอ่าน FundSource ไม่ต้องตรวจ ownership) | ไม่มี | ไม่มี |
-| NFR-06 | Performance ของ OCR/Rule Engine (เป้าหมายเวลาตอบสนองโดยรวมยังไม่กำหนด) | **รองรับบางส่วน** | [[architecture#4. NFR Mapping\|architecture 4]] (ระบุตรงๆว่า "ยังไม่มีตัวเลขเป้าหมายด้านเวลาตอบสนองโดยรวม"), [[architecture#5.1 ตำแหน่งของการตรวจสอบไฟล์อัปโหลด (FR-19) — Client หรือ Backend Service\|architecture 5.1]] (มาตรการเดียวที่มี: จำกัดขนาดไฟล์ ≤5MB/ไฟล์ ≤5 ไฟล์/รายการ), [[receipt-upload-ocr]] edge case #3/#7 | ไม่มีเป้าหมายเวลาตอบสนอง (SLA) ที่เป็นรูปธรรมของ pipeline OCR→Rule Engine→LLM; ไม่มีการออกแบบ timeout/retry policy เมื่อ External OCR/LLM ตอบช้า (มีแค่กรณี "ล้มเหลวทางเทคนิคสมบูรณ์" ใน [[rule-engine-verification]] edge case #9 ไม่ใช่กรณี "ช้าแต่ไม่ล้มเหลว") | `sync-architecture` (เพื่อกำหนดเป้าหมายเวลาตอบสนอง/timeout policy ในหัวข้อ 5.2 เมื่อมีตัวเลขจริง) ต่อด้วย `sync-detailed-design` (เพิ่ม edge case กรณี OCR/LLM ตอบช้าแยกจากกรณีล้มเหลวสมบูรณ์) |
-| NFR-07 | Scalability ปริมาณใบเสร็จ (เป้าหมายตัวเลขยังไม่กำหนด) | **รองรับบางส่วน** (ตรวจซ้ำ 2026-09-03 — ยังเป็นช่องว่างเดิม โมเดล FundSource/Project เพิ่ม entity ใหม่ 2 ตัวแต่ไม่ได้เพิ่มมาตรการ scale ใดๆ) | [[architecture#4. NFR Mapping\|architecture 4]] (ระบุ component รับผิดชอบ — Backend Service, Primary Data Store — แต่ระบุตรงๆว่า "ยังไม่มีตัวเลขเป้าหมาย" พร้อมเพิ่มข้อความว่าต้องรองรับปริมาณ Researcher/Project/FundSource/ใบเสร็จที่เพิ่มขึ้นตามจำนวนโครงการ), [[architecture#5.2 รูปแบบการสื่อสารระหว่าง Backend Service ↔ OCR/Rule Engine/LLM — Synchronous หรือ Asynchronous\|architecture 5.2]] (ยอมรับความเสี่ยงของ synchronous pipeline ต่อการ scale ไว้ตรงๆ) | ไม่มี detailed-design ไฟล์ใดใน 13 ฟีเจอร์ (รวม [[project-setup]] ใหม่) กล่าวถึงมาตรการรองรับปริมาณผู้ใช้/ใบเสร็จ/โครงการพร้อมกัน (เช่น indexing strategy สำหรับ query `Project` ตาม `ownerUserId`, connection pooling, stateless design) เลยแม้แต่ไฟล์เดียว — เป็น NFR ที่มีการกล่าวถึงเฉพาะระดับ architecture เท่านั้น ไม่เปลี่ยนแปลงจากรอบตรวจก่อนหน้า | `sync-architecture` (กำหนดตัวเลขเป้าหมาย/แนวทาง scale เมื่อมีข้อมูลปริมาณผู้ใช้จริง) ต่อด้วย `sync-api-db`/`sync-detailed-design` เพื่อสะท้อนมาตรการลงในระดับปฏิบัติ |
-| NFR-08 | Cross-border Data Transfer (Conditional — รอการตัดสินใจ vendor) | **รองรับแล้ว** (ในระดับที่ NFR เชิงองค์กร/มีเงื่อนไขนี้ทำได้จากการออกแบบซอฟต์แวร์) | [[architecture#1. ภาพรวมสถาปัตยกรรม\|architecture 1]]/[[architecture#4. NFR Mapping\|architecture 4]] (วาด External OCR/LLM Service เป็น "บริการภายนอก" โดยตั้งใจเพื่อชี้จุดเชื่อมต่อที่ต้องพิจารณามาตรการ), [[api-spec#OP-02 อ่านข้อมูลใบเสร็จด้วย OCR (internal)\|api-spec OP-02]]/[[api-spec#OP-04 ยืนยันข้อมูลใบเสร็จและส่งเข้าตรวจ\|OP-04]], [[rule-engine-verification]] edge case #8 | ที่ตั้งจริงของผู้ให้บริการ OCR/LLM (เงื่อนไข vendor) ยังเป็น open point ที่ยังไม่ปิดตาม [[backlog#Open Point ที่ยังไม่ปิดจากเอกสาร PDPA (เพื่ออ้างอิง — ไม่บล็อกการพัฒนา)\|backlog]] — ไม่ใช่ช่องว่างของการออกแบบ แต่เป็นการตัดสินใจ vendor ที่ยังไม่เกิดขึ้น | ไม่ต้องรัน sync agent ใดตอนนี้ — รอผลตัดสินใจ vendor ก่อน แล้วกลับมา `sync-architecture` เพื่อปิด open point นี้ให้ชัดเจนขึ้น |
-| NFR-09 | Data Processing Agreement กับผู้ให้บริการภายนอก (Organizational) | **รองรับแล้ว** (ระดับที่ซอฟต์แวร์ทำได้ — ระบุจุดเชื่อมต่อที่ DPA ต้องครอบคลุม) | [[architecture#4. NFR Mapping\|architecture 4]] (ระบุตรงๆว่าเป็น "ข้อตกลงระดับองค์กร ไม่ใช่ฟังก์ชันของ component" แต่ชี้จุดเชื่อมต่อ Backend↔OCR/LLM ชัดเจน), [[rule-engine-verification]] edge case #8 | ไม่มีช่องว่างเชิงออกแบบซอฟต์แวร์ — เป็น process ระดับองค์กร (การเซ็น DPA จริง) ซึ่งอยู่นอกขอบเขตของ architecture/api-spec/db-spec/detailed-design โดยธรรมชาติของ NFR นี้ | ไม่ต้องรัน sync agent ใด — เป็นกระบวนการจัดซื้อ/สัญญาระดับองค์กร ไม่ใช่งานออกแบบเอกสารเชิงเทคนิค |
-| NFR-10 | Data Breach Notification (Organizational/Process) | **รองรับแล้ว** (ระดับที่ซอฟต์แวร์ทำได้ — ให้ log สนับสนุนกระบวนการ) | [[architecture#4. NFR Mapping\|architecture 4]] (Audit Trail Store ต้องมี log เพียงพอสนับสนุนกระบวนการแจ้งเหตุละเมิดข้อมูลที่เป็น process ภายนอกซอฟต์แวร์), [[access-control]] edge case #4 (ระบุตรงๆว่าต้องมีกลไก/กระบวนการแจ้งเตือน สคส. ภายใน 72 ชั่วโมง — organizational/process) | ไม่มีช่องว่างเชิงออกแบบซอฟต์แวร์ — กระบวนการแจ้งเหตุละเมิดจริงเป็นหน้าที่ของ DPO/องค์กร ไม่ใช่ฟังก์ชันของระบบ | ไม่ต้องรัน sync agent ใด — เป็นกระบวนการองค์กร (แต่ควรตรวจสอบว่า Audit Trail Store เก็บ log สิทธิ์การเข้าถึงระดับที่เพียงพอเมื่อเข้าสู่ช่วง `technology-stack`/implementation จริง) |
-| NFR-11 | Data Retention & Deletion Policy (ตัวเลข TBD) | **รองรับแล้ว** (กลไกพร้อมใช้งาน ตัวเลขจริงยังเป็น TBD จากระดับ requirements ไม่ใช่ช่องว่างของการออกแบบ) | [[architecture#4. NFR Mapping\|architecture 4]] (Backend Service เป็นจุดเดียว trigger การลบ), [[db-spec#E-08 เวอร์ชันประกาศความเป็นส่วนตัว (PrivacyNoticeVersion)\|db-spec E-08]] (`content` ต้องระบุนโยบาย retention), [[consent-management]] edge case #8 (NFR-11 AC-1 — ต้องระบุว่ามีนโยบายอยู่แม้ตัวเลขยังเป็น TBD), กลไกลบจริงผ่าน FR-18/FR-20 ([[right-to-erasure]], [[consent-management]]) | ตัวเลขระยะเวลาเก็บข้อมูลที่แน่นอนยังเป็น TBD ตาม [[backlog#Open Point ที่ยังไม่ปิดจากเอกสาร PDPA (เพื่ออ้างอิง — ไม่บล็อกการพัฒนา)\|backlog]] (รอระเบียบมหาวิทยาลัย/กรมบัญชีกลาง) — ไม่ใช่ช่องว่างของเอกสารเชิงเทคนิค เพราะกลไกลบพร้อมใส่ตัวเลขจริงได้ทันทีที่ทราบ | ไม่ต้องรันตอนนี้ — เมื่อทราบตัวเลข retention จริงแล้ว ให้รัน `sync-api-db` เพื่อเติมตัวเลขลงใน `PrivacyNoticeVersion.content`/นโยบายลบอัตโนมัติ |
+| มิติ | รองรับแล้ว / สร้างแล้ว | บางส่วน | ยังไม่รองรับ / Backlog |
+|---|---|---|---|
+| **การออกแบบ** (15 NFR) | **10** (NFR-01, 02, 03, 04, 05, 09, 12, 13, 14, 15) | **5** (NFR-06, 07, 08, 10, 11) | **0** |
+| **การสร้างจริง** ตามสถานะใน [[backlog]] | **4** เสร็จแล้ว (NFR-03, 04, 05, 13) | **2** เสร็จบางส่วน (NFR-12, 14) | **9** Backlog (NFR-01, 02, 06, 07, 08, 09, 10, 11, 15) |
 
-## 2. รายละเอียดช่องว่างที่พบ (Partial)
+## 2. ตารางผลตรวจรายข้อ
 
-### 2.1 NFR-06 — Performance ของ OCR/Rule Engine
+| รหัส | คำอธิบายสั้น | สถานะออกแบบ | สถานะสร้างจริง | หลักฐาน (เอกสาร/ส่วนที่พบ) | สิ่งที่ยังขาด | แนะนำให้รัน |
+|---|---|---|---|---|---|---|
+| NFR-01 | OCR/LLM รองรับภาษาไทย | **รองรับแล้ว** | Backlog (ตาม backlog; ตัวอ่านและ OCR ในเครื่องทำงานได้ แต่ยังไม่ได้วัดความแม่น) | [[architecture]] หัวข้อ 4 NFR-01, 2.1 Receipt Reader/Local OCR; [[api-spec]] OP-02, OP-04 ข้อ explanationText; [[ai-ocr-receipt-reading]] (OCR ตกวรรณยุกต์ → ผู้ใช้ตรวจทาน FR-03) | ไม่มีเกณฑ์วัดความถูกต้องภาษาไทย (รอข้อมูลใบเสร็จจริง) | ไม่ต้อง (ไม่ใช่ช่องว่างการออกแบบ) |
+| NFR-02 | ภาษาเข้าใจง่าย บอกว่าต้องทำอะไรต่อ | **รองรับแล้ว** | Backlog (ตาม backlog; พฤติกรรม "ตรวจไม่ได้ ต้องบอกผู้ใช้" สร้างในกฎแล้ว) | [[architecture]] NFR-02, 2.1 Explanation Agent; [[api-spec]] OP-03/OP-04 error ภาษาไทย (NFR-02), OP-04 ข้อ explanationText; [[db-spec]] กฎข้อ 16 (autoVerified เท็จ + ข้อความบอกสิ่งที่ต้องทำ); [[project-setup]] edge 3; [[ai-agent-explanation]] edge 1–3 | ไม่มีเกณฑ์ระดับภาษา/การทดสอบกับผู้ใช้ | ไม่ต้อง |
+| NFR-03 | Explainability อ้างข้อระเบียบเสมอ | **รองรับแล้ว** | **เสร็จแล้ว** | [[architecture]] NFR-03, 2.1 Rule Engine; [[db-spec]] E-07 `note`, `VerificationRuleCitation` (join ให้ NFR-03 เป็นจริงเชิงโครงสร้าง); [[api-spec]] OP-04 (citation ≥ 1), OP-05, OP-06 ข้อ business rule, OP-28; [[rule-engine-pure-module]]; [[ai-agent-explanation]] | — | — |
+| NFR-04 | Audit Trail กฎ/เวอร์ชัน/ผลต่อใบเสร็จ | **รองรับแล้ว** | **เสร็จแล้ว (เฉพาะส่วนผลตรวจ)** ส่วน Audit Trail Store, ป้องกันลบกฎที่ถูกอ้างอิง = Backlog | [[architecture]] NFR-04, 2.1 Audit Trail Store; [[db-spec]] E-08 ฟิลด์ย้อนรอย, E-24 AgentLog, E-14 AuditLogEntry, กฎข้อ 0/G-5 (`RuleItem.isActive`); [[api-spec]] OP-11 ข้อ 6a/7, OP-34; [[rule-engine-pure-module]]; [[admin-rule-management]] edge 8 | ช่องว่างที่เอกสารระบุเอง: ปัจจุบันลบกฎที่ผลตรวจอ้างอิงอยู่ได้ (ผลตรวจเก่าชี้กฎที่ไม่มีแล้ว), ไม่มี AuditLogEntry ของการเปลี่ยนระเบียบ ([[rule-set-2570]] edge 9) | ไม่ต้องรันชั้นออกแบบซ้ำ — เป็นงานสร้าง (G-5, FR-35, Audit Trail Store) |
+| NFR-05 | Security/Access Control | **รองรับแล้ว** | **เสร็จแล้ว** (ช่องโหว่ที่ทราบ: ผลตรวจคำนวณที่ Client; ลิงก์ไฟล์ — ดู NFR-15) | [[architecture]] NFR-05, ตาราง 2.2, 2.1 Primary Data Store; [[db-spec]] E-01 roleType (ห้ามเลื่อนสิทธิ์ตนเอง), E-04 `ownerUserId` ซ้ำในระเบียน; [[api-spec]] OP-05, OP-13, OP-34; [[access-control]] edge 4, 8; [[admin-dashboard]] edge 1; [[admin-rule-management]] edge 1 | ผลตรวจแก้จากเบราว์เซอร์ได้จนกว่า OP-34 (Trusted Server Service) จะสร้าง — ออกแบบแล้ว ยอมรับเป็นข้อจำกัด | ไม่ต้อง |
+| NFR-06 | Performance OCR/Rule Engine (เป้าหมายยังไม่กำหนด) | **บางส่วน** | Backlog | [[architecture]] NFR-06, 5.2 (synchronous, รอทบทวนเมื่อมีตัวเลข); [[ai-ocr-receipt-reading]] (ตรวจ OCR ด้วยเวลาจำกัดสั้น); [[receipt-upload-ocr]] edge 3 (≤5 MB, ≤5 ไฟล์); [[api-spec]] OP-01 | ไม่มีเป้าหมายตัวเลข (TBD ใน backlog); การตรวจขนาด/จำนวนไฟล์ OP-01 ยังไม่สร้าง; ไม่มีกลไก timeout ของ AI/Rule Engine ระบุใน detailed-design | `sync-detailed-design` หลังผู้ใช้กำหนดเป้าหมาย NFR-06 ใน spec (ก่อนหน้านั้นเป็นข้อจำกัดที่ยอมรับ) |
+| NFR-07 | Scalability (เป้าหมายยังไม่กำหนด) | **บางส่วน** | Backlog | [[architecture]] NFR-07 (โครงสร้างซ้อนตามเจ้าของ โตต่อผู้ใช้); [[admin-dashboard]] edge 10 (ไม่กำหนดการแบ่งหน้าเพราะไม่มีตัวเลข) | ไม่มีเป้าหมายตัวเลข; หน้า Admin อ่านใบเสร็จทั้งระบบรอบเดียวโดยไม่มีแผนแบ่งหน้า (เอกสารรับรู้แล้ว) | รอผู้ใช้กำหนดเป้าหมายใน spec แล้ว `sync-architecture` → `sync-detailed-design` |
+| NFR-08 | Cross-border Data Transfer (conditional) | **บางส่วน** | Backlog | [[architecture]] NFR-08, 1 (ทางเลือกในเครื่องลดความเสี่ยง), 5.3; [[api-spec]] OP-02 ท้ายหัวข้อ, OP-39; [[pending-issue-notification]] edge 4; [[thesis-evaluation-harness]] edge 4 | ระบุเพียงจุดเชื่อมต่อที่ต้องมีมาตรการ ที่ตั้งผู้ให้บริการยังเป็น open point; ไม่มีการออกแบบการแจ้ง/ยินยอมก่อนส่งข้อมูลออกนอกประเทศ | ผู้ใช้ตัดสินที่ตั้งผู้ให้บริการก่อน แล้ว `sync-architecture` |
+| NFR-09 | DPA กับผู้ให้บริการภายนอก (องค์กร) | **รองรับแล้ว** (ในขอบเขตที่การออกแบบซอฟต์แวร์ทำได้) | Backlog (กระบวนการองค์กร) | [[architecture]] NFR-09 (AI Gateway คือจุดที่ DPA ต้องครอบคลุม); [[api-spec]] OP-02, OP-36; [[ai-ocr-receipt-reading]] edge 7 | ตัวสัญญาจริงอยู่นอกเอกสารเทคนิค | ไม่ต้อง |
+| NFR-10 | Data Breach Notification (กระบวนการ) | **บางส่วน** | Backlog | [[architecture]] NFR-10, 5.5 ข้อ 4; [[db-spec]] E-14 AuditLogEntry (บันทึกเฉพาะ meta); [[api-spec]] OP-35/OP-36; [[admin-dashboard]] edge 9 | Audit Trail Store ยังไม่สร้าง; **ไม่มี FR/NFR กำหนดให้บันทึกการเข้าถึงของ Admin ต่อใบเสร็จ** จึงไม่มีบันทึกว่าใครเปิดดูอะไร (เอกสารรับรู้แล้ว) | ผู้ใช้ตัดสินว่าต้องการบันทึกการเข้าถึง Admin หรือไม่ (เพิ่ม requirement) แล้ว `sync-architecture` → `sync-api-db` |
+| NFR-11 | Data Retention & Deletion Policy (ตัวเลข TBD) | **บางส่วน** | Backlog | [[architecture]] NFR-11, 3.5, 5.4 (ลำดับลบไฟล์ก่อนข้อมูล); [[api-spec]] OP-35, OP-37; [[db-spec]] E-12 (ระยะเวลาเก็บใน Privacy Notice); [[consent-management]] edge 2; [[right-to-erasure]] | ลำดับการลบออกแบบครบ แต่ **ตัวเลขระยะเวลาเก็บยังเป็น TBD**; การลบรายใบปัจจุบันไม่ลบไฟล์จริง ไม่ลบ AgentLog ([[ai-agent-explanation]] edge 7) ซึ่งขัดเจตนา | รอตัวเลขจากระเบียบมหาวิทยาลัยแล้ว `sync-architecture` → `sync-api-db`; ช่องว่าง AgentLog ตกค้างเป็นงานสร้าง |
+| NFR-12 | AI Proxy ถือคีย์ฝั่งเซิร์ฟเวอร์ รับเฉพาะผู้ล็อกอิน | **รองรับแล้ว** | **เสร็จบางส่วน** (เขียนและทดสอบแล้ว ยังไม่ deploy; คีย์ปัจจุบันเป็นของคลาสและเปิดเผยฝั่ง Client ได้) | [[architecture]] NFR-12, 2.1 AI Key Proxy/AI Gateway; [[api-spec]] OP-39 (ตรวจลายเซ็น/ผู้รับ/ผู้ออก/อายุตั๋ว, จำกัดต้นทาง+โมเดล); [[ai-ocr-receipt-reading]] edge 8–10 | ยังไม่ deploy — เป็นงานปฏิบัติการไม่ใช่ช่องว่างเอกสาร | ไม่ต้อง |
+| NFR-13 | Accessibility (≥16px, โหมดกลางคืน, สถานะไม่พึ่งสีอย่างเดียว) | **รองรับแล้ว** (ระดับ logical; เอกสารเทคนิคลงรายละเอียดเฉพาะ "สี+ไอคอน+ข้อความ") | **เสร็จแล้ว** | [[architecture]] NFR-13, 2.1 Client; [[api-spec]] OP-06 ข้อ business rule; [[fund-dashboard]] (สี ไอคอน ข้อความ); [[rule-engine-verification]] | ขนาดตัวอักษรขั้นต่ำ/โหมดมืดระบุเฉพาะใน architecture ไม่มีใน detailed-design (ไม่ใช่งานของชั้นนี้ — รายละเอียดภาพอยู่เอกสารออกแบบ UI) | ไม่ต้อง |
+| NFR-14 | Privacy ประมวลผลในเครื่อง | **รองรับแล้ว** | **เสร็จบางส่วน** (OCR ในเครื่องสร้างแล้วแต่ผู้ใช้ต้องเปิดเอง; เส้นทาง LLM ในเครื่องมี แต่ไม่ใช่ค่าเริ่มต้น) | [[architecture]] NFR-14, 1, 2.1 Local OCR/AI Gateway; [[api-spec]] OP-02 ข้อ 2; [[ai-ocr-receipt-reading]] edge 7 (ทางถอยกลับเมื่อไม่มี OCR/AI); [[thesis-evaluation-harness]] edge 4 | ไม่มีกลไกบังคับให้ข้อมูลจริงไม่ออกนอกเครื่อง — เป็นทางเลือกของผู้ใช้ | ไม่ต้อง |
+| NFR-15 | Privacy ขอบเขตการเข้าถึงและการลบไฟล์แนบ | **รองรับแล้ว** (ออกแบบครบ) | **Backlog** — ปัจจุบันใครมีลิงก์ก็ดูไฟล์ได้ และการลบใบเสร็จไม่ลบไฟล์จริง | [[architecture]] NFR-15, 2.1 External File Store, 2.2, 3.5, 5.4–5.5; [[api-spec]] OP-29, OP-37, OP-38; [[db-spec]] `ReceiptFile.sharingScope`, กฎข้อ 23; [[google-drive-attachment]] (แผน + edge 4); [[access-control]] edge 8; [[right-to-erasure]]; [[consent-management]] edge 2 | วิธีที่ Admin ดูไฟล์เมื่อเลิกแชร์แบบลิงก์ยังเปิดอยู่ (ค่าเริ่มต้น: แชร์ตรงให้ Admin ยังไม่ได้ยืนยันผู้ใช้) | `sync-detailed-design` หลังผู้ใช้ยืนยันวิธีที่ Admin ดูไฟล์; ที่เหลือเป็นงานสร้าง |
 
-มาตรการที่มีอยู่แล้ว (จำกัดขนาดไฟล์ ≤5MB/ไฟล์, ≤5 ไฟล์/รายการ) เป็นมาตรการป้องกันเชิง input เท่านั้น
-ไม่ใช่การกำหนดเป้าหมายเวลาตอบสนอง (response time SLA) ของ pipeline OCR → Rule Engine → LLM
-โดยตรง — [[architecture#4. NFR Mapping|architecture หัวข้อ 4]] ยอมรับตรงๆว่า "ยังไม่มีตัวเลขเป้าหมาย"
-และ [[architecture#5.2 รูปแบบการสื่อสารระหว่าง Backend Service ↔ OCR/Rule Engine/LLM — Synchronous หรือ Asynchronous|architecture หัวข้อ 5.2]]
-เลือก synchronous pipeline โดยรับทราบความเสี่ยงเรื่องนี้ไว้แล้ว แต่ไม่ได้ตามด้วยการออกแบบ
-timeout/retry policy ที่ชัดเจนใน `detailed-design/` — [[rule-engine-verification]] edge case #9
-กล่าวถึงเฉพาะกรณี "ล้มเหลวทางเทคนิคสมบูรณ์" (เรียกไม่ติด/error) แต่ไม่ได้กล่าวถึงกรณี "ตอบช้าแต่ยังไม่
-ล้มเหลว" (เช่น ควร timeout ที่กี่วินาที ควร retry กี่ครั้งก่อนถือว่าล้มเหลว)
+## 3. ช่องว่างสำคัญ
 
-### 2.2 NFR-07 — Scalability ปริมาณใบเสร็จ
+**ช่องว่างการออกแบบ (ต้องแก้ที่เอกสาร):**
+1. **NFR-06/NFR-07** — ไม่มีเป้าหมายตัวเลข จึงออกแบบได้เพียงมาตรการเชิงหลักการ (เหตุที่รองรับบางส่วน)
+2. **NFR-08** — ที่ตั้งผู้ให้บริการภายนอกยังไม่ตัดสิน จึงไม่มีการออกแบบมาตรการส่งข้อมูลข้ามประเทศ
+3. **NFR-10** — ไม่มี requirement ให้บันทึกการเข้าถึงของ Admin ต่อใบเสร็จ และ Audit Trail Store ยังไม่มี
+4. **NFR-11** — ตัวเลขระยะเวลาเก็บยังเป็น TBD
+5. **NFR-15** — รายละเอียดวิธีที่ Admin ดูไฟล์หลังเลิกแชร์แบบลิงก์ยังไม่ได้รับการยืนยัน
 
-พบเฉพาะการระบุ component รับผิดชอบ (Backend Service, Primary Data Store) ใน
-[[architecture#4. NFR Mapping|architecture หัวข้อ 4]] แต่ไม่มี detailed-design ไฟล์ใดในทั้ง 12
-ฟีเจอร์กล่าวถึงมาตรการรองรับปริมาณผู้ใช้/ใบเสร็จพร้อมกันเลย (เช่น indexing strategy สำหรับการนับ
-`Receipt` แยกตามสถานะที่ [[fund-dashboard]]/[[pending-issue-notification]] ต้อง query บ่อย,
-stateless service design เพื่อรองรับ horizontal scaling) — เป็น NFR ที่มีเพียงการกล่าวถึงระดับ
-architecture เท่านั้น ยังไม่ถูกแปลงเป็นแนวทางระดับ detailed-design แม้แต่ฟีเจอร์เดียว
+**ช่องว่างการสร้าง (ออกแบบครบแล้ว แต่ระบบจริงยังไม่ตรง — ไม่ต้องรันชั้นออกแบบซ้ำ):**
+- NFR-15: ไฟล์ใบเสร็จเปิดได้โดยผู้มีลิงก์ (ช่องโหว่ความเป็นส่วนตัวที่ทราบ) และลบใบเสร็จไม่ลบไฟล์จริง
+- NFR-05: ผลตรวจคำนวณที่ Client (OP-34 Backlog) จึงแก้ได้จากเบราว์เซอร์
+- NFR-04: ลบกฎที่ผลตรวจอ้างอิงอยู่ได้, ยังไม่มี Audit Trail Store
+- NFR-12: ตัวกลางถือคีย์ยังไม่ deploy คีย์ปัจจุบันเปิดเผยฝั่ง Client ได้
+- NFR-11: ปุ่มลบรายใบไม่ลบ AgentLog และไม่ลบไฟล์จริง
 
-## 3. สรุปคำแนะนำ
+## 4. คำแนะนำว่าควรรันชั้นใดต่อ
 
-- **ผลตรวจซ้ำ 2026-09-03 หลังแก้ไขโมเดลข้อมูล FundSource/Project/Researcher + เพิ่ม FR-23**: ตรวจสอบ
-  เจาะจง **NFR-03/NFR-04/NFR-05** ครบทั้ง 4 ชั้นเอกสารแล้ว — ทั้ง 3 รายการยังคง **"รองรับแล้ว"** ไม่มี
-  ช่องว่างใหม่เกิดขึ้นจากการแยกโมเดลนี้ (ดูรายละเอียดในตารางหัวข้อ 1) การแก้ไขครั้งใหญ่นี้ถูก sync
-  สอดคล้องกันครบทั้ง [[architecture]] → [[api-spec]]/[[db-spec]] → `detailed-design/` รวมไฟล์ใหม่
-  [[project-setup]] — grep ยืนยันแล้วว่าไม่มีการอ้างอิง `fundId`/`Fund.ownerUserId` แบบ field/code จริง
-  หลงเหลืออยู่ในเอกสารเชิงเทคนิคใดเลย (เจอเฉพาะข้อความอธิบายประวัติการแก้ไขที่จงใจอ้างชื่อเดิม)
-- **ไม่มี NFR ใดที่ "ยังไม่รองรับเลย" (Missing)** — ทุก NFR อย่างน้อยถูกระบุ component/entity/
-  operation รับผิดชอบไว้แล้วใน [[architecture]] เป็นอย่างต่ำ
-- **NFR-06** และ **NFR-07** เป็น "รองรับบางส่วน" — ทั้งคู่มีสาเหตุร่วมกันคือ **ยังไม่มีตัวเลขเป้าหมาย
-  เชิงปริมาณ** (response time / concurrent user count) ตามที่ [[backlog]] ระบุไว้แล้วว่า "รอกำหนด
-  เป้าหมาย" ดังนั้นช่องว่างนี้ส่วนหนึ่งมาจากระดับ requirements ที่ยังไม่ finalize ตัวเลข ไม่ใช่ความ
-  บกพร่องของ `sync-technical-spec` ทั้งหมด — แต่ถึงกระนั้น **detailed-design ควรมีมาตรการเชิงคุณภาพ**
-  (เช่น timeout/retry policy, indexing strategy) แม้ไม่มีตัวเลขที่แน่นอน ซึ่งยังขาดอยู่จริงในปัจจุบัน
-- **NFR-08, NFR-09, NFR-10** เป็น NFR เชิงองค์กร/กระบวนการที่ขอบเขตซอฟต์แวร์ทำได้เพียงระบุจุด
-  เชื่อมต่อ/จุดที่ต้องมีมาตรการเท่านั้น — เอกสารเชิงเทคนิคทำหน้าที่นี้ครบถ้วนแล้ว ไม่ต้องรัน sync
-  agent ใดเพิ่มในตอนนี้
-- **NFR-11** พร้อมกลไกลบข้อมูลจริงแล้ว (ผ่าน FR-18/FR-20) รอเพียงตัวเลข retention ที่แน่นอนจาก
-  ระเบียบมหาวิทยาลัย/กรมบัญชีกลาง (open point เดิมจาก [[backlog]] ไม่ใช่ช่องว่างใหม่)
-
-## เอกสารที่เกี่ยวข้อง
-
-- [[backlog]] — แหล่งความจริงของ NFR ทั้งหมดที่ตรวจสอบในเอกสารนี้ (NFR-01–NFR-11 — ไม่เพิ่ม NFR ใหม่
-  ในรอบแก้ไขโมเดลข้อมูล 2026-09-03 มีแต่ FR-23 เพิ่มเข้ามา)
-- [[architecture]] — หัวข้อ 4 (NFR Mapping) และหัวข้อ 5 (ประเด็นรอตัดสินใจ) เป็นจุดอ้างอิงหลักของการ
-  ตรวจสอบนี้ (รวมโมเดล FundSource/Project/Researcher ที่ finalize เมื่อ 2026-09-03)
-- [[api-spec]], [[db-spec]] — ตรวจสอบกฎ/ข้อจำกัดที่ผูกกับ NFR แต่ละตัวในระดับ operation/entity
-  (รหัส entity E- ถูกจัดเรียงใหม่ทั้งหมดในรอบ 2026-09-03 — ดู [[db-spec#0. สถานะเอกสารนี้|db-spec หัวข้อ 0]])
-- ไฟล์ทั้ง 13 ใน `detailed-design/`: [[receipt-upload-ocr]], [[review-edit-ocr-data]],
-  [[rule-engine-verification]], [[resubmit-failed-receipt]], [[fund-dashboard]],
-  [[pending-issue-notification]], [[export-verified-report]], [[admin-rule-management]],
-  [[access-control]], [[consent-management]], [[data-access-portability]], [[right-to-erasure]],
-  [[project-setup]] (ไฟล์ใหม่รองรับ FR-23 — เพิ่มเข้ามาในรอบ 2026-09-03)
-- [[20260816-01-grant-receipt-verification]] — spec ต้นทางของ NFR-01–NFR-07 (หัวข้อ 11 คือแหล่งที่มา
-  ของการแก้ไขโมเดล FundSource/Project/Researcher)
-- [[20260816-02-pdpa-compliance]] — spec ต้นทางของ NFR-08–NFR-11 (PDPA)
+- **`architecture.md`** (`sync-architecture`): ไม่มีช่องว่างที่ต้องแก้ทันที — รันเมื่อผู้ใช้ตัดสินที่ตั้งผู้ให้บริการ (NFR-08), ตัวเลขระยะเวลาเก็บ (NFR-11), เป้าหมาย NFR-06/07 หรือเพิ่ม requirement บันทึกการเข้าถึง Admin (NFR-10)
+- **`api-spec.md` / `db-spec.md`** (`sync-api-db`): ต่อเมื่อมีการตัดสินข้างต้น (retention, บันทึกการเข้าถึง Admin) — ปัจจุบัน operation/entity ที่ NFR ต้องใช้ (OP-34/35/37/38/39, E-14, E-24, `sharingScope`) ออกแบบครบแล้ว
+- **`detailed-design/`** (`sync-detailed-design`): ต่อเมื่อมีเป้าหมาย NFR-06/07 (timeout, การแบ่งหน้า) และเมื่อผู้ใช้ยืนยันวิธีที่ Admin ดูไฟล์ (NFR-15)
+- **ไม่ต้องรันชั้นออกแบบ:** NFR-01–05, 09, 12–14 — ช่องว่างที่เหลือเป็นงานสร้างหรือกระบวนการองค์กร
+- งานสร้างที่ควรจัดลำดับ (ตามผลกระทบต่อ NFR): ปิดช่องโหว่ไฟล์สาธารณะ (NFR-15) → Trusted Server Service บันทึกผลตรวจ (NFR-05) → deploy ตัวกลางถือคีย์ (NFR-12) → ป้องกันลบกฎที่ถูกอ้างอิง + Audit Trail Store (NFR-04/10)
