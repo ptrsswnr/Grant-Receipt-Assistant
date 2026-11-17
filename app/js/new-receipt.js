@@ -118,15 +118,20 @@ var SAMPLE_VENDORS = [
   var ruleSetCache = {};
   async function loadActiveRuleSet(fundSourceId) {
     if (!fundSourceId) return null;
+    var fundSourceDoc = await db.collection("fundSources").doc(fundSourceId).get();
+    if (!fundSourceDoc.exists) return null;
+    // แหล่งทุนปิดใช้งาน (FR-35): ยังตรวจด้วยกฎเดิม แต่ rule engine จะแจ้งเตือนในคำอธิบาย
+    var fundSourceActive = fundSourceDoc.data().isActive !== false;
     var ruleVersionsSnap = await db.collection("fundSources").doc(fundSourceId)
       .collection("ruleVersions").where("isActive", "==", true).limit(1).get();
     if (ruleVersionsSnap.empty) {
-      return { fundSourceId: fundSourceId, ruleVersionId: null, versionLabel: null, ruleItems: [], evidenceChains: evidenceChainsById };
+      return { fundSourceId: fundSourceId, fundSourceActive: fundSourceActive, ruleVersionId: null, versionLabel: null, ruleItems: [], evidenceChains: evidenceChainsById };
     }
     var versionDoc = ruleVersionsSnap.docs[0];
     var ruleItemsSnap = await versionDoc.ref.collection("ruleItems").get();
     return {
       fundSourceId: fundSourceId,
+      fundSourceActive: fundSourceActive,
       ruleVersionId: versionDoc.id,
       versionLabel: versionDoc.data().versionLabel || null,
       ruleItems: ruleItemsSnap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }),
@@ -532,6 +537,7 @@ var SAMPLE_VENDORS = [
           fileType: fileExtension(file.name),
           fileSizeBytes: file.size,
           fileReference: driveFile.webViewLink,
+          driveFileId: driveFile.id,
           sortOrder: i + 1,
           uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
         });

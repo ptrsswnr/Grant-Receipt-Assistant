@@ -32,6 +32,8 @@
 > เจ้าของ **1 คน** และ (2) Rule Engine อ้างอิงระเบียบของแหล่งทุนเวอร์ชันที่ **active ณ วันที่ตรวจ
 > ใบเสร็จ** — ทั้งสองประเด็น **finalize แล้ว** (ดูหัวข้อ 11.1 ของเอกสารข้างต้น)
 
+> **อัปเดต 2026-11-17 (โค้ด):** สร้าง FR-35 ครบ และ FR-37/NFR-15/FR-18 บางส่วน — ดูสถานะในตาราง
+>
 > **อัปเดต 2026-11-17:** บันทึกฟีเจอร์ที่สร้างเสร็จแล้วระหว่าง 2026-09-10–2026-11-17 เป็น **FR-24–FR-34** และ
 > **NFR-12–NFR-14** ใน [[20261117-01-implemented-rule-engine-ai-and-admin]] พร้อมปรับสถานะรายการเดิมที่เกี่ยวข้อง
 > (FR-01–FR-06, FR-08, FR-11, FR-12, FR-23, NFR-03–NFR-05) ให้ตรงกับของที่สร้างจริง — สถานะ "เสร็จบางส่วน"
@@ -57,7 +59,7 @@
 | FR-14 | ขอความยินยอมชัดแจ้ง (Explicit Consent) ก่อนเก็บ/ประมวลผลข้อมูลใบเสร็จ | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | เสร็จบางส่วน (ยินยอมแบบเบา: ติ๊กครั้งเดียวก่อนอัปโหลดครั้งแรก เก็บ privacyConsentAcceptedAt; ยังไม่ใช่ PDPA เต็มรูปแบบ ไม่มีการถอนความยินยอม) |
 | FR-15 | บันทึกหลักฐานการให้ความยินยอม (Consent Record) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
 | FR-16 | ถอนความยินยอม (Withdraw Consent) และจัดการผลกระทบต่อกระบวนการตรวจใบเสร็จ | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
-| FR-18 | ลบ/ขอลบข้อมูลใบเสร็จของตนเองด้วยตนเองผ่าน UI (Right to Erasure) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | เสร็จบางส่วน (ปุ่มลบใบเสร็จ ลบถาวรทันทีทั้งใบเสร็จและเอกสารไฟล์ใน Firestore; ไม่ลบไฟล์จริงใน Google Drive และไม่มี workflow คำขอ/Audit Trail) |
+| FR-18 | ลบ/ขอลบข้อมูลใบเสร็จของตนเองด้วยตนเองผ่าน UI (Right to Erasure) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | เสร็จบางส่วน (ปุ่มลบใบเสร็จลบไฟล์จริงใน Google Drive ก่อน แล้วจึงลบ agent log เอกสารไฟล์ และใบเสร็จ ถ้าลบไฟล์ไม่สำเร็จจะไม่ลบอะไรเลย (2026-11-17); ยังไม่มี workflow คำขอ/Audit Trail) |
 | FR-19 | ตรวจสอบและปฏิเสธไฟล์อัปโหลดที่ไม่ถูกต้อง (File Upload Validation) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-20 | ลบข้อมูลใบเสร็จ/ผลตรวจทั้งหมดทันทีเมื่อถอนความยินยอม (Withdraw Consent — Full Immediate Erasure) | [[20260816-02-pdpa-compliance#4. Functional Requirements]] | Backlog |
 | FR-21 | ป้องกันการ Export รายงานเมื่อยังไม่มีใบเสร็จสถานะผ่าน | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
@@ -71,9 +73,9 @@
 | FR-30 | อ่านใบเสร็จด้วย AI (สลับผู้ให้บริการได้) และ OCR ภาษาไทยในเครื่อง | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
 | FR-31 | AI agent อธิบายผลจากกฎในระบบเท่านั้น + บันทึก agentLogs | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
 | FR-33 | Admin อ่านใบเสร็จทุกคนแบบอ่านอย่างเดียว และจัดการกฎ/แหล่งทุน | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
-| FR-35 | ปิดใช้งานแหล่งทุนแทนการลบจริง (เก็บกฎไว้ย้อนตรวจ ซ่อนจากรายการเลือกโครงการใหม่) | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#2. Functional Requirements]] | Backlog |
+| FR-35 | ปิดใช้งานแหล่งทุนแทนการลบจริง (เก็บกฎไว้ย้อนตรวจ ซ่อนจากรายการเลือกโครงการใหม่) | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#2. Functional Requirements]] | เสร็จแล้ว (2026-11-17: ปุ่มปิด/เปิดใช้งานแหล่งทุนและกฎแต่ละข้อแทนการลบ; ใบเสร็จใหม่ตรวจต่อพร้อมคำเตือน) |
 | FR-36 | นำเข้าประมาณการ 17.2 ซ้ำแบบเก็บเวอร์ชันเก่า และย้ายใบเสร็จไปจับคู่รายการล่าสุด | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#2. Functional Requirements]] | Backlog |
-| FR-37 | จำกัดผู้ดูไฟล์ Drive (เจ้าของ+Admin) และลบไฟล์ตามเมื่อลบใบเสร็จ/ถอนความยินยอม | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#2. Functional Requirements]] | Backlog |
+| FR-37 | จำกัดผู้ดูไฟล์ Drive (เจ้าของ+Admin) และลบไฟล์ตามเมื่อลบใบเสร็จ/ถอนความยินยอม | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#2. Functional Requirements]] | เสร็จบางส่วน (2026-11-17: แชร์เฉพาะเจ้าของ+แอดมินใน appConfig/driveSharing, ถอนลิงก์สาธารณะของไฟล์เก่าตอนเชื่อมต่อ, ลบไฟล์ก่อนลบใบเสร็จ; การถอนความยินยอม (FR-20) ยังไม่มี) |
 
 
 ## ระดับความสำคัญ: กลาง
@@ -109,7 +111,7 @@ _(ยังไม่มีรายการ)_
 | NFR-12 | Security — AI Proxy ถือคีย์ฝั่งเซิร์ฟเวอร์ รับเฉพาะผู้ใช้ที่ล็อกอิน | [[20261117-01-implemented-rule-engine-ai-and-admin#3. Non-Functional Requirements]] | เสร็จบางส่วน (เขียนและทดสอบแล้ว ยังไม่ deploy) |
 | NFR-13 | Accessibility (ผู้ใช้สูงอายุ, ≥16px, โหมดกลางคืน, สถานะไม่พึ่งสีอย่างเดียว) | [[20261117-01-implemented-rule-engine-ai-and-admin#3. Non-Functional Requirements]] | เสร็จแล้ว |
 | NFR-14 | Privacy — ประมวลผลในเครื่อง (OCR/AI ใบเสร็จไม่ออกจากเครื่อง) | [[20261117-01-implemented-rule-engine-ai-and-admin#3. Non-Functional Requirements]] | เสร็จบางส่วน |
-| NFR-15 | Privacy — ขอบเขตการเข้าถึงและการลบไฟล์แนบ | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#3. Non-Functional Requirements]] | Backlog |
+| NFR-15 | Privacy — ขอบเขตการเข้าถึงและการลบไฟล์แนบ | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#3. Non-Functional Requirements]] | เสร็จบางส่วน (ตาม FR-37) |
 
 ## รายการที่ตัดออกจากขอบเขต (Out of Scope — เพื่ออ้างอิง ไม่ใช่ backlog item)
 

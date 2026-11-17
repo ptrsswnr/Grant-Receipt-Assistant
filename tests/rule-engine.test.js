@@ -368,3 +368,24 @@ test("an over-estimate receipt keeps the estimate as the main reason even if the
   assert.equal(r.reasonCode, REASON.OVER_ESTIMATE);
   assert.ok(r.findings.some((f) => f.code === REASON.SUMMARY_AMOUNT_MISMATCH));
 });
+
+// ─── ปิดใช้งานกฎ/แหล่งทุนแทนการลบ (engine 1.5.0, FR-35, NFR-04) ───
+test("a deactivated rule item is not used for new receipts", () => {
+  const ruleSet = { ...ruleSet2570, ruleItems: ruleSet2570.ruleItems.map((ri) => (ri.categoryName === "ค่าวัสดุสำนักงาน" ? { ...ri, isActive: false } : ri)) };
+  const r = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 1000 }, ruleSet);
+  assert.equal(r.status, STATUS.REJECT);
+  assert.equal(r.reasonCode, REASON.CATEGORY_NOT_IN_RULES);
+  // ไม่ได้ตั้งค่า (เอกสารเก่า) = ยังใช้งานอยู่
+  assert.notEqual(evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 1000 }, ruleSet2570).reasonCode, REASON.CATEGORY_NOT_IN_RULES);
+});
+
+test("an inactive fund source still checks with stored rules but warns first", () => {
+  const active = evaluate(summaryReceipt(undefined), ruleSet2570, documentNames);
+  const inactive = evaluate(summaryReceipt(undefined), { ...ruleSet2570, fundSourceActive: false }, documentNames);
+  assert.equal(inactive.status, active.status);
+  assert.equal(inactive.reasonCode, active.reasonCode);
+  assert.equal(inactive.autoVerified, active.autoVerified);
+  assert.equal(inactive.findings[0].code, REASON.FUND_SOURCE_INACTIVE);
+  assert.match(inactive.explanation, /^แหล่งทุนนี้ถูกปิดใช้งานแล้ว/);
+  assert.ok(!active.findings.some((f) => f.code === REASON.FUND_SOURCE_INACTIVE));
+});

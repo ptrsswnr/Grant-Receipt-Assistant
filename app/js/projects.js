@@ -46,6 +46,8 @@
   } else {
     fundSourcesSnapshot.forEach(function (doc) {
       fundSourceNameById[doc.id] = doc.data().fundSourceName;
+      // แหล่งทุนที่ปิดใช้งานแล้ว (FR-35) ยังแสดงชื่อในโครงการเดิมได้ แต่เลือกสร้างโครงการใหม่ไม่ได้
+      if (doc.data().isActive === false) return;
       var option = document.createElement("option");
       option.value = doc.id;
       option.textContent = doc.data().fundSourceName;

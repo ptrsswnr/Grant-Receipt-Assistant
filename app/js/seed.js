@@ -56,7 +56,8 @@ async function seedRules() {
 
   for (var fs of data.fundSources) {
     var { id: fsId, ...fsFields } = fs;
-    await db.collection("fundSources").doc(fsId).set(fsFields);
+    // merge: คงสถานะปิดใช้งาน (isActive/deactivatedAt) ที่แอดมินตั้งไว้ ไม่ให้การอัปเดตกฎเปิดกลับเอง
+    await db.collection("fundSources").doc(fsId).set(fsFields, { merge: true });
   }
 
   for (var rv of data.ruleVersions) {
@@ -75,7 +76,14 @@ async function seedRules() {
     await db.collection("fundSources").doc(versionForThisItem.fundSourceId)
       .collection("ruleVersions").doc(riRuleVersionId)
       .collection("ruleItems").doc(riId)
-      .set(Object.assign({}, riFields, { ruleVersionId: riRuleVersionId }));
+      .set(Object.assign({}, riFields, { ruleVersionId: riRuleVersionId }), { merge: true });
+  }
+
+  // แอดมินที่กดอัปเดตกฎ จะถูกเพิ่มในรายชื่อที่ไฟล์ใบเสร็จแชร์ให้ดู (FR-37: เจ้าของ + แอดมิน)
+  var adminEmail = (firebase.auth().currentUser || {}).email;
+  if (adminEmail) {
+    await db.collection("appConfig").doc("driveSharing")
+      .set({ adminEmails: firebase.firestore.FieldValue.arrayUnion(adminEmail) }, { merge: true });
   }
 }
 

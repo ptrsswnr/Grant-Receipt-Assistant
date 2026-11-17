@@ -146,6 +146,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // ค่าตั้งค่ากลางของแอป (เพิ่ม 2026-11-17) — driveSharing.adminEmails คือบัญชีแอดมินที่ไฟล์ใบเสร็จ
+    // ใน Google Drive ของนักวิจัยแชร์ให้ดู (FR-37) นักวิจัยต้องอ่านได้ตอนอัปโหลด แต่แก้ได้เฉพาะแอดมิน
+    match /appConfig/{configId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // กันไม่ให้ collection อื่นที่ไม่ได้ประกาศไว้ข้างบนถูกอ่าน/เขียนโดยไม่ตั้งใจ
     match /{document=**} {
       allow read, write: if false;

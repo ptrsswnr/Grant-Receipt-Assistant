@@ -94,15 +94,17 @@
     var chainText = item.evidenceChainId
       ? (evidenceChainsById[item.evidenceChainId] || item.evidenceChainId)
       : "(ไม่ระบุชุดเอกสาร)";
+    var inactive = ri.isActive === false;
     return (
-      '<div class="row row-align-center" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--color-border-default);" data-fs-id="' + esc(fsId) + '" data-ri-id="' + esc(riId) + '">' +
-        '<span class="text-small" style="flex:1 1 130px;">' + esc(item.categoryName) + '</span>' +
+      '<div class="row row-align-center" style="margin-top:8px; padding-top:8px; border-top:1px solid var(--color-border-default);' + (inactive ? ' opacity:.6;' : '') + '" data-fs-id="' + esc(fsId) + '" data-ri-id="' + esc(riId) + '">' +
+        '<span class="text-small" style="flex:1 1 130px;">' + esc(item.categoryName) + (inactive ? ' <span class="chip-status chip-status--pending">ปิดใช้งาน</span>' : '') + '</span>' +
         '<span class="text-small" style="flex:1 1 110px;">' + esc(item.rateType) + '</span>' +
         '<span class="text-small text-mono" style="flex:1 1 110px;">' + rateText + '</span>' +
         '<span class="text-tiny" style="flex:1 1 110px;">' + esc(item.requiredEvidenceType) + '</span>' +
         '<span class="text-tiny" style="flex:1 1 150px;">' + esc(chainText) + '</span>' +
         '<span class="text-tiny" style="flex:1 1 130px;">' + esc(item.note) + '</span>' +
-        '<button type="button" class="btn btn-ghost btn-sm" data-action="delete-rule-item">ลบ</button>' +
+        // กฎที่เคยใช้ตัดสินใบเสร็จไปแล้วต้องเก็บไว้ย้อนตรวจ (NFR-04) จึงปิดใช้งานแทนการลบ
+        '<button type="button" class="btn btn-ghost btn-sm" data-action="toggle-rule-item" data-active="' + (inactive ? "0" : "1") + '">' + (inactive ? "เปิดใช้งาน" : "ปิดใช้งาน") + '</button>' +
       '</div>'
     );
   }
@@ -129,6 +131,7 @@
 
   async function fundSourceCardHtml(fsDoc) {
     var fs = fsDoc.data();
+    var fsInactive = fs.isActive === false;
     var ruleVersionsSnap = await db.collection("fundSources").doc(fsDoc.id).collection("ruleVersions").where("isActive", "==", true).limit(1).get();
     var ruleItemsHtml = "";
     if (!ruleVersionsSnap.empty) {
@@ -140,8 +143,10 @@
     return (
       '<div class="card">' +
         '<div class="row" style="justify-content:space-between; align-items:flex-start;">' +
-          '<div><h3>' + esc(fs.fundSourceName) + '</h3><p class="text-small text-mono">' + esc(fs.fundSourceCode) + '</p></div>' +
-          '<button type="button" class="btn btn-destructive btn-sm" data-action="delete-fund-source" data-fs-id="' + esc(fsDoc.id) + '">ลบแหล่งทุน</button>' +
+          '<div><h3>' + esc(fs.fundSourceName) + (fsInactive ? ' <span class="chip-status chip-status--pending">ปิดใช้งาน</span>' : '') + '</h3><p class="text-small text-mono">' + esc(fs.fundSourceCode) + '</p>' +
+            (fsInactive ? '<p class="text-small">ไม่แสดงให้เลือกตอนสร้างโครงการใหม่ โครงการเดิมยังตรวจใบเสร็จด้วยกฎเดิมพร้อมคำเตือน</p>' : '') + '</div>' +
+          // ปิดใช้งานแทนการลบจริง (FR-35) เพื่อเก็บกฎไว้ย้อนตรวจใบเสร็จเก่า
+          '<button type="button" class="btn ' + (fsInactive ? 'btn-secondary' : 'btn-destructive') + ' btn-sm" data-action="toggle-fund-source" data-fs-id="' + esc(fsDoc.id) + '" data-active="' + (fsInactive ? "0" : "1") + '">' + (fsInactive ? "เปิดใช้งานอีกครั้ง" : "ปิดใช้งานแหล่งทุน") + '</button>' +
         '</div>' +
         (ruleItemsHtml || '<p class="text-small" style="margin-top:8px;">ยังไม่มีกฎใบเสร็จ — เพิ่มด้านล่างได้เลย</p>') +
         addRuleItemFormHtml(fsDoc.id) +
@@ -241,7 +246,7 @@
     return newRef;
   }
 
-  // เดลิเกตคลิกทั้งหมดของการ์ดแหล่งทุน (delete-fund-source / add-rule-item / delete-rule-item) ที่
+  // เดลิเกตคลิกทั้งหมดของการ์ดแหล่งทุน (toggle-fund-source / add-rule-item / toggle-rule-item) ที่
   // #fund-source-list เดียว เพราะแต่ละหน้ามีหลายการ์ด/หลายฟอร์มซ้ำกัน ใช้ id ซ้ำไม่ได้ ต้องอ่านค่าจาก
   // data-fs-id/data-ri-id + querySelector ภายใน container ที่คลิกแทน
   fundSourceList.addEventListener("click", async function (e) {
@@ -249,29 +254,23 @@
     if (!button) return;
     clearWarning();
 
-    if (button.dataset.action === "delete-fund-source") {
+    if (button.dataset.action === "toggle-fund-source") {
       var fsId = button.dataset.fsId;
-      if (!confirm("ลบแหล่งทุนนี้และกฎใบเสร็จทั้งหมดของมัน? โครงการที่ผูกกับแหล่งทุนนี้อยู่จะแสดง \"ไม่พบแหล่งทุน\" หลังจากนี้")) return;
+      var deactivate = button.dataset.active === "1";
+      if (deactivate && !confirm("ปิดใช้งานแหล่งทุนนี้? จะเลือกตอนสร้างโครงการใหม่ไม่ได้ ส่วนโครงการเดิมยังตรวจใบเสร็จด้วยกฎเดิมพร้อมคำเตือน กฎทั้งหมดยังเก็บไว้ และเปิดใช้งานกลับได้")) return;
 
       button.disabled = true;
-      button.textContent = "กำลังลบ...";
+      button.textContent = "กำลังบันทึก...";
       try {
-        var ruleVersionsRef = db.collection("fundSources").doc(fsId).collection("ruleVersions");
-        var ruleVersionsSnap = await ruleVersionsRef.get();
-        for (var i = 0; i < ruleVersionsSnap.docs.length; i++) {
-          var rv = ruleVersionsSnap.docs[i];
-          var ruleItemsSnap = await rv.ref.collection("ruleItems").get();
-          for (var j = 0; j < ruleItemsSnap.docs.length; j++) {
-            await ruleItemsSnap.docs[j].ref.delete();
-          }
-          await rv.ref.delete();
-        }
-        await db.collection("fundSources").doc(fsId).delete();
+        await db.collection("fundSources").doc(fsId).set({
+          isActive: !deactivate,
+          deactivatedAt: deactivate ? firebase.firestore.FieldValue.serverTimestamp() : null,
+        }, { merge: true });
         existingDocs = await loadFundSourceList();
       } catch (err) {
-        warn("ลบแหล่งทุนไม่สำเร็จ: " + err.message);
+        warn("บันทึกสถานะแหล่งทุนไม่สำเร็จ: " + err.message);
         button.disabled = false;
-        button.textContent = "ลบแหล่งทุน";
+        button.textContent = deactivate ? "ปิดใช้งานแหล่งทุน" : "เปิดใช้งานอีกครั้ง";
       }
       return;
     }
@@ -323,21 +322,22 @@
       return;
     }
 
-    if (button.dataset.action === "delete-rule-item") {
+    if (button.dataset.action === "toggle-rule-item") {
       var itemRow = button.closest("[data-fs-id][data-ri-id]");
-      var delFsId = itemRow.dataset.fsId;
-      var delRiId = itemRow.dataset.riId;
+      var togFsId = itemRow.dataset.fsId;
+      var togRiId = itemRow.dataset.riId;
+      var deactivateItem = button.dataset.active === "1";
 
       button.disabled = true;
-      button.textContent = "กำลังลบ...";
+      button.textContent = "กำลังบันทึก...";
       try {
-        var activeVersionRefForDelete = await getOrCreateActiveRuleVersion(delFsId);
-        await activeVersionRefForDelete.collection("ruleItems").doc(delRiId).delete();
+        var activeVersionRefForToggle = await getOrCreateActiveRuleVersion(togFsId);
+        await activeVersionRefForToggle.collection("ruleItems").doc(togRiId).set({ isActive: !deactivateItem }, { merge: true });
         existingDocs = await loadFundSourceList();
       } catch (err) {
-        warn("ลบกฎไม่สำเร็จ: " + err.message);
+        warn("บันทึกสถานะกฎไม่สำเร็จ: " + err.message);
         button.disabled = false;
-        button.textContent = "ลบ";
+        button.textContent = deactivateItem ? "ปิดใช้งาน" : "เปิดใช้งาน";
       }
     }
   });

@@ -296,6 +296,32 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - `cases.example.csv` is made up; EX11 deliberately disagrees, as a case rules can't see.
   - The baseline was not run against any paid API.
 
+## Deactivate instead of delete, Drive privacy, full receipt deletion — 2026-11-17 (engine 1.5.0)
+
+- **Why:** while syncing `docs/`, the owner decided FR-35/FR-37 (spec `docs/01-requirements/01-spec/20261117-02-*.md`), and the review found that deleting a receipt left its `agentLogs` behind.
+- **Receipt delete (`receipts.js`)**, in this order:
+  1. Delete the Drive files.
+  2. Delete `agentLogs`, then `files`, then the receipt.
+  - If any Drive delete fails, nothing is deleted and the user is asked to reconnect.
+  - The card carries `data-drive-file-ids` (from `driveFileId`, or parsed from the old `fileReference` link).
+  - Drive must be connected *before* the confirm dialog, because the OAuth popup needs the click gesture.
+  - `receipts.html` now loads GIS + `google-drive.js`. A 404 counts as already deleted.
+- **Drive sharing (`google-drive.js`):** no more "anyone with the link".
+  - Files are shared (no notification email) with `appConfig/driveSharing.adminEmails`. `seedRules()` adds the clicking admin's email to that list.
+  - If the list can't be read, files stay owner-only.
+  - On every `googleDriveConnect()`, `restrictLegacyPublicFiles()` removes the `anyone` permission from older app-created files (scope `drive.file` sees only those).
+  - New `files` docs store `driveFileId`.
+- **`firestore.rules`:** new `appConfig/{id}` (read: signed in, write: admin). **Not deployed yet.** Until it is, the read fails and new files are owner-only.
+- **Deactivate, not delete (`fund-sources.js`):** the delete buttons for fund sources and rule items are now toggles.
+  - Fund source: `isActive` + `deactivatedAt`. Rule item: `isActive`. A missing field means active.
+  - `projects.js` hides inactive fund sources from the new-project dropdown.
+  - `seed.js` writes fund sources and rule items with `{merge:true}`, so "อัปเดตเฉพาะระเบียบ/กฎ" doesn't reactivate them.
+- **Engine 1.5.0:**
+  - `findRuleItem` ignores `isActive === false`, so the category becomes `CATEGORY_NOT_IN_RULES`.
+  - `ruleSet.fundSourceActive === false` adds a leading `FUND_SOURCE_INACTIVE` notice to `findings` and the explanation. It does not change status or `autoVerified` (the owner's choice: "ตรวจต่อ แต่เตือน").
+  - `new-receipt.js`'s `loadActiveRuleSet` reads the fund source doc to set it.
+- **Still not built:** server-side verdicts (the Trusted Server Service), FR-36 estimate versioning, FR-20 consent withdrawal.
+
 ## UI/shared code conventions
 
 - **Code identifiers are English, UI text is Thai.** All `.js`/`.html` variable names, function names, and DOM `id`/`name` attributes that JS hooks into (`getElementById`, etc.) must be English — e.g. `warningBox`, `signupButton`, `nextProjectId()`. Thai stays in: `.textContent`/`.innerHTML` string literals shown to the user, `<label>`/button visible text, `<option>` text, banner/warning messages, and comments (comments may stay Thai — existing convention). Mock/reference *data content* in `app/js/data.js` (fund source names, categories, Thai vendor names) is real domain data, not a code identifier — leave it Thai. This was a full repo-wide migration on 2026-09-10 (the codebase previously used Thai variable/function names and Thai DOM ids like `id="ข้อความเตือน"` throughout `app/js/*.js`); don't reintroduce Thai identifiers in new code.

@@ -11,7 +11,7 @@
   else root.RuleEngine = api;
 })(typeof self !== "undefined" ? self : this, function () {
   // เพิ่มเลขนี้ทุกครั้งที่ตรรกะการตัดสินเปลี่ยน — บันทึกลงใบเสร็จทุกใบ เพื่อให้รู้ว่าผลแต่ละใบมาจากตรรกะชุดไหน
-  var ENGINE_VERSION = "1.4.0";
+  var ENGINE_VERSION = "1.5.0";
 
   var STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", APPROVAL: "ต้องชี้แจง/ขออนุมัติ", REJECT: "ไม่เข้าเงื่อนไข" };
 
@@ -36,6 +36,7 @@
     OVER_RATE_ALLOWANCE: "OVER_RATE_ALLOWANCE",
     WITHIN_RATE_ALLOWANCE: "WITHIN_RATE_ALLOWANCE",
     PER_PROPOSAL_VIA_ESTIMATE: "PER_PROPOSAL_VIA_ESTIMATE",
+    FUND_SOURCE_INACTIVE: "FUND_SOURCE_INACTIVE",
   };
 
   var CAPPED_RATE_TYPES = ["เพดานตามจริง", "เหมาจ่าย"];
@@ -66,8 +67,11 @@
     return formatCurrency(item.rateAmount) + (item.unit ? " / " + item.unit : "");
   }
 
+  // กฎที่แอดมินปิดใช้งานแล้ว (isActive === false) ไม่ใช้ตรวจใบเสร็จใหม่ แต่ยังเก็บไว้ให้ย้อนตรวจใบเก่าได้
   function findRuleItem(category, ruleSet) {
-    var raw = ruleSet && (ruleSet.ruleItems || []).filter(function (ri) { return ri.categoryName === category; })[0];
+    var raw = ruleSet && (ruleSet.ruleItems || []).filter(function (ri) {
+      return ri.categoryName === category && ri.isActive !== false;
+    })[0];
     return raw ? normalizeRuleItem(raw) : null;
   }
 
@@ -220,7 +224,22 @@
   // ruleSet: null | { fundSourceId, ruleVersionId, versionLabel, ruleItems: [...], evidenceChains?: { id: chain } }
   //   — ruleSet === null หมายถึงหาแหล่งทุนไม่เจอ, ruleVersionId === null หมายถึงไม่มีเวอร์ชันที่ active
   // documentNames: { documentTypeId: ชื่อเอกสาร } ใช้แค่ทำคำอธิบายให้อ่านง่าย ไม่มีผลต่อการตัดสิน
+  // แหล่งทุนที่ปิดใช้งานแล้ว (FR-35): ยังตรวจต่อด้วยกฎที่เก็บไว้ตามปกติ แต่แจ้งเตือนไว้หน้าคำอธิบาย
+  // ไม่เปลี่ยนผลตัดสินและไม่ลด autoVerified
   function evaluate(receipt, ruleSet, documentNames) {
+    var result = evaluateReceipt(receipt, ruleSet, documentNames);
+    if (ruleSet && ruleSet.fundSourceActive === false) {
+      var notice = {
+        group: "regulation", status: STATUS.PASS, code: REASON.FUND_SOURCE_INACTIVE, notice: true,
+        message: "แหล่งทุนนี้ถูกปิดใช้งานแล้ว ระบบตรวจตามกฎเดิมที่เก็บไว้ กรุณาสอบถามผู้ดูแลระบบว่าโครงการนี้ยังเบิกได้หรือไม่",
+      };
+      result.findings = [notice].concat(result.findings || []);
+      result.explanation = notice.message + (result.explanation ? " — " + result.explanation : "");
+    }
+    return result;
+  }
+
+  function evaluateReceipt(receipt, ruleSet, documentNames) {
     var hasBudget = !!receipt.budget;
     var line = hasBudget ? receipt.budget.line : null;
     var result = evaluateAmount(receipt, ruleSet, { hasEstimate: hasBudget, line: line, spentBefore: hasBudget ? receipt.budget.spentBefore || 0 : 0 });

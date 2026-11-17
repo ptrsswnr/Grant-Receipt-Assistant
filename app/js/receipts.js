@@ -17,8 +17,9 @@
 // (request.auth.uid == userId ใน path users/{userId}/...) write (ซึ่งครอบคลุม delete ด้วย) เอกสาร
 // receipt ของตัวเองอยู่แล้ว — ไม่ต้องแก้ rules เพิ่ม ลบผ่าน doc.ref ตรงๆ (path มี uid ของเจ้าของ
 // อยู่แล้ว คนอื่นเดา path มาลบใบเสร็จของเราไม่ได้อยู่ดีเพราะ rules เช็คจาก path จริง ไม่ใช่แค่ซ่อนปุ่ม)
-// cascade ลบ subcollection "files" (เอกสารอ้างอิงไฟล์แนบใน Firestore) ไปด้วย — ไม่ลบไฟล์จริงใน
-// Google Drive ด้วย (ลบแค่เอกสารอ้างอิงใน Firestore) — ดู CLAUDE.md หัวข้อ "แนบไฟล์จริงผ่าน Google Drive"
+// ลำดับการลบ (FR-18/FR-37, 2026-11-17): ลบไฟล์จริงใน Google Drive ก่อน — ถ้าลบไม่สำเร็จจะไม่ลบ
+// อะไรในระบบเลย แล้วจึงลบ subcollection agentLogs, files และตัวใบเสร็จเป็นลำดับสุดท้าย (ลบซ้ำได้
+// ปลอดภัย: ไฟล์/เอกสารที่หายไปแล้วถือว่าลบสำเร็จ)
 // ─────────────────────────────────────────────────────────────
 
 var STATUS_CHIP_CLASS = {
@@ -62,7 +63,10 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
   var chipClass = STATUS_CHIP_CLASS[receipt.status] || "chip-status--pending";
   var calloutKind = chipClass.replace("chip-status--", "").replace("pending", "reject");
 
-  var html = '<div class="receipt-entry" data-receipt-path="' + esc(receiptPath) + '">';
+  // รหัสไฟล์ใน Drive ที่ต้องลบก่อนลบใบเสร็จ (ใบเสร็จสาธิตที่ไม่มีไฟล์จริงจะว่าง)
+  var driveFileIds = (files || []).map(function (f) { return window.googleDriveFileIdOf ? window.googleDriveFileIdOf(f) : null; })
+    .filter(Boolean).join(",");
+  var html = '<div class="receipt-entry" data-receipt-path="' + esc(receiptPath) + '" data-drive-file-ids="' + esc(driveFileIds) + '">';
   html +=
     '<div class="receipt-card">' +
       '<div class="receipt-card__thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>' +
@@ -245,16 +249,39 @@ function paneSummaryHtml(receipts) {
 
     var entry = button.closest(".receipt-entry");
     var receiptPath = entry.dataset.receiptPath;
+    var driveFileIds = (entry.dataset.driveFileIds || "").split(",").filter(Boolean);
 
-    if (!confirm("ลบใบเสร็จนี้? การลบนี้ย้อนกลับไม่ได้")) return;
+    // ต้องเชื่อมต่อ Drive ก่อนถามยืนยัน เพราะหน้าต่างขอสิทธิ์ต้องเปิดจากการคลิกโดยตรง
+    if (driveFileIds.length && !window.googleDriveIsConnected()) {
+      try {
+        await window.googleDriveConnect();
+      } catch (err) {
+        alert("ต้องเชื่อมต่อ Google Drive ก่อน เพื่อลบไฟล์ใบเสร็จใน Drive ด้วย (" + err.message + ") — ยังไม่ได้ลบอะไร");
+        return;
+      }
+    }
+
+    if (!confirm("ลบใบเสร็จนี้" + (driveFileIds.length ? " และไฟล์แนบ " + driveFileIds.length + " ไฟล์ใน Google Drive" : "") + "? การลบนี้ย้อนกลับไม่ได้")) return;
 
     button.disabled = true;
     button.textContent = "กำลังลบ...";
     try {
+      // 1) ไฟล์จริงใน Drive ก่อน — ลบไม่ได้แม้ไฟล์เดียว = หยุด ไม่ลบอะไรในระบบ
+      for (var d = 0; d < driveFileIds.length; d++) {
+        try {
+          await window.googleDriveDeleteFile(driveFileIds[d]);
+        } catch (driveErr) {
+          throw new Error("ลบไฟล์ใน Google Drive ไม่สำเร็จ (" + driveErr.message + ") — ยังไม่ได้ลบข้อมูลใบเสร็จในระบบ กรุณาเชื่อมต่อ Drive ใหม่แล้วลองอีกครั้ง");
+        }
+      }
+      // 2) ลูกก่อน (agentLogs, files) แล้วจึงตัวใบเสร็จ
       var receiptRef = db.doc(receiptPath);
-      var filesSnapshot = await receiptRef.collection("files").get();
-      for (var i = 0; i < filesSnapshot.docs.length; i++) {
-        await filesSnapshot.docs[i].ref.delete();
+      var children = ["agentLogs", "files"];
+      for (var c = 0; c < children.length; c++) {
+        var childSnap = await receiptRef.collection(children[c]).get();
+        for (var i = 0; i < childSnap.docs.length; i++) {
+          await childSnap.docs[i].ref.delete();
+        }
       }
       await receiptRef.delete();
 
