@@ -141,3 +141,34 @@ test("picks the 17.2 sheet by name, else the first sheet", () => {
   assert.equal(pickSheetName(["ตาราง ข้อ 17", "ตาราง ข้อ 17.2", "Sheet2"]), "ตาราง ข้อ 17.2");
   assert.equal(pickSheetName(["Sheet1"]), "Sheet1");
 });
+
+// ─── ตารางจาก Word/PDF: คอลัมน์อาจสลับที่ หัวหมวดอยู่ช่องแรก ลำดับมีจุด ───
+const { detectColumns } = require("../app/js/budget-parser.js");
+const wordTable = [
+  ["ลำดับ", "รายการค่าใช้จ่าย", "ตัวคูณ", "รวม", "งวดที่ 1", "งวดที่ 2", "งวดที่ 3"],
+  ["หมวดค่าตอบแทน", "", "", "", "", "", ""],
+  ["1.", "ค่าตอบแทน – นักศึกษาช่วยงานด้านวิชาการ", "60 บาท x 100 ชม.", "6,000", "3,000", "2,400", "600"],
+  ["", "รวมหมวด", "", "6,000", "", "", ""],
+  ["หมวดค่าวัสดุ", "", "", "", "", "", ""],
+  ["1.", "ค่าวัสดุสำนักงาน", "", "4,000", "4,000", "", ""],
+];
+
+test("finds columns from the header even when they are in a different order", () => {
+  const c = detectColumns(wordTable);
+  assert.equal(c.detected, true);
+  assert.equal(c.total, 3);
+  assert.equal(c.inst1, 4);
+  const { lines } = parseRows(wordTable);
+  assert.equal(lines.length, 2);
+  assert.equal(lines[0].total, 6000);
+  assert.equal(lines[0].installmentAmounts.join(","), "3000,2400,600");
+  assert.equal(lines[0].quantity, 100);
+  assert.equal(lines[1].group, "หมวดค่าวัสดุ");
+  assert.equal(lines[1].ruleCategory, "ค่าวัสดุสำนักงาน");
+});
+
+test("falls back to the helper-file column positions when there is no header", () => {
+  const c = detectColumns([["1", "ค่าถ่ายเอกสาร", "", 0, 0, 0, 500]]);
+  assert.equal(c.detected, false);
+  assert.equal(c.total, 6);
+});

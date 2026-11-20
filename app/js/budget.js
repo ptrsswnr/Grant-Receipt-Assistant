@@ -97,6 +97,7 @@
   // ─── นำเข้าจากไฟล์ ───
   var parsed = null;
   var parsedFileName = null;
+  var parsedKind = null;
 
   function categoryOptions(selected) {
     var html = '<option value="">(ยังไม่มีหมวดนี้ในระเบียบ)</option>';
@@ -108,6 +109,11 @@
 
   function renderPreview() {
     var html = "";
+    if (parsedKind === "word" || parsedKind === "pdf") {
+      html += '<div class="banner banner--info" style="margin:12px 0;">อ่านตารางจากไฟล์ ' + (parsedKind === "pdf" ? "PDF" : "Word") +
+        ' — ตรวจชื่อรายการ ยอดเงิน และหมวดของทุกแถวให้ตรงกับเอกสารก่อนบันทึก' +
+        (parsedKind === "pdf" ? ' (PDF ไม่มีเส้นตารางให้อ่าน ระบบเรียงคอลัมน์จากตำแหน่งข้อความ จึงพลาดได้มากกว่า)' : '') + '</div>';
+    }
     if (parsed.warnings.length) {
       html += '<div class="banner banner--error" style="margin:12px 0;">' + parsed.warnings.map(esc).join("<br>") + '</div>';
     }
@@ -144,11 +150,11 @@
     var file = fileInput.files[0];
     if (!file) return;
     try {
-      var workbook = XLSX.read(await file.arrayBuffer(), { type: "array" });
-      var sheet = workbook.Sheets[window.BudgetParser.pickSheetName(workbook.SheetNames)];
-      var rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
-      parsed = window.BudgetParser.parseRows(rows);
+      // อ่านได้ทั้ง Excel/CSV, Word (.docx) และ PDF ที่มีข้อความ (js/budget-file-reader.js)
+      var read = await window.BudgetFileReader.readBudgetFile(file);
+      parsed = window.BudgetParser.parseRows(read.rows);
       parsedFileName = file.name;
+      parsedKind = read.kind;
       renderPreview();
     } catch (err) {
       warn("อ่านไฟล์ไม่สำเร็จ: " + err.message);

@@ -19,7 +19,7 @@ Read `SCOPE.md` and `BACKLOG.md` before assuming a feature is real vs. mocked/de
 - **Deploy Firestore rules**: `firebase deploy --only firestore:rules` (add `,storage:rules` to include Storage rules too — see "Deploying rules" below for why that one's normally skipped).
 - **Deploy Firestore indexes**: `firebase deploy --only firestore:indexes` (needed after adding a new collection-group query — see "Firestore data model" below).
 - **Deploy the live site**: `firebase deploy --only hosting` — `firebase.json`'s `hosting.public` is `"app"`, deploying straight to https://grant-receipt-assistant.web.app (the README's "Live app" link). Not otherwise documented in this file before now; no CI/CD wired up, so this is a manual step.
-- **Run the tests**: `node --test tests/rule-engine.test.js tests/budget-parser.test.js tests/eval.test.js tests/proxy.test.js tests/ocr-client.test.js` (Node's built-in runner, no `package.json`/install needed — rule tests run against the real 2570 `ruleItems` in `app/js/data.js`). Pass file paths explicitly; `node --test tests/` fails on Windows.
+- **Run the tests**: `node --test tests/rule-engine.test.js tests/budget-parser.test.js tests/budget-file-reader.test.js tests/eval.test.js tests/proxy.test.js tests/ocr-client.test.js` (Node's built-in runner, no `package.json`/install needed — rule tests run against the real 2570 `ruleItems` in `app/js/data.js`). Pass file paths explicitly; `node --test tests/` fails on Windows.
 - **Local Thai OCR (research only, not part of the app)**: `research/ocr/` runs iApp's OpenThai 2.0 OCR Text (4 MB ONNX, CPU-only, Apache-2.0; recommended by the project owner's thesis advisor) fully offline. Run `research/ocr/.venv/Scripts/python research/ocr/read_receipt.py <image-or-pdf>` — it prints each line with its confidence and writes `research/ocr/output/<file>.json`. The venv, the model, `samples/` and `output/` are gitignored (receipts can contain personal data). To rebuild on a fresh machine: `python -m venv .venv`, then `pip install onnxruntime opencv-python-headless pyclipper numpy pillow pypdfium2 huggingface_hub`, then `hf download iapp/OpenThai2.0-OCR-Text --local-dir OpenThai2.0-OCR-Text`. OCR returns plain lines, not fields, so amount, date and vendor still need a separate extraction step.
 - **Evaluation harness (thesis Phase 4)**: `node research/eval/run-eval.js <cases.csv> [--baseline] [--show-prompt <id>]` compares rule-engine verdicts (and optionally an LLM-only baseline) with finance officers' verdicts; see `research/eval/README.md`. Real cases go in the gitignored `research/eval/data/`.
 - **Local OCR service for the app**: `research/ocr/.venv/Scripts/python research/ocr/server.py` (127.0.0.1:8765). `new-receipt.html` uses it automatically when it's running.
@@ -321,6 +321,21 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - `ruleSet.fundSourceActive === false` adds a leading `FUND_SOURCE_INACTIVE` notice to `findings` and the explanation. It does not change status or `autoVerified` (the owner's choice: "ตรวจต่อ แต่เตือน").
   - `new-receipt.js`'s `loadActiveRuleSet` reads the fund source doc to set it.
 - **Still not built:** server-side verdicts (the Trusted Server Service), FR-36 estimate versioning, FR-20 consent withdrawal.
+
+## Estimate import from Word and PDF — 2026-11-20
+
+- **Why:** the owner asked whether the 17.2 estimate could be imported from Word or PDF as well as Excel. Proposals are often kept as Word or PDF.
+- **`app/js/budget-file-reader.js`** (UMD) is the single entry point: `readBudgetFile(file)` → `{ rows, kind }`. `budget.js` passes `rows` to `BudgetParser.parseRows`.
+  - **Excel/CSV:** SheetJS, as before.
+  - **`.docx`:** JSZip 3.10.1 (cdnjs) unzips the file. `docxXmlToTables()` reads `w:tbl/w:tr/w:tc` with regexes and expands `gridSpan` so merged cells keep column positions. `pickBudgetTable()` picks the table that has "รายการ" plus "รวม"/"งวด".
+  - **`.pdf`:** text PDFs only, via pdf.js 6.3.289 (dynamic `import()`).
+    - `pdfItemsToRows()` groups text into lines by y, joins touching Thai fragments into phrases, and takes column centres from the header phrases.
+    - Each phrase goes to the column it overlaps most. Left-aligned names, right-aligned numbers and long names all land in the right column this way; an earlier nearest-centre rule put long names in the "ลำดับ" column.
+    - A PDF with under 20 characters of text is treated as scanned and rejected with advice.
+  - `.doc` is rejected with "save as .docx".
+- **`budget-parser.js`:** `detectColumns()` finds columns from header rows (ลำดับ / รายการ / ตัวคูณ / งวดที่ 1–3 / รวม). The header may span two rows, and it falls back to the helper file's fixed positions. A group row is now any row with exactly one filled cell starting with "หมวด" (Word/PDF merge it across the row). Item numbers like "1." are accepted.
+- **UI:** `budget.html` accepts `.docx`/`.pdf`. Word and PDF imports show an info banner asking the user to check every row, with a stronger warning for PDF.
+- **Verified:** a generated `.docx` (merged header and group cells) and a reportlab text PDF (Tahoma, Thai) both imported all 5 lines, with correct installments, `unitPrice`/`quantity` and category guesses. A scanned PDF and a `.doc` show the right messages, and `.xlsx` is unchanged. No real proposal file has been tested yet.
 
 ## UI/shared code conventions
 

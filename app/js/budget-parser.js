@@ -10,7 +10,46 @@
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.BudgetParser = api;
 })(typeof self !== "undefined" ? self : this, function () {
+  // ตำแหน่งคอลัมน์ของไฟล์ Excel ตัวช่วย ใช้เมื่อหาหัวตารางไม่เจอ
   var COL = { order: 0, itemName: 1, multiplier: 2, inst1: 3, inst2: 4, inst3: 5, total: 6 };
+
+  function text(v) {
+    return v == null ? "" : String(v).replace(/\s+/g, " ").trim();
+  }
+
+  // หาคอลัมน์จากหัวตาราง (ลำดับ / รายการ / ตัวคูณ / งวดที่ 1–3 / รวม) — ตารางใน Word/PDF อาจเรียง
+  // คอลัมน์ไม่เหมือนไฟล์ Excel ตัวช่วย หัวตารางอาจแยก 2 แถว (งวด/รวม อยู่แถวล่าง) จึงไล่ดูหลายแถวแรก
+  function detectColumns(rows) {
+    var col = {};
+    var limit = Math.min(rows.length, 25);
+    for (var r = 0; r < limit; r++) {
+      var row = rows[r] || [];
+      var cells = row.map(text);
+      var isHeaderRow = cells.some(function (t) { return /^ลำดับ|^รายการ|งวดที่/.test(t); });
+      if (!isHeaderRow) continue;
+      cells.forEach(function (t, i) {
+        if (!t) return;
+        if (col.order == null && /^ลำดับ/.test(t)) col.order = i;
+        else if (col.itemName == null && /^รายการ/.test(t)) col.itemName = i;
+        else if (col.multiplier == null && /ตัวคูณ/.test(t)) col.multiplier = i;
+        else if (col.inst1 == null && /งวดที่\s*1/.test(t)) col.inst1 = i;
+        else if (col.inst2 == null && /งวดที่\s*2/.test(t)) col.inst2 = i;
+        else if (col.inst3 == null && /งวดที่\s*3/.test(t)) col.inst3 = i;
+        else if (col.total == null && /^รวม/.test(t)) col.total = i;
+      });
+    }
+    if (col.itemName == null || col.total == null) return Object.assign({ detected: false }, COL);
+    return {
+      detected: true,
+      order: col.order != null ? col.order : null,
+      itemName: col.itemName,
+      multiplier: col.multiplier != null ? col.multiplier : null,
+      inst1: col.inst1 != null ? col.inst1 : null,
+      inst2: col.inst2 != null ? col.inst2 : null,
+      inst3: col.inst3 != null ? col.inst3 : null,
+      total: col.total,
+    };
+  }
 
   function toNumber(v) {
     if (typeof v === "number") return isFinite(v) ? v : 0;
@@ -39,8 +78,13 @@
   }
 
   function cell(row, i) {
+    if (i == null) return "";
     var v = row[i];
     return v == null ? "" : String(v).trim();
+  }
+
+  function num(row, i) {
+    return i == null ? 0 : toNumber(row[i]);
   }
 
   // rows: array ของแถว (array ของค่าในแต่ละเซลล์) จากชีต 17.2
@@ -49,19 +93,23 @@
     var lines = [];
     var warnings = [];
     var group = null;
-    var foundHeader = false;
+    var COLS = detectColumns(rows);
+    var foundHeader = COLS.detected;
 
     rows.forEach(function (row, idx) {
       if (!row || !row.length) return;
-      var a = cell(row, COL.order);
-      var b = cell(row, COL.itemName);
+      var a = cell(row, COLS.order);
+      var b = cell(row, COLS.itemName);
       if (!foundHeader && /รายการค่าใช้จ่าย/.test(b)) foundHeader = true;
-      if (!a && /^หมวด/.test(b)) { group = b; return; }
+      // แถวหัวหมวด: มีข้อความช่องเดียวขึ้นต้นด้วย "หมวด" (ใน Word/PDF มักเป็นช่องที่ผสานกันทั้งแถว)
+      var filled = row.map(text).filter(Boolean);
+      if (filled.length === 1 && /^หมวด/.test(filled[0]) && !/^\d+\.?$/.test(a)) { group = filled[0]; return; }
+      a = a.replace(/\.$/, "");
       if (!/^\d+$/.test(a) || !b) return;
 
-      var installments = [toNumber(row[COL.inst1]), toNumber(row[COL.inst2]), toNumber(row[COL.inst3])];
+      var installments = [num(row, COLS.inst1), num(row, COLS.inst2), num(row, COLS.inst3)];
       var installmentSum = installments[0] + installments[1] + installments[2];
-      var total = toNumber(row[COL.total]) || installmentSum;
+      var total = num(row, COLS.total) || installmentSum;
       if (total <= 0) {
         warnings.push("แถว " + (idx + 1) + " \"" + b + "\" ไม่มียอดเงิน — ข้ามไป");
         return;
@@ -69,7 +117,7 @@
       if (installmentSum > 0 && Math.abs(installmentSum - total) > 0.5) {
         warnings.push("แถว " + (idx + 1) + " \"" + b + "\" ยอดงวด 1–3 รวมกัน (" + installmentSum + ") ไม่เท่ากับยอดรวม (" + total + ")");
       }
-      var multiplier = parseMultiplier(cell(row, COL.multiplier));
+      var multiplier = parseMultiplier(cell(row, COLS.multiplier));
       if (multiplier.unitPrice !== null && multiplier.quantity !== null &&
           Math.abs(multiplier.unitPrice * multiplier.quantity - total) > 0.5) {
         warnings.push("แถว " + (idx + 1) + " \"" + b + "\" ตัวคูณ (" + multiplier.unitPrice + " × " + multiplier.quantity + ") ไม่เท่ากับยอดรวม (" + total + ")");
@@ -77,7 +125,7 @@
       lines.push({
         group: group,
         itemName: b,
-        multiplierText: cell(row, COL.multiplier),
+        multiplierText: cell(row, COLS.multiplier),
         unitPrice: multiplier.unitPrice,
         quantity: multiplier.quantity,
         installmentAmounts: installments,
@@ -137,5 +185,5 @@
     return sheetNames.filter(function (n) { return /17\.2/.test(n); })[0] || sheetNames[0];
   }
 
-  return { parseRows: parseRows, parseMultiplier: parseMultiplier, guessRuleCategory: guessRuleCategory, pickSheetName: pickSheetName };
+  return { parseRows: parseRows, detectColumns: detectColumns, parseMultiplier: parseMultiplier, guessRuleCategory: guessRuleCategory, pickSheetName: pickSheetName };
 });
