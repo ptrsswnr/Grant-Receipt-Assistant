@@ -25,17 +25,23 @@
     return words;
   }
 
+  // OpenThai OCR มักทำวรรณยุกต์/การันต์หาย ("ที่" → "ที") และเว้นวรรคไม่ตรง — เทียบโดยตัดทั้งสองอย่างออกทั้งสองฝั่ง
+  function normalize(s) {
+    return String(s || "").replace(/[่-์]/g, "").replace(/\s+/g, "");
+  }
+
   // documentTypesById: { id: { documentName, formCode, ... } } — คืน documentTypeId ที่คำสำคัญยาว
   // ที่สุดไปตรงกับข้อความ OCR (คำยาวกว่า = เจาะจงกว่า เช่น "วจ.3" ชนะ "ใบ" เปล่าๆ) หรือ null ถ้าไม่เจอเลย
   function classifyDocument(ocrText, documentTypesById) {
-    var text = String(ocrText || "");
+    var text = normalize(ocrText);
     var best = null;
     var bestLen = 0;
     Object.keys(documentTypesById || {}).forEach(function (id) {
       keywordsFor(documentTypesById[id]).forEach(function (kw) {
-        if (kw.length > bestLen && text.indexOf(kw) !== -1) {
+        var k = normalize(kw);
+        if (k.length > bestLen && text.indexOf(k) !== -1) {
           best = id;
-          bestLen = kw.length;
+          bestLen = k.length;
         }
       });
     });
@@ -45,19 +51,19 @@
   // attestations (สิ่งที่ต้องมี "บนตัวเอกสาร" เช่นตราประทับ) — จับคำสำคัญที่ปรากฏบนตราประทับจริง
   // ไม่ใช่ข้อความอธิบายเต็มประโยคใน data.js (ซึ่งยาวเกินจะไปปรากฏบนเอกสารตรงๆ)
   var ATTESTATION_KEYWORDS = {
-    "paid-stamp": /จ่ายแล้ว/,
-    "inspection-stamp": /ตรวจรับพัสดุ/,
+    "paid-stamp": "จ่ายแล้ว",
+    "inspection-stamp": "ตรวจรับพัสดุ",
   };
 
   // ocrTexts: [ข้อความ OCR ของแต่ละไฟล์ที่แนบ] — คืนรายชื่อ attestationId ที่พบคำสำคัญในไฟล์ใดไฟล์หนึ่ง
   function detectAttestations(ocrTexts) {
     var found = [];
     Object.keys(ATTESTATION_KEYWORDS).forEach(function (id) {
-      var re = ATTESTATION_KEYWORDS[id];
-      if ((ocrTexts || []).some(function (t) { return re.test(t || ""); })) found.push(id);
+      var k = normalize(ATTESTATION_KEYWORDS[id]);
+      if ((ocrTexts || []).some(function (t) { return normalize(t).indexOf(k) !== -1; })) found.push(id);
     });
     return found;
   }
 
-  return { keywordsFor: keywordsFor, classifyDocument: classifyDocument, detectAttestations: detectAttestations };
+  return { keywordsFor: keywordsFor, normalize: normalize, classifyDocument: classifyDocument, detectAttestations: detectAttestations };
 });

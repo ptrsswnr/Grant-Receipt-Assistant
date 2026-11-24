@@ -4,6 +4,9 @@ Usage: .venv/Scripts/python server.py [--port 8765]
 
 GET  /health  -> {"ok": true, "engine": ...}
 POST /ocr     body = image bytes (png/jpg) -> {"text", "lines": [{"text", "confidence"}], "lowConfidence", "seconds"}
+              body = PDF bytes -> same fields for the whole file (pages joined in order), plus
+              "pages": [{"page", "text", "lines", "lowConfidence"}] — every page is rendered and read
+              one at a time, so a large scan never has to fit in memory as one image
 
 Listens on 127.0.0.1 only. Answers browsers only from the origins in ALLOWED_ORIGINS
 (the local static server and the live site). The page in new-receipt.html calls this
@@ -25,6 +28,9 @@ from runtime.line_engine import LineOCR  # noqa: E402
 ENGINE = "OpenThai2.0-OCR-Text"
 LOW_CONFIDENCE = 0.90
 MAX_BYTES = 15 * 1024 * 1024
+# A whole project's scanned documents in one PDF; localhost only, pages are read one at a time
+MAX_PDF_BYTES = 300 * 1024 * 1024
+PDF_DPI = 200
 ALLOWED_ORIGINS = {
     "http://localhost:4173",
     "http://127.0.0.1:4173",
@@ -34,6 +40,31 @@ ALLOWED_ORIGINS = {
 
 ocr = None
 ocr_lock = threading.Lock()  # one model instance; requests take turns
+
+
+def lines_of(result):
+    return [{"text": ln["text"], "confidence": round(float(ln["confidence"]), 4)} for ln in result["lines"]]
+
+
+def read_pdf(data):
+    import pypdfium2 as pdfium
+    try:
+        pdf = pdfium.PdfDocument(data)
+    except pdfium.PdfiumError as err:
+        raise ValueError(f"cannot open PDF: {err}")
+    pages = []
+    for i in range(len(pdf)):
+        image = pdf[i].render(scale=PDF_DPI / 72).to_pil()
+        with ocr_lock:
+            result = ocr.read(image)
+        lines = lines_of(result)
+        pages.append({
+            "page": i + 1,
+            "text": result["text"],
+            "lines": lines,
+            "lowConfidence": [ln for ln in lines if ln["confidence"] < LOW_CONFIDENCE],
+        })
+    return pages
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -74,16 +105,31 @@ class Handler(BaseHTTPRequestHandler):
         if origin and origin not in ALLOWED_ORIGINS:
             return self._json(403, {"error": "origin not allowed"})
         length = int(self.headers.get("Content-Length") or 0)
-        if not 0 < length <= MAX_BYTES:
-            return self._json(413, {"error": "image missing or too large"})
-        image = self.rfile.read(length)
+        is_pdf = "pdf" in self.headers.get("Content-Type", "")
+        if not 0 < length <= (MAX_PDF_BYTES if is_pdf else MAX_BYTES):
+            return self._json(413, {"error": "file missing or too large"})
+        body = self.rfile.read(length)
         start = time.perf_counter()
+        if body[:5] == b"%PDF-":
+            try:
+                pages = read_pdf(body)
+            except ValueError as err:
+                return self._json(400, {"error": str(err)})
+            lines = [ln for p in pages for ln in p["lines"]]
+            return self._json(200, {
+                "engine": ENGINE,
+                "text": "\n".join(p["text"] for p in pages),
+                "lines": lines,
+                "lowConfidence": [ln for ln in lines if ln["confidence"] < LOW_CONFIDENCE],
+                "pages": pages,
+                "seconds": round(time.perf_counter() - start, 3),
+            })
         try:
             with ocr_lock:
-                result = ocr.read(image)
+                result = ocr.read(body)
         except ValueError as err:
             return self._json(400, {"error": str(err)})
-        lines = [{"text": ln["text"], "confidence": round(float(ln["confidence"]), 4)} for ln in result["lines"]]
+        lines = lines_of(result)
         self._json(200, {
             "engine": ENGINE,
             "text": result["text"],

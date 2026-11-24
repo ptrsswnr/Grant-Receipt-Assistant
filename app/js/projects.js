@@ -75,6 +75,7 @@
         '<div class="row" style="margin-top:8px;">' +
           '<a class="btn btn-secondary btn-sm" href="receipts.html?projectId=' + esc(projectId) + '">ใบเสร็จในโครงการนี้</a>' +
           '<a class="btn btn-secondary btn-sm" href="budget.html?projectId=' + esc(projectId) + '">ประมาณการ</a>' +
+          '<a class="btn btn-secondary btn-sm" href="batch-import.html?projectId=' + esc(projectId) + '">นำเข้าไฟล์สแกนทั้งโครงการ</a>' +
           '<a class="btn btn-primary btn-sm" href="new-receipt.html?projectId=' + esc(projectId) + '">อัปโหลดใบเสร็จ</a>' +
         '</div>' +
       '</div>'

@@ -1,7 +1,7 @@
 // Run: node --test tests/ocr-client.test.js
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { extractFields, textForAi } = require("../app/js/ocr-client.js");
+const { extractFields, textForAi, pagesOf } = require("../app/js/ocr-client.js");
 
 const lines = (arr) => ({ lines: arr.map((text) => ({ text, confidence: 0.97 })) });
 
@@ -35,4 +35,13 @@ test("text sent to the AI marks low-confidence lines", () => {
   const t = textForAi({ lines: [{ text: "รวม 390.00", confidence: 0.99 }, { text: "วันที 1/1/69", confidence: 0.62 }] });
   assert.match(t, /วันที 1\/1\/69 {2}\(OCR ไม่มั่นใจ 62%\)/);
   assert.doesNotMatch(t.split("\n")[0], /ไม่มั่นใจ/);
+});
+
+test("pagesOf numbers PDF pages from the server, and treats an image result as one page", () => {
+  const pdf = { pages: [{ lines: [{ text: "หน้าแรก", confidence: 0.99 }] }, { lines: [{ text: "หน้าสอง", confidence: 0.5 }] }] };
+  const p = pagesOf(pdf);
+  assert.deepEqual(p.map((x) => x.page), [1, 2]);
+  assert.equal(p[0].text, "หน้าแรก");
+  assert.match(p[1].text, /OCR ไม่มั่นใจ 50%/);
+  assert.deepEqual(pagesOf({ lines: [{ text: "รูป", confidence: 0.99 }] }, 5).map((x) => x.page), [5]);
 });

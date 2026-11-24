@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>นำเข้าไฟล์สแกนทั้งโครงการ — Grant Receipt Assistant</title>
+<link rel="stylesheet" href="css/style.css">
+<script src="js/theme.js"></script>
+<script src="js/data.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js" defer></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js" defer></script>
+<script src="js/firebase-config.js" defer></script>
+<script src="js/nav.js" defer></script>
+<script src="js/auth-guard.js" defer></script>
+<script src="https://accounts.google.com/gsi/client" defer></script>
+<script src="js/google-drive.js" defer></script>
+<script src="js/receipt-store.js" defer></script>
+<script src="js/ai-config.local.js" defer onerror="console.warn('ai-config.local.js not found — splitting/grouping fall back to keywords (see js/ai-config.example.js)')"></script>
+<script src="js/ai-client.js" defer></script>
+<script src="js/ocr-client.js" defer></script>
+<script src="js/document-classifier.js" defer></script>
+<script src="js/rule-engine.js" defer></script>
+<script src="js/llm-verdict.js" defer></script>
+<script src="js/receipt-pipeline.js" defer></script>
+<script src="js/document-pipeline.js" defer></script>
+<script type="module" src="js/pdf-to-image.js"></script>
+</head>
+<body>
+
+<div id="nav"></div>
+
+<main class="page-shell">
+
+  <div class="section text-left-block">
+    <h1>นำเข้าไฟล์สแกนทั้งโครงการ</h1>
+    <p class="text-body">
+      แนบไฟล์ PDF ที่สแกนเอกสารเบิกจ่ายมา จะเป็นเอกสารใบเดียวหรือเอกสารทั้งโครงการในไฟล์เดียวก็ได้ ระบบจะอ่านทุกหน้าด้วย OCR
+      ในเครื่อง แยกว่าหน้าไหนเป็นเอกสารใบไหน บอกประเภทเอกสาร ดึงข้อมูล จัดเป็นรายการค่าใช้จ่าย จับคู่กับประมาณการ แล้วตรวจตามระเบียบ
+      ให้ทันที โดยไม่มีขั้นตอนให้แก้ไขก่อน
+    </p>
+  </div>
+
+  <div id="warningBox" class="banner banner--error" style="display:none;"></div>
+
+  <section id="setupSection" class="section" style="max-width:640px;">
+    <div class="field">
+      <label for="projectId">โครงการวิจัย</label>
+      <select id="projectId">
+        <option value="">— เลือกโครงการวิจัย —</option>
+      </select>
+      <div id="estimateNotice" class="banner banner--error" hidden></div>
+    </div>
+
+    <div class="field">
+      <label>ไฟล์สแกน (pdf/jpg/png — เลือกได้หลายไฟล์ แต่ละไฟล์นำเข้าแยกกัน)</label>
+      <label class="dropzone" for="scanFiles" tabindex="0">
+        <input class="dropzone__input" type="file" id="scanFiles" accept=".pdf,.jpg,.jpeg,.png" multiple>
+        <div class="dropzone__icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 18a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.7A4 4 0 0 0 6.5 15"></path><polyline points="12 12 12 21"></polyline><polyline points="8.5 15.5 12 12 15.5 15.5"></polyline></svg></div>
+        <h2 style="margin:0;">ลากไฟล์มาวางที่นี่ หรือคลิกเพื่อเลือกไฟล์</h2>
+        <p class="text-body" style="margin:0;text-align:center;">ต้องเปิด OCR ในเครื่อง (research/ocr/server.py) ไว้ก่อน</p>
+      </label>
+      <div id="fileStatus" class="text-small" style="margin-top:8px;"></div>
+      <div class="row row-align-center" style="gap:8px;margin-top:8px;">
+        <button type="button" class="btn btn-secondary btn-sm" id="connectDriveButton">เชื่อมต่อ Google Drive</button>
+        <span id="driveConnectStatus" class="text-small"></span>
+      </div>
+      <p class="help-text">ไฟล์ต้นฉบับจะถูกอัปโหลดไปเก็บที่ Google Drive ของคุณ ใบเสร็จทุกรายการที่ได้จากไฟล์นี้จะลิงก์กลับไปที่ไฟล์เดียวกันพร้อมเลขหน้า</p>
+    </div>
+
+    <div class="card" id="privacyConsentCard" style="display:none;">
+      <label class="row row-align-center" style="gap:8px; cursor:pointer;">
+        <input type="checkbox" id="privacyConsentCheckbox" style="width:auto; flex:0 0 auto;">
+        <span class="text-small">
+          ฉันรับทราบว่าข้อมูลใบเสร็จที่อัปโหลด (ยอดเงิน วันที่ หมวดค่าใช้จ่าย ผู้ขาย และไฟล์แนบ) จะถูกผู้ดูแลระบบ (Admin)
+          เห็นได้เต็มรูปแบบผ่าน Admin Dashboard และอาจถูกนำไปใช้จัดทำรายงานสรุปและปรับปรุงระบบ
+        </span>
+      </label>
+    </div>
+
+    <div class="row" style="justify-content:flex-end;">
+      <button type="button" class="btn btn-primary btn-md" id="startButton">นำเข้าและตรวจอัตโนมัติ</button>
+    </div>
+  </section>
+
+  <section id="progressSection" class="section" hidden>
+    <div class="card">
+      <p class="text-body" id="progressText" aria-live="polite">กำลังเริ่ม...</p>
+    </div>
+  </section>
+
+  <section id="resultSection" class="section" hidden>
+    <h2>ผลการนำเข้า</h2>
+    <p class="text-body" id="verdictModeNote"></p>
+    <div id="resultList"></div>
+    <div class="row" style="justify-content:flex-end;">
+      <a class="btn btn-primary btn-md" id="toReceiptsLink" href="receipts.html">ไปที่ใบเสร็จของโครงการ</a>
+    </div>
+  </section>
+
+</main>
+
+<script src="js/batch-import.js" defer></script>
+
+</body>
+</html>

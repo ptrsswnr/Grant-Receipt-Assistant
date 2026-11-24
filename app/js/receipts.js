@@ -63,8 +63,10 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
   var chipClass = STATUS_CHIP_CLASS[receipt.status] || "chip-status--pending";
   var calloutKind = chipClass.replace("chip-status--", "").replace("pending", "reject");
 
-  // รหัสไฟล์ใน Drive ที่ต้องลบก่อนลบใบเสร็จ (ใบเสร็จสาธิตที่ไม่มีไฟล์จริงจะว่าง)
-  var driveFileIds = (files || []).map(function (f) { return window.googleDriveFileIdOf ? window.googleDriveFileIdOf(f) : null; })
+  // รหัสไฟล์ใน Drive ที่ต้องลบก่อนลบใบเสร็จ (ใบเสร็จสาธิตที่ไม่มีไฟล์จริงจะว่าง) — ข้ามไฟล์ที่มาจากการนำเข้า
+  // ไฟล์สแกนทั้งโครงการ (importBatchId) เพราะไฟล์ต้นฉบับไฟล์เดียวใช้ร่วมกันหลายใบเสร็จ ลบแล้วใบอื่นเสียลิงก์
+  var driveFileIds = (files || []).filter(function (f) { return !f.importBatchId; })
+    .map(function (f) { return window.googleDriveFileIdOf ? window.googleDriveFileIdOf(f) : null; })
     .filter(Boolean).join(",");
   var html = '<div class="receipt-entry" data-receipt-path="' + esc(receiptPath) + '" data-drive-file-ids="' + esc(driveFileIds) + '">';
   html +=

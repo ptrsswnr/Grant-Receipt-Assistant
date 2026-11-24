@@ -98,58 +98,19 @@ var SAMPLE_VENDORS = [
   // เลขสูงสุดข้ามทุกโครงการของผู้ใช้คนนี้ (ไม่ใช่แค่โครงการที่กำลังเลือกอยู่) — กรองด้วย ownerUserId
   // เพื่อไม่ให้ปนกับรหัสใบเสร็จของผู้ใช้คนอื่น (แต่ละคนมีลำดับ receipt001, 002, ... ของตัวเอง)
   async function nextReceiptId() {
-    var snapshot = await db.collectionGroup("receipts").where("ownerUserId", "==", user.uid).get();
-    var maxNumber = 0;
-    snapshot.forEach(function (doc) {
-      var m = doc.id.match(/^receipt(\d+)$/);
-      if (m) maxNumber = Math.max(maxNumber, parseInt(m[1], 10));
-    });
-    return "receipt" + String(maxNumber + 1).padStart(3, "0");
+    return window.ReceiptStore.receiptIdFor(await window.ReceiptStore.maxReceiptNumber(user.uid) + 1);
   }
 
-  // ชุดเอกสาร (evidenceChains) และชื่อ/รายละเอียดเอกสาร (documentTypes) เป็นข้อมูลกลางของมหาวิทยาลัย
-  // ไม่ผูกแหล่งทุน โหลดครั้งเดียวตอนเปิดหน้า — documentTypesById เก็บฟิลด์เต็ม (ไม่ใช่แค่ชื่อ) เพราะ
-  // js/document-classifier.js ต้องใช้ formCode ด้วยตอนเดาประเภทเอกสารจากข้อความ OCR
-  var evidenceChainsById = {};
-  var documentNames = {};
-  var documentTypesById = {};
-  var [chainsSnap, docTypesSnap] = await Promise.all([
-    db.collection("evidenceChains").get(),
-    db.collection("documentTypes").get(),
-  ]);
-  chainsSnap.forEach(function (d) { evidenceChainsById[d.id] = d.data(); });
-  docTypesSnap.forEach(function (d) {
-    documentNames[d.id] = d.data().documentName;
-    documentTypesById[d.id] = d.data();
-  });
+  // ข้อมูลอ้างอิงกลาง (evidenceChains/documentTypes) โหลดครั้งเดียวตอนเปิดหน้า (js/receipt-store.js)
+  var refData = await window.ReceiptStore.loadReferenceData();
+  var evidenceChainsById = refData.evidenceChainsById;
+  var documentNames = refData.documentNames;
+  var documentTypesById = refData.documentTypesById;
 
-  // โหลดชุดกฎของเวอร์ชันที่ active ทั้งชุดจาก Firestore แล้วส่งให้ rule engine / LLM ตัดสิน — การตัดสิน
-  // อยู่ใน js/rule-engine.js หรือ js/llm-verdict.js เท่านั้น ไฟล์นี้แค่โหลดข้อมูลกับแสดงผล
+  // ชุดกฎของเวอร์ชันที่ active — การตัดสินอยู่ใน js/rule-engine.js หรือ js/llm-verdict.js เท่านั้น
   var ruleSetCache = {};
-  async function loadActiveRuleSet(fundSourceId) {
-    if (!fundSourceId) return null;
-    var fundSourceDoc = await db.collection("fundSources").doc(fundSourceId).get();
-    if (!fundSourceDoc.exists) return null;
-    // แหล่งทุนปิดใช้งาน (FR-35): ยังตรวจด้วยกฎเดิม แต่ rule engine จะแจ้งเตือนในคำอธิบาย
-    var fundSourceActive = fundSourceDoc.data().isActive !== false;
-    var ruleVersionsSnap = await db.collection("fundSources").doc(fundSourceId)
-      .collection("ruleVersions").where("isActive", "==", true).limit(1).get();
-    if (ruleVersionsSnap.empty) {
-      return { fundSourceId: fundSourceId, fundSourceActive: fundSourceActive, ruleVersionId: null, versionLabel: null, ruleItems: [], evidenceChains: evidenceChainsById };
-    }
-    var versionDoc = ruleVersionsSnap.docs[0];
-    var ruleItemsSnap = await versionDoc.ref.collection("ruleItems").get();
-    return {
-      fundSourceId: fundSourceId,
-      fundSourceActive: fundSourceActive,
-      ruleVersionId: versionDoc.id,
-      versionLabel: versionDoc.data().versionLabel || null,
-      ruleItems: ruleItemsSnap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }),
-      evidenceChains: evidenceChainsById,
-    };
-  }
   function getRuleSet(fundSourceId) {
-    if (!ruleSetCache[fundSourceId]) ruleSetCache[fundSourceId] = loadActiveRuleSet(fundSourceId);
+    if (!ruleSetCache[fundSourceId]) ruleSetCache[fundSourceId] = window.ReceiptStore.loadActiveRuleSet(fundSourceId, evidenceChainsById);
     return ruleSetCache[fundSourceId];
   }
 
@@ -164,15 +125,12 @@ var SAMPLE_VENDORS = [
 
   // ─── รายการในประมาณการ — จับคู่อัตโนมัติจากหมวดที่อ่านได้ (ไม่มีดรอปดาวน์ให้เลือกเองแล้ว) ───
   function projectRefFor(projectId) {
-    return db.collection("users").doc(user.uid).collection("projects").doc(projectId);
+    return window.ReceiptStore.projectRef(user.uid, projectId);
   }
 
   var budgetLinesCache = {};
   function getBudgetLines(projectId) {
-    if (!budgetLinesCache[projectId]) {
-      budgetLinesCache[projectId] = projectRefFor(projectId).collection("budgetLines").orderBy("order").get()
-        .then(function (snap) { return snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); }); });
-    }
+    if (!budgetLinesCache[projectId]) budgetLinesCache[projectId] = window.ReceiptStore.loadBudgetLines(user.uid, projectId);
     return budgetLinesCache[projectId];
   }
 
@@ -196,16 +154,7 @@ var SAMPLE_VENDORS = [
   // ประมาณการทั้งโครงการพร้อมยอดที่เบิกไปแล้วต่อรายการ (ไม่รวมใบนี้) เป็นข้อมูลดิบให้ LLM (js/llm-verdict.js)
   // ยอดเบิกสะสมนับจาก budgetLineId ที่บันทึกไว้บนใบเสร็จเดิม ซึ่งมาจากการจับคู่ด้วยหมวดของ rule engine
   async function estimateWithSpent(projectId) {
-    var lines = await getBudgetLines(projectId);
-    var spent = {};
-    var snap = await projectRefFor(projectId).collection("receipts").get();
-    snap.forEach(function (d) {
-      var r = d.data();
-      if (r.budgetLineId) spent[r.budgetLineId] = (spent[r.budgetLineId] || 0) + (r.confirmedAmount || 0);
-    });
-    return lines.map(function (l) {
-      return { id: l.id, group: l.group || "", itemName: l.itemName, multiplierText: l.multiplierText || "", total: l.total, spentBefore: spent[l.id] || 0 };
-    });
+    return window.ReceiptStore.estimateWithSpent(user.uid, projectId, await getBudgetLines(projectId));
   }
 
   // ─── บังคับให้มีประมาณการก่อนอัปโหลด: ขั้นตอนจริงคือลงทะเบียนโครงการ + แนบประมาณการก่อน แล้วจึงตรวจใบเสร็จ ───
@@ -322,17 +271,17 @@ var SAMPLE_VENDORS = [
 
   // อ่านทุกไฟล์ที่แนบด้วย OCR ในเครื่อง (ถ้าเปิดอยู่) — เก็บผลดิบ (ข้อความ+confidence ทุกบรรทัด) ของ
   // ทุกไฟล์ไว้เสมอตามข้อกำหนด "ห้ามทิ้งผล OCR ดิบ" ไม่ว่าจะใช้ AI ต่อสำเร็จหรือไม่
+  // PDF ส่งทั้งไฟล์ให้ OCR server ซึ่งอ่านครบทุกหน้า (ข้อความต่อกันตามลำดับหน้า) ไม่ใช่แค่หน้าแรก
   async function ocrAllFiles(files) {
     var ocrAvailable = window.OcrClient && await window.OcrClient.isAvailable();
     var results = [];
     for (var i = 0; i < files.length; i++) {
-      var imageFile = await toImageFile(files[i]);
-      if (!imageFile || !ocrAvailable) {
+      if (!ocrAvailable || ALLOWED_EXTENSIONS.indexOf(fileExtension(files[i].name)) === -1) {
         results.push({ fileName: files[i].name, text: "", lines: [], ocrResult: null });
         continue;
       }
       try {
-        var ocrResult = await window.OcrClient.read(imageFile);
+        var ocrResult = await window.OcrClient.read(files[i]);
         results.push({ fileName: files[i].name, text: window.OcrClient.textForAi(ocrResult), lines: ocrResult.lines || [], ocrResult: ocrResult });
       } catch (err) {
         console.warn("OCR ในเครื่องอ่านไม่สำเร็จ", files[i].name, err);

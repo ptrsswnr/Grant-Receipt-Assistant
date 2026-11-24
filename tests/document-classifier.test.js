@@ -26,6 +26,12 @@ test("no keyword found anywhere → null", () => {
   assert.equal(classifyDocument("ข้อความที่ไม่เกี่ยวข้องเลย", DOC_TYPES), null);
 });
 
+test("matching ignores the tone marks and spaces OCR often drops", () => {
+  assert.equal(classifyDocument("สำเนาบัตรประจำตัวประชาชนผูรับเงิน", DOC_TYPES), "id-card-copy");
+  assert.equal(classifyDocument("แบบขออนุมัติ วจ. 3", DOC_TYPES), "travel-approval-vj3");
+  assert.deepEqual(detectAttestations(["ตรา จายแลว"]), ["paid-stamp"]);
+});
+
 test("detects attestations from stamp keywords across files, not full sentences", () => {
   assert.deepEqual(detectAttestations(["ตราประทับ จ่ายแล้ว", "เอกสารอื่น"]), ["paid-stamp"]);
   assert.deepEqual(detectAttestations(["จ่ายแล้ว", "ตรวจรับพัสดุ เรียบร้อย"]).sort(), ["inspection-stamp", "paid-stamp"]);

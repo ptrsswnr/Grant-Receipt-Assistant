@@ -129,7 +129,31 @@ async function ensureReceiptFolder(receiptId) {
   return ensureFolder(receiptId, driveRootFolderIdCache);
 }
 
+// multipart ใช้ได้กับไฟล์ไม่เกิน 5 MB ตามเอกสารของ Drive API — ไฟล์สแกนทั้งโครงการ (batch-import) มักใหญ่กว่า
+// จึงใช้ resumable upload: ขอ session URL ก่อน แล้วส่งเนื้อไฟล์ทั้งก้อนไปที่ URL นั้น
+var MULTIPART_MAX_BYTES = 5 * 1024 * 1024;
+
+async function uploadFileResumable(file, folderId) {
+  var start = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&fields=id,webViewLink", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + driveAccessToken,
+      "Content-Type": "application/json; charset=UTF-8",
+      "X-Upload-Content-Type": file.type || "application/octet-stream",
+      "X-Upload-Content-Length": String(file.size),
+    },
+    body: JSON.stringify({ name: file.name, parents: [folderId] }),
+  });
+  if (!start.ok) throw new Error("Google Drive API error " + start.status + ": " + await start.text());
+  var sessionUrl = start.headers.get("Location");
+  if (!sessionUrl) throw new Error("Google Drive ไม่ส่ง URL สำหรับอัปโหลดไฟล์ใหญ่กลับมา");
+  var res = await fetch(sessionUrl, { method: "PUT", headers: { "Content-Type": file.type || "application/octet-stream" }, body: file });
+  if (!res.ok) throw new Error("Google Drive API error " + res.status + ": " + await res.text());
+  return res.json();
+}
+
 async function uploadFileContent(file, folderId) {
+  if (file.size > MULTIPART_MAX_BYTES) return uploadFileResumable(file, folderId);
   var metadata = { name: file.name, parents: [folderId] };
   var boundary = "grant-receipt-assistant-" + Date.now();
   var fileContent = await file.arrayBuffer();

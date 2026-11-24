@@ -102,5 +102,16 @@
     }).join("\n");
   }
 
-  return { endpoint: endpoint, isAvailable: isAvailable, read: read, extractFields: extractFields, textForAi: textForAi };
+  // ผล OCR → รายหน้า [{ page, text, lines }] — PDF ได้ทุกหน้าจาก server (ฟิลด์ pages), รูปภาพเป็น 1 หน้า
+  // text ของแต่ละหน้าบอกบรรทัดที่ OCR ไม่มั่นใจไว้ด้วย (textForAi) เหมือนข้อความที่ส่งให้ AI ในการอัปโหลดใบเดียว
+  function pagesOf(ocrResult, firstPage) {
+    var start = firstPage || 1;
+    var pages = ocrResult.pages || [{ lines: ocrResult.lines || [] }];
+    return pages.map(function (p, i) {
+      var lines = p.lines || [];
+      return { page: start + i, text: textForAi({ lines: lines }), lines: lines };
+    });
+  }
+
+  return { endpoint: endpoint, isAvailable: isAvailable, read: read, extractFields: extractFields, textForAi: textForAi, pagesOf: pagesOf };
 });
