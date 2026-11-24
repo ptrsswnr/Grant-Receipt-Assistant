@@ -51,3 +51,10 @@ node_modules/
 research/eval/data/
 research/eval/output/
 research/eval/ai-config.local.json
+
+# Batch runner (research/batch) — real receipt images/PDFs and finance verdicts are personal data;
+# run reports may embed OCR text from them. cases.example/ (synthetic, ocrText only) stays committed.
+research/batch/data/
+research/batch/output/*.json
+research/batch/output/*.csv
+!research/batch/output/.gitkeep

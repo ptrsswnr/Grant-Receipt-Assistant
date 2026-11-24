@@ -1,0 +1,15 @@
+{
+  "fundSourceId": "fundsource002",
+  "category": "ค่าวัสดุสำนักงาน",
+  "amount": 3200,
+  "financeVerdict": "ผ่าน",
+  "note": "เคสสมมติ: ซื้อวัสดุในเพดาน ฿5,000 อยู่ในประมาณการ แนบใบกำกับภาษีและเอกสารครบ — ใช้ข้อความ OCR ที่เตรียมไว้ล่วงหน้า (ocrText) ไม่เรียก OCR จริง ห้ามรายงานเป็นผลวิจัย",
+  "estimate": [
+    { "id": "line001", "group": "หมวดค่าวัสดุ", "itemName": "ค่าวัสดุสำนักงาน", "multiplierText": "", "total": 10000, "spentBefore": 2000, "ruleCategory": "ค่าวัสดุสำนักงาน" },
+    { "id": "line002", "group": "หมวดค่าใช้สอย", "itemName": "ค่าถ่ายเอกสาร", "multiplierText": "", "total": 3000, "spentBefore": 0, "ruleCategory": "ค่าถ่ายเอกสาร" }
+  ],
+  "files": [
+    { "fileName": "receipt.jpg", "ocrText": "ใบเสร็จรับเงิน/ใบกำกับภาษีเต็มรูปแบบ\nร้านวัสดุก่อสร้าง ใจดี\nวันที่ 1/11/2569\nกระดาษ A4 x 10 รีม 3,200.00\nรวมทั้งสิ้น 3,200.00\nจ่ายแล้ว" },
+    { "fileName": "inspection-photo.jpg", "ocrText": "รูปถ่ายพัสดุ ณ เวลาที่ตรวจรับ ตรวจรับพัสดุ เรียบร้อย" }
+  ]
+}

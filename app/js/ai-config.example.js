@@ -15,3 +15,8 @@ window.AI_CONFIG = { provider: "openrouter", apiKey: "sk-or-v1-your-key-here" };
 
 // 4) Custom — endpoint อื่นที่เป็น OpenAI-compatible
 // window.AI_CONFIG = { provider: "custom", name: "ชื่อที่แสดง", endpoint: "https://.../v1/chat/completions", apiKey: "...", model: "..." };
+
+// verdictMode — ใครเป็นผู้ตัดสินผล pass/fail ของใบเสร็จ (js/new-receipt.js)
+//   'llm'  (ค่าเริ่มต้นถ้าไม่ตั้งค่านี้เลย) — LLM ตัดสินเองจาก OCR + ระเบียบ (js/llm-verdict.js)
+//   'rule' — js/rule-engine.js ตัดสินแบบเทียบตัวเลขล้วน เหมือนเดิมก่อน Stage A (ไว้เทียบผลใน Stage B)
+// window.VERDICT_CONFIG = { mode: "llm" };

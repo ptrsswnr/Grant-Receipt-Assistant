@@ -1,0 +1,13 @@
+{
+  "fundSourceId": "fundsource002",
+  "category": "ค่าวัสดุสำนักงาน",
+  "amount": 6500,
+  "financeVerdict": "ต้องแก้ไข",
+  "note": "เคสสมมติ: ซื้อวัสดุเกินเพดาน ฿5,000 ไม่แนบเอกสารประกอบ — ใช้ข้อความ OCR ที่เตรียมไว้ล่วงหน้า (ocrText) ไม่เรียก OCR จริง ห้ามรายงานเป็นผลวิจัย",
+  "estimate": [
+    { "id": "line001", "group": "หมวดค่าวัสดุ", "itemName": "ค่าวัสดุสำนักงาน", "multiplierText": "", "total": 10000, "spentBefore": 0, "ruleCategory": "ค่าวัสดุสำนักงาน" }
+  ],
+  "files": [
+    { "fileName": "receipt.jpg", "ocrText": "ร้านเครื่องเขียนสยาม\nคอมพิวเตอร์ตั้งโต๊ะ 6,500.00\nรวม 6,500.00" }
+  ]
+}

@@ -18,7 +18,10 @@
 <script src="js/ai-config.local.js" defer onerror="console.warn('ai-config.local.js not found — AI receipt reading falls back to demo data (see js/ai-config.example.js)')"></script>
 <script src="js/ai-client.js" defer></script>
 <script src="js/ocr-client.js" defer></script>
+<script src="js/document-classifier.js" defer></script>
 <script src="js/rule-engine.js" defer></script>
+<script src="js/llm-verdict.js" defer></script>
+<script src="js/receipt-pipeline.js" defer></script>
 <script src="js/receipt-ai.js" defer></script>
 <script src="js/receipt-check-agent.js" defer></script>
 <script type="module" src="js/pdf-to-image.js"></script>
@@ -31,7 +34,7 @@
 
   <div class="stepper" aria-label="ขั้นตอนการอัปโหลดใบเสร็จ">
     <div class="stepper__step is-current" id="stepDot1"><div class="stepper__dot">1</div><div class="stepper__label">อัปโหลดใบเสร็จ</div></div>
-    <div class="stepper__step" id="stepDot2"><div class="stepper__dot">2</div><div class="stepper__label">ตรวจสอบข้อมูล</div></div>
+    <div class="stepper__step" id="stepDot2"><div class="stepper__dot">2</div><div class="stepper__label">กำลังตรวจสอบ</div></div>
     <div class="stepper__step" id="stepDot3"><div class="stepper__dot">3</div><div class="stepper__label">ผลตรวจ</div></div>
   </div>
 
@@ -42,8 +45,9 @@
     <div class="section text-left-block">
       <h1>อัปโหลดใบเสร็จ</h1>
       <p class="text-body">
-        เลือกโครงการที่ใบเสร็จนี้เบิกจาก แล้วแนบรูปหรือไฟล์ PDF ของใบเสร็จ ระบบจะอ่านยอดเงิน วันที่ และร้านค้าให้
-        คุณตรวจทานก่อนส่งตรวจ ถ้ายังไม่ได้แนบไฟล์หรือระบบอ่านไม่ได้ จะใช้<strong>ข้อมูลจำลอง</strong>แทนและแจ้งให้ทราบ
+        เลือกโครงการที่ใบเสร็จนี้เบิกจาก แล้วแนบรูปหรือไฟล์ PDF ของใบเสร็จและเอกสารประกอบ (ถ้ามี) ระบบจะอ่านยอดเงิน
+        วันที่ ร้านค้า หมวดค่าใช้จ่าย และตรวจสอบตามระเบียบให้ทันทีโดยไม่มีขั้นตอนให้แก้ไขก่อน — ถ้ายังไม่ได้แนบไฟล์หรือ
+        ระบบอ่านไม่ได้ จะใช้<strong>ข้อมูลจำลอง</strong>แทนและแจ้งให้ทราบ
       </p>
     </div>
 
@@ -54,6 +58,7 @@
           <option value="">— เลือกโครงการวิจัย —</option>
         </select>
         <p class="help-text">ยังไม่มีโครงการที่ต้องการ? ไปสร้างที่หน้า <a href="projects.html">โครงการของฉัน</a> ก่อน</p>
+        <div id="estimateNotice" class="banner banner--error" hidden></div>
       </div>
 
       <div class="field">
@@ -72,6 +77,12 @@
         <p class="help-text">ไฟล์ที่แนบจะถูกอัปโหลดไปเก็บที่ Google Drive ของคุณ (ต้องกดเชื่อมต่อก่อนถ้าจะแนบไฟล์จริง)</p>
       </div>
 
+      <div class="field">
+        <label for="summaryAmount">ยอดที่ลงในใบสรุปรายรับ-จ่าย (บาท) <span class="text-small">ไม่บังคับ</span></label>
+        <input type="number" id="summaryAmount" class="input-mono" min="0" step="0.01">
+        <p class="help-text">ถ้าลงบันทึกรายรับ-จ่ายเงินโครงการไว้แล้ว ใส่ตัวเลขที่ลงไว้ ระบบจะเทียบกับยอดในใบเสร็จ (ข้อมูลนี้ไม่ได้มาจากใบเสร็จ จึงยังต้องกรอกเอง)</p>
+      </div>
+
       <div class="card" id="privacyConsentCard" style="display:none;">
         <label class="row row-align-center" style="gap:8px; cursor:pointer;">
           <input type="checkbox" id="privacyConsentCheckbox" style="width:auto; flex:0 0 auto;">
@@ -83,74 +94,21 @@
       </div>
 
       <div class="row" style="justify-content:flex-end;">
-        <button type="button" class="btn btn-primary btn-md" id="step1Button">อัปโหลดและอ่านข้อมูลด้วย AI</button>
+        <button type="button" class="btn btn-primary btn-md" id="step1Button">อัปโหลดและส่งตรวจอัตโนมัติ</button>
       </div>
     </div>
   </section>
 
-  <!-- ขั้นตอนที่ 2: ตรวจสอบข้อมูลจาก AI -->
+  <!-- ขั้นตอนที่ 2: กำลังประมวลผล (OCR → AI/LLM → ตรวจตามระเบียบ) — ไม่มีขั้นตอนให้แก้ไขผลเอง -->
   <section id="step2" hidden>
     <div class="section text-left-block">
-      <h1>ตรวจสอบและแก้ไขข้อมูล</h1>
-      <p class="text-body">
-        ตรวจทานข้อมูลที่ระบบอ่านจากใบเสร็จ แก้ส่วนที่ไม่ตรง แล้วติ๊กเอกสารที่แนบมาครบ ระบบจะตรวจตามข้อมูลในหน้านี้
-        จึงควรตรงกับใบเสร็จจริง
-      </p>
+      <h1>กำลังตรวจสอบ</h1>
+      <p class="text-body">ระบบอ่านใบเสร็จและเอกสารแนบด้วย OCR แล้วส่งให้ตรวจตามระเบียบโดยอัตโนมัติ ไม่มีขั้นตอนให้แก้ไขข้อมูลก่อน</p>
     </div>
 
     <div id="aiProcessing" class="section">
       <div class="card">
-        <p class="text-body">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
-      </div>
-    </div>
-
-    <div id="reviewForm" class="row" style="align-items:flex-start;" hidden>
-      <div class="card" style="flex:0 0 220px;">
-        <div class="dropzone__icon" style="width:100%; height:160px; border:1px solid var(--color-divider); border-radius:var(--radius-sm);"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7.5z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="8.5" y1="13" x2="15.5" y2="13"></line><line x1="8.5" y1="17" x2="13" y2="17"></line></svg></div>
-        <p class="text-small" id="fileNameDisplay" style="margin-top:12px;"></p>
-        <span class="chip-status chip-status--pending">รอตรวจสอบ</span>
-        <div id="aiSuggestionLabel" class="chip-status chip-status--pass" style="display:none; margin-top:8px;">AI suggestion — โปรดตรวจสอบก่อนบันทึก</div>
-      </div>
-
-      <div class="card" style="flex:1 1 400px;">
-        <div class="field">
-          <label for="confirmedAmount">ยอดเงิน (บาท)</label>
-          <input type="number" id="confirmedAmount" class="input-mono" min="0" step="0.01">
-          <p class="help-text">ตรวจตัวเลขให้ตรงกับใบเสร็จจริงก่อนส่งตรวจ</p>
-        </div>
-        <div class="field">
-          <label for="summaryAmount">ยอดที่ลงในใบสรุปรายรับ-จ่าย (บาท) <span class="text-small">ไม่บังคับ</span></label>
-          <input type="number" id="summaryAmount" class="input-mono" min="0" step="0.01">
-          <p class="help-text">ถ้าลงบันทึกรายรับ-จ่ายเงินโครงการไว้แล้ว ใส่ตัวเลขที่ลงไว้ ระบบจะเทียบกับยอดในใบเสร็จ</p>
-        </div>
-        <div class="field">
-          <label for="confirmedDate">วันที่บนใบเสร็จ</label>
-          <input type="date" id="confirmedDate">
-        </div>
-        <div class="field" id="budgetLineField" hidden>
-          <label for="budgetLineId">ตัดจากรายการไหนในประมาณการ</label>
-          <select id="budgetLineId"></select>
-          <p class="help-text" id="budgetLineHelp">ระบบจะเทียบยอดสะสมของรายการนี้กับยอดที่ตั้งไว้ในประมาณการ</p>
-        </div>
-        <div class="field">
-          <label for="confirmedCategory">หมวดค่าใช้จ่าย</label>
-          <select id="confirmedCategory"></select>
-          <p class="help-text">แก้ไขหมวดได้หากระบบจัดหมวดผิด — Rule Engine จะใช้ค่านี้เป็นหลักในการตรวจ</p>
-        </div>
-        <div class="field">
-          <label for="confirmedVendorName">ชื่อร้าน/ผู้ขาย</label>
-          <input type="text" id="confirmedVendorName">
-        </div>
-
-        <fieldset class="field" id="evidenceChecklist" style="border:1px solid var(--color-divider); border-radius:var(--radius-sm); padding:12px 16px;">
-          <legend>เอกสารประกอบที่แนบมาแล้ว</legend>
-          <div id="evidenceChecklistBody"></div>
-        </fieldset>
-
-        <div class="row" style="justify-content:flex-end; margin-top:8px;">
-          <button type="button" class="btn btn-secondary btn-md" id="backToStep1Button">ย้อนกลับไปอัปโหลดใหม่</button>
-          <button type="button" class="btn btn-primary btn-md" id="step2Button">ส่งเข้าตรวจกับ Rule Engine</button>
-        </div>
+        <p class="text-body" id="aiProcessingText">กำลังอ่านข้อมูลจากใบเสร็จ...</p>
       </div>
     </div>
   </section>
@@ -159,7 +117,7 @@
   <section id="step3" hidden>
     <div class="section text-left-block">
       <h1>ผลตรวจใบเสร็จ</h1>
-      <p class="text-body">Rule Engine เป็นผู้ตัดสินผล คำอธิบายด้านล่างเป็นภาษาที่เข้าใจง่าย ไม่ใช่ศัพท์บัญชี</p>
+      <p class="text-body" id="verdictModeNote">คำอธิบายด้านล่างเป็นภาษาที่เข้าใจง่าย ไม่ใช่ศัพท์บัญชี</p>
     </div>
 
     <div id="checkResult" class="section"></div>
