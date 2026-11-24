@@ -25,16 +25,17 @@
     for (var r = 0; r < limit; r++) {
       var row = rows[r] || [];
       var cells = row.map(text);
-      var isHeaderRow = cells.some(function (t) { return /^ลำดับ|^รายการ|งวดที่/.test(t); });
+      // "งวด(ที่)? 1" — แบบเสนอโครงการ RS-01 ใช้ "งวด 1"; ไฟล์สแกนที่ผ่าน OCR มักทำไม้เอกหาย ("งวดที 1")
+      var isHeaderRow = cells.some(function (t) { return /^ลำดับ|^รายการ|งวด(?:ที่?)?\s*\d/.test(t); });
       if (!isHeaderRow) continue;
       cells.forEach(function (t, i) {
         if (!t) return;
         if (col.order == null && /^ลำดับ/.test(t)) col.order = i;
         else if (col.itemName == null && /^รายการ/.test(t)) col.itemName = i;
         else if (col.multiplier == null && /ตัวคูณ/.test(t)) col.multiplier = i;
-        else if (col.inst1 == null && /งวดที่\s*1/.test(t)) col.inst1 = i;
-        else if (col.inst2 == null && /งวดที่\s*2/.test(t)) col.inst2 = i;
-        else if (col.inst3 == null && /งวดที่\s*3/.test(t)) col.inst3 = i;
+        else if (col.inst1 == null && /งวด(?:ที่?)?\s*1/.test(t)) col.inst1 = i;
+        else if (col.inst2 == null && /งวด(?:ที่?)?\s*2/.test(t)) col.inst2 = i;
+        else if (col.inst3 == null && /งวด(?:ที่?)?\s*3/.test(t)) col.inst3 = i;
         else if (col.total == null && /^รวม/.test(t)) col.total = i;
       });
     }
@@ -89,12 +90,17 @@
 
   // rows: array ของแถว (array ของค่าในแต่ละเซลล์) จากชีต 17.2
   // คืน { lines: [...], warnings: [...] } — ไม่ throw ถ้าแถวไหนแปลกๆ แต่ใส่คำเตือนไว้ให้ผู้ใช้ดูก่อนบันทึก
-  function parseRows(rows) {
+  // options.orderOptional (ไฟล์สแกนผ่าน OCR): OCR มักอ่านตัวเลขหลักเดียว เช่น เลขลำดับ "1" หรือยอด "0" ไม่ออก
+  // จึงรับแถวที่ไม่มีเลขลำดับแต่มีชื่อรายการและยอดเงิน (ยกเว้นแถว "รวม...") และแถวที่มีแต่ข้อความ
+  // ต่อจากรายการก่อนหน้าในหมวดเดียวกัน ถือเป็นชื่อรายการที่ขึ้นบรรทัดใหม่
+  function parseRows(rows, options) {
+    var orderOptional = !!(options && options.orderOptional);
     var lines = [];
     var warnings = [];
     var group = null;
     var COLS = detectColumns(rows);
     var foundHeader = COLS.detected;
+    var lastLineGroup = undefined;
 
     rows.forEach(function (row, idx) {
       if (!row || !row.length) return;
@@ -103,13 +109,31 @@
       if (!foundHeader && /รายการค่าใช้จ่าย/.test(b)) foundHeader = true;
       // แถวหัวหมวด: มีข้อความช่องเดียวขึ้นต้นด้วย "หมวด" (ใน Word/PDF มักเป็นช่องที่ผสานกันทั้งแถว)
       var filled = row.map(text).filter(Boolean);
-      if (filled.length === 1 && /^หมวด/.test(filled[0]) && !/^\d+\.?$/.test(a)) { group = filled[0]; return; }
+      // แบบเสนอโครงการ RS-01 ใส่เลขหน้าหมวด ("1. หมวดค่าตอบแทน", "3.หมวดวัสดุ") — ตัดเลขออก
+      if (filled.length === 1 && /^(?:\d+\.\s*)?หมวด/.test(filled[0]) && !/^\d+\.?$/.test(a)) {
+        group = filled[0].replace(/^\d+\.\s*/, "");
+        lastLineGroup = undefined;
+        return;
+      }
       a = a.replace(/\.$/, "");
-      if (!/^\d+$/.test(a) || !b) return;
 
       var installments = [num(row, COLS.inst1), num(row, COLS.inst2), num(row, COLS.inst3)];
       var installmentSum = installments[0] + installments[1] + installments[2];
       var total = num(row, COLS.total) || installmentSum;
+
+      if (!/^\d+$/.test(a)) {
+        if (!orderOptional || a || !b || /^(รวม|ลำดับ|รายการ)/.test(b)) return;
+        if (total <= 0) {
+          // ต่อชื่อรายการเฉพาะบรรทัดที่เห็นชัดว่าเป็นส่วนต่อ: ชื่อก่อนหน้ายังเปิดวงเล็บค้าง หรือบรรทัดนี้เป็นวงเล็บ
+          // อธิบาย — ไม่ต่อรายชื่อบุคคลหรือหัวข้อย่อย "- ..." ที่ตามมาใต้รายการ
+          var prev = lines[lines.length - 1];
+          var openParen = prev && (prev.itemName.split("(").length > prev.itemName.split(")").length);
+          if (prev && lastLineGroup === group && !cell(row, COLS.multiplier) && (openParen || /^\(/.test(b))) prev.itemName += " " + b;
+          return;
+        }
+      } else if (!b) {
+        return;
+      }
       if (total <= 0) {
         warnings.push("แถว " + (idx + 1) + " \"" + b + "\" ไม่มียอดเงิน — ข้ามไป");
         return;
@@ -132,6 +156,7 @@
         total: Math.round(total * 100) / 100,
         ruleCategory: guessRuleCategory(b, group),
       });
+      lastLineGroup = group;
     });
 
     if (!foundHeader) warnings.unshift("ไม่พบหัวตาราง \"รายการค่าใช้จ่าย\" — ไฟล์นี้อาจไม่ใช่ตาราง 17.2 กรุณาตรวจรายการด้านล่างให้ดี");
@@ -157,6 +182,9 @@
     [/taxi|แท็กซี่/i, "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)"],
     [/น้ำมันเชื้อเพลิงพาหนะเช่า.*ต่างจังหวัด/, "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ต่างจังหวัด)"],
     [/น้ำมันเชื้อเพลิงพาหนะเช่า/, "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ในจังหวัด)"],
+    // แบบเสนอโครงการ RS-01 เขียนเป็น "ค่าวัสดุเชื้อเพลิงและหล่อลื่น" (1,500 บาท/คัน/วัน = อัตราในจังหวัด)
+    [/เชื้อเพลิงและหล่อลื่น.*ต่างจังหวัด/, "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ต่างจังหวัด)"],
+    [/เชื้อเพลิงและหล่อลื่น/, "ค่าน้ำมันเชื้อเพลิงพาหนะเช่า (ในจังหวัด)"],
     [/รถตู้|เช่ายานพาหนะ/, "ค่าเช่ายานพาหนะ (รถตู้)"],
     [/ที่พัก.*(เหมาจ่าย|บ้านญาติ|บ้านตนเอง)|(เหมาจ่าย|บ้านญาติ).*ที่พัก/, "ค่าที่พัก (เหมาจ่าย พักบ้านญาติ/บ้านตนเอง)"],
     [/ที่พัก/, "ค่าที่พัก (โรงแรม)"],

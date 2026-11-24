@@ -3,7 +3,7 @@
 Usage: .venv/Scripts/python server.py [--port 8765]
 
 GET  /health  -> {"ok": true, "engine": ...}
-POST /ocr     body = image bytes (png/jpg) -> {"text", "lines": [{"text", "confidence"}], "lowConfidence", "seconds"}
+POST /ocr     body = image bytes (png/jpg) -> {"text", "lines": [{"text", "confidence", "box"}], "lowConfidence", "seconds"}
               body = PDF bytes -> same fields for the whole file (pages joined in order), plus
               "pages": [{"page", "text", "lines", "lowConfidence"}] — every page is rendered and read
               one at a time, so a large scan never has to fit in memory as one image
@@ -42,8 +42,20 @@ ocr = None
 ocr_lock = threading.Lock()  # one model instance; requests take turns
 
 
+def bbox_of(corners):
+    # Axis-aligned {x, y, w, h} in page pixels, not the engine's 4 corners: receipts store OCR lines in
+    # Firestore, which rejects nested arrays. The estimate importer rebuilds table columns from it.
+    if not corners:
+        return None
+    xs = [p[0] for p in corners]
+    ys = [p[1] for p in corners]
+    return {"x": round(min(xs), 1), "y": round(min(ys), 1),
+            "w": round(max(xs) - min(xs), 1), "h": round(max(ys) - min(ys), 1)}
+
+
 def lines_of(result):
-    return [{"text": ln["text"], "confidence": round(float(ln["confidence"]), 4)} for ln in result["lines"]]
+    return [{"text": ln["text"], "confidence": round(float(ln["confidence"]), 4), "box": bbox_of(ln.get("box"))}
+            for ln in result["lines"]]
 
 
 def read_pdf(data):

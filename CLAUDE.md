@@ -332,7 +332,24 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - **`.pdf`:** text PDFs only, via pdf.js 6.3.289 (dynamic `import()`).
     - `pdfItemsToRows()` groups text into lines by y, joins touching Thai fragments into phrases, and takes column centres from the header phrases.
     - Each phrase goes to the column it overlaps most. Left-aligned names, right-aligned numbers and long names all land in the right column this way; an earlier nearest-centre rule put long names in the "ลำดับ" column.
-    - A PDF with under 20 characters of text is treated as scanned and rejected with advice.
+    - A PDF with under 20 characters of text is treated as scanned (see the 2026-11-24 note below).
+  - **Scanned PDFs and `.jpg`/`.png` (added 2026-11-24, at the owner's request):** these are sent to the local OCR server.
+    - `research/ocr/server.py` now returns each line's `box` as a flat `{x, y, w, h}` in page pixels. It is not the engine's 4 corners, because receipts store OCR lines in Firestore and Firestore rejects nested arrays.
+    - `ocrPagesToRows()` works **per page**, because each scanned page has its own size and position, and the RS-01 proposal's page 1 has another table (the item-17 summary, with "งวดที่" but no "รายการ").
+      - A page counts only when it has a "รายการ..." header plus at least 2 money headers (งวด/รวม) within 4 line heights of it.
+      - Text above the header is dropped.
+      - A box joins the current row when its centre is no more than ¼ line height below the row's first box. Amounts in the real form sit a little lower than the item name.
+      - Rows are emitted in fixed columns under a synthetic header row (ลำดับ/รายการ/ตัวคูณ/งวดที่ 1–3/รวม), so `detectColumns()` always finds them.
+      - `kind` is `"scan"`, and the page shows a stronger check-every-row warning.
+    - The RS-01 form differs from the helper spreadsheet. Its headers are "งวด 1" and "(แตกตัวคูณ...)", it has no row-number column, and groups are numbered ("1. หมวดค่าตอบแทน"). Header regexes accept "งวด", "งวดที่" and OCR's "งวดที", and group rows drop the leading number.
+    - `pdfItemsToRows()` (text PDFs) now counts a line as a header only with at least 2 header phrases, and drops lines before the first header.
+    - OCR misses single digits (row numbers, zero amounts). So `parseRows(rows, { orderOptional: true })`, used for scans only:
+      - accepts a row without a number when it has an item name and an amount
+      - skips "รวม..." rows
+      - joins a text-only row to the previous item only when that name has an unclosed "(" or the row starts with "(". Lists of people's names and "- ..." sub-bullets under an item are not joined.
+    - The guesser maps "เชื้อเพลิงและหล่อลื่น" (RS-01 wording) to the fuel categories.
+    - **Verified** on a real scanned RS-01 proposal (owner's file, not in the repo): 14 lines, every installment, total and multiplier correct. The lines sum to the form's grand total of 148,400. Category guesses are right except two generic materials, which go to ค่าวัสดุอื่นๆ. Also checked with a generated 200-dpi table image.
+    - An OCR server started before this change returns no boxes. The page then says to restart it.
   - `.doc` is rejected with "save as .docx".
 - **`budget-parser.js`:** `detectColumns()` finds columns from header rows (ลำดับ / รายการ / ตัวคูณ / งวดที่ 1–3 / รวม). The header may span two rows, and it falls back to the helper file's fixed positions. A group row is now any row with exactly one filled cell starting with "หมวด" (Word/PDF merge it across the row). Item numbers like "1." are accepted.
 - **UI:** `budget.html` accepts `.docx`/`.pdf`. Word and PDF imports show an info banner asking the user to check every row, with a stronger warning for PDF.
@@ -370,6 +387,26 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - **Batch:** `research/batch/run-bundle.js` + `bundle-lib.js` run the same pipeline per project folder. `expectedItems` are matched to generated items by (file, first page of the payment document). Output is JSON plus `-items.csv` / `-documents.csv` for per-stage error analysis. `bundles.example/` is synthetic.
   - **Verified:** a generated 3-page Thai scan ran through the real OCR server and pipeline and came out as 3 documents and 2 items with correct amounts. The browser pages were only syntax-checked, because they need a Firebase login. No real LLM run (no key here).
   - **Not built:** deleting an import batch (and its Drive file), re-running one stage on a stored batch, and admin-dashboard views of import batches.
+
+## Delete project — 2026-11-24
+
+- **What it is:** each card on `projects.html` has a "ลบโครงการ" button. It deletes the project and everything under it, because Firestore does not delete subcollections with their parent.
+- **What it deletes:**
+  - receipts, with their `agentLogs` and `files`
+  - `budgetLines`
+  - `importBatches`, with their `pages` and `documents`
+  - the project doc itself
+  - Firestore deletes go in write batches of at most 400.
+- **Two-click flow:**
+  1. The first click reads what's there and shows a confirm panel in the card listing the counts.
+  2. The confirm click is a fresh user gesture, so the Drive OAuth popup is allowed there.
+- **Drive files go first,** same rule as single-receipt delete. These are the receipts' own files plus each import batch's original scan (`importBatches.driveFileId`). If any Drive delete fails, nothing in Firestore is deleted.
+- **Rules and IDs:**
+  - No rule change was needed: owner `write` already covers delete on every path.
+  - A collection whose rules aren't deployed (`permission-denied` on read) is treated as empty, since nothing could have been written there either.
+  - Project IDs are max+1, so deleting the last project frees its ID for the next one. That's safe because nothing under it remains.
+- **Page change:** `projects.html` now loads GIS and `google-drive.js`.
+- **Verified:** in the browser, only up to the confirm panel and Cancel. A real delete was not run on live data.
 
 ## UI/shared code conventions
 

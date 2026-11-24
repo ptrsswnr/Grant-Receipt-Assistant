@@ -172,3 +172,20 @@ test("falls back to the helper-file column positions when there is no header", (
   assert.equal(c.detected, false);
   assert.equal(c.total, 6);
 });
+
+test("scanned (OCR) rows: missing row numbers are accepted only with orderOptional, wrapped names in an open bracket join, other text rows and subtotals skipped", () => {
+  const rows = [
+    ["ลำดับ", "รายการ", "ตัวคูณ", "งวดที 1", "งวดที 2", "งวดที 3", "รวม"],
+    ["", "หมวดค่าตอบแทน", "", "", "", "", ""],
+    ["", "ค่าตอบแทนนักศึกษาช่วยงาน (ด้านวิชาการ", "60 บาท X 100 ชม.", "3,000", "2,400", "600", "6,000"],
+    ["", "ตลอดโครงการ)", "", "", "", "", ""],
+    ["", "1. ชื่อบุคคลที่ไม่ใช่ส่วนต่อของชื่อรายการ", "", "", "", "", ""],
+    ["", "รวมหมวดค่าตอบแทน", "", "", "", "", "6,000"],
+  ];
+  assert.equal(parseRows(rows).lines.length, 0, "without the option a row needs its number, as before");
+  const { lines } = parseRows(rows, { orderOptional: true });
+  assert.equal(lines.length, 1);
+  assert.equal(lines[0].itemName, "ค่าตอบแทนนักศึกษาช่วยงาน (ด้านวิชาการ ตลอดโครงการ)");
+  assert.equal(lines[0].quantity, 100);
+  assert.equal(lines[0].total, 6000);
+});

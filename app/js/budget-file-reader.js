@@ -3,8 +3,10 @@
 // แล้วคืนเป็น "แถวของช่อง" แบบเดียวกับที่ได้จาก Excel เพื่อส่งต่อให้ js/budget-parser.js
 //   - Excel/CSV : SheetJS (ชีตที่ชื่อมี "17.2")
 //   - Word      : แตกไฟล์ด้วย JSZip แล้วอ่านตารางใน word/document.xml (ช่องที่ผสานถูกขยายกลับให้ตรงคอลัมน์)
-//   - PDF       : ใช้ได้เฉพาะ PDF ที่มีข้อความจริง (export จาก Word/Excel) — ประกอบแถว/คอลัมน์จากตำแหน่ง
-//                 ข้อความ โดยยึดตำแหน่งหัวตาราง; PDF ที่สแกนเป็นรูปอ่านไม่ได้
+//   - PDF       : PDF ที่มีข้อความ (export จาก Word/Excel) — ประกอบแถว/คอลัมน์จากตำแหน่งข้อความ โดยยึด
+//                 ตำแหน่งหัวตาราง
+//   - สแกน      : PDF ที่ไม่มีข้อความ หรือรูป .jpg/.png — ส่งให้ OCR ในเครื่อง (research/ocr/server.py)
+//                 แล้วประกอบตารางจากตำแหน่งบรรทัดที่ OCR ส่งกลับ ด้วยวิธีเดียวกับ PDF
 // ส่วนที่แปลง XML/ตำแหน่งข้อความเป็นแถว เป็น pure function ทดสอบใน Node ได้ (tests/budget-file-reader.test.js)
 // ─────────────────────────────────────────────────────────────
 (function (root, factory) {
@@ -61,8 +63,9 @@
     return scored.length ? scored[0].table : [];
   }
 
+  // "งวด(ที่)? 1" — แบบเสนอโครงการ RS-01 ใช้ "งวด 1" ส่วนไฟล์ตัวช่วยใช้ "งวดที่ 1"; OCR มักทำไม้เอกหาย
   var HEADER_KEYS = [
-    /^ลำดับ/, /^รายการ/, /ตัวคูณ/, /งวดที่\s*1/, /งวดที่\s*2/, /งวดที่\s*3/, /^รวม/,
+    /^ลำดับ/, /^รายการ/, /ตัวคูณ/, /งวด(?:ที่?)?\s*1/, /งวด(?:ที่?)?\s*2/, /งวด(?:ที่?)?\s*3/, /^รวม/,
   ];
 
   // ข้อความใน PDF → แถวของช่อง
@@ -97,16 +100,19 @@
       line.phrases = phrases;
     });
 
-    // 3) หาตำแหน่งคอลัมน์จากหัวตาราง
+    // 3) หาตำแหน่งคอลัมน์จากหัวตาราง — นับเป็นแถวหัวตารางเมื่อมีหัวคอลัมน์อย่างน้อย 2 ช่อง กันข้อความทั่วไป
+    //    ที่ขึ้นต้นด้วย "รายการ..." ในเอกสารข้อเสนอโครงการทั้งเล่มมาปนเป็นคอลัมน์
+    var isHeaderText = function (t) { return HEADER_KEYS.some(function (re) { return re.test(t); }); };
     var centers = [];
-    lines.forEach(function (line) {
-      var isHeader = line.phrases.some(function (p) { return /^ลำดับ|^รายการ|งวดที่/.test(p.str.trim()); });
-      if (!isHeader) return;
-      line.phrases.forEach(function (p) {
-        var t = p.str.trim();
-        if (HEADER_KEYS.some(function (re) { return re.test(t); })) centers.push(p.x + p.w / 2);
-      });
+    var firstHeader = -1;
+    lines.forEach(function (line, li) {
+      var heads = line.phrases.filter(function (p) { return isHeaderText(p.str.trim()); });
+      if (heads.length < 2) return;
+      if (firstHeader === -1) firstHeader = li;
+      heads.forEach(function (p) { centers.push(p.x + p.w / 2); });
     });
+    // ข้อเสนอโครงการทั้งเล่มมีข้อความหลายหน้าก่อนตาราง — ตัดทิ้งเพื่อให้หัวตารางอยู่ช่วงแถวแรกๆ ที่ budget-parser ไล่หา
+    if (firstHeader > 0) lines = lines.slice(firstHeader);
     centers.sort(function (a, b) { return a - b; });
     centers = centers.filter(function (c, i) { return i === 0 || c - centers[i - 1] > 10; });
 
@@ -141,6 +147,102 @@
     return { rows: rows, headerFound: true };
   }
 
+  // ผล OCR ของไฟล์สแกน (research/ocr/server.py) → แถวของช่อง ด้วยตัวประกอบตารางเดียวกับ PDF ที่มีข้อความ
+  // pages: [{ lines: [{ text, box: { x, y, w, h } }] }] — box เป็นพิกเซลของหน้า; หน้าถัดไปเลื่อนลงต่อจากหน้าก่อน
+  // ระยะที่ถือว่าอยู่บรรทัดเดียวกัน = ครึ่งหนึ่งของความสูงบรรทัดทั่วไป (ภาพสแกนเอียงเล็กน้อยได้)
+  // คอลัมน์มาตรฐานที่ส่งต่อให้ budget-parser (แถวหัวตารางสังเคราะห์ด้านล่างทำให้ detectColumns หาเจอเสมอ)
+  var SCAN_COLUMNS = [
+    { key: "order", re: /^ลำดับ/ },
+    { key: "item", re: /^รายการ/ },
+    { key: "mult", re: /ตัวคูณ/ },
+    { key: "inst1", re: /งวด(?:ที่?)?\s*1/ },
+    { key: "inst2", re: /งวด(?:ที่?)?\s*2/ },
+    { key: "inst3", re: /งวด(?:ที่?)?\s*3/ },
+    { key: "total", re: /^รวม/ },
+  ];
+  var SCAN_HEADER_ROW = ["ลำดับ", "รายการ", "ตัวคูณ", "งวดที่ 1", "งวดที่ 2", "งวดที่ 3", "รวม"];
+
+  // หาหัวตาราง 17.2 ในหน้าเดียว: ต้องมี "รายการ..." และหัวคอลัมน์เงิน (งวด/รวม) อย่างน้อย 2 ช่อง ในแถบความสูง
+  // ไม่เกิน 4 บรรทัดนับจาก "รายการ" — หน้าที่มีแต่ตารางสรุปงบประมาณ (ข้อ 17) ไม่มี "รายการ" จึงไม่ถูกนับ
+  function findScanHeader(boxes, lineHeight) {
+    for (var i = 0; i < boxes.length; i++) {
+      if (!/^รายการ/.test(boxes[i].text)) continue;
+      var top = boxes[i].y - lineHeight;
+      var limit = boxes[i].y + 4 * lineHeight;
+      var cols = {};
+      var bottom = 0;
+      boxes.forEach(function (b) {
+        if (b.y < top || b.y > limit) return;
+        SCAN_COLUMNS.forEach(function (c) {
+          if (cols[c.key] == null && c.re.test(b.text)) {
+            cols[c.key] = b.x + b.w / 2;
+            bottom = Math.max(bottom, b.y + b.h);
+          }
+        });
+      });
+      var money = ["inst1", "inst2", "inst3", "total"].filter(function (k) { return cols[k] != null; }).length;
+      if (cols.item != null && money >= 2) return { centers: cols, bottom: bottom };
+    }
+    return null;
+  }
+
+  // ผล OCR ของไฟล์สแกน (research/ocr/server.py) → แถวของช่องในคอลัมน์มาตรฐาน
+  // pages: [{ lines: [{ text, box: { x, y, w, h } }] }] — box เป็นพิกเซลของหน้า
+  // - หาหัวตารางแยกทีละหน้า เพราะแต่ละหน้าสแกนมาขนาด/ตำแหน่งไม่เท่ากัน และข้อเสนอโครงการมีตารางอื่นปนอยู่
+  // - ข้อความเหนือหัวตาราง (หัวกระดาษ RS-01, ข้อความก่อนตาราง) ถูกตัดทิ้ง
+  // - จัดบรรทัด: กล่องที่จุดกึ่งกลางอยู่ไม่ต่ำกว่าขอบล่างของกล่องแรกในบรรทัดเกิน 1/4 ความสูง ถือเป็นแถวเดียวกัน
+  //   (ในแบบฟอร์มจริง ตัวเลขมักอยู่ต่ำกว่าชื่อรายการเล็กน้อย)
+  // - วางแต่ละกล่องลงคอลัมน์ที่ทับซ้อนกันมากที่สุด เส้นแบ่งคอลัมน์อยู่กึ่งกลางระหว่างหัวคอลัมน์ที่ติดกัน
+  function ocrPagesToRows(pages) {
+    var rows = [];
+    var headerFound = false;
+    (pages || []).forEach(function (p) {
+      var boxes = (p.lines || []).filter(function (l) { return l.box && l.text && String(l.text).trim(); })
+        .map(function (l) { return { text: String(l.text).trim(), x: l.box.x, y: l.box.y, w: l.box.w, h: l.box.h }; });
+      if (!boxes.length) return;
+      var hs = boxes.map(function (b) { return b.h; }).sort(function (a, b) { return a - b; });
+      var lineHeight = hs[Math.floor(hs.length / 2)];
+      var header = findScanHeader(boxes, lineHeight);
+      if (!header) return;
+      headerFound = true;
+
+      var present = SCAN_COLUMNS.filter(function (c) { return header.centers[c.key] != null; })
+        .map(function (c) { return { index: SCAN_COLUMNS.indexOf(c), center: header.centers[c.key] }; })
+        .sort(function (a, b) { return a.center - b.center; });
+      var bounds = present.map(function (c, i) {
+        return {
+          index: c.index,
+          left: i === 0 ? -Infinity : (present[i - 1].center + c.center) / 2,
+          right: i === present.length - 1 ? Infinity : (c.center + present[i + 1].center) / 2,
+        };
+      });
+
+      var body = boxes.filter(function (b) { return b.y + b.h / 2 > header.bottom; })
+        .sort(function (a, b) { return (a.y + a.h / 2) - (b.y + b.h / 2) || a.x - b.x; });
+      var lines = [];
+      body.forEach(function (b) {
+        var line = lines[lines.length - 1];
+        var center = b.y + b.h / 2;
+        if (!line || center > line.anchor.y + line.anchor.h * 1.25) lines.push(line = { anchor: b, boxes: [] });
+        line.boxes.push(b);
+      });
+      lines.forEach(function (line) {
+        var cells = SCAN_COLUMNS.map(function () { return ""; });
+        line.boxes.sort(function (a, b) { return a.x - b.x; }).forEach(function (b) {
+          var best = bounds[0];
+          var bestOverlap = -Infinity;
+          bounds.forEach(function (c) {
+            var overlap = Math.min(b.x + b.w, c.right) - Math.max(b.x, c.left);
+            if (overlap > bestOverlap) { bestOverlap = overlap; best = c; }
+          });
+          cells[best.index] = cells[best.index] ? cells[best.index] + " " + b.text : b.text;
+        });
+        rows.push(cells);
+      });
+    });
+    return { rows: headerFound ? [SCAN_HEADER_ROW.slice()].concat(rows) : rows, headerFound: headerFound };
+  }
+
   function extensionOf(name) {
     var m = String(name || "").toLowerCase().match(/\.([a-z0-9]+)$/);
     return m ? m[1] : "";
@@ -163,6 +265,23 @@
     return pickBudgetTable(tables);
   }
 
+  // ไฟล์สแกน (PDF ที่ไม่มีข้อความ หรือรูปภาพ) → ส่งให้ OCR ในเครื่อง แล้วประกอบตารางจากตำแหน่งบรรทัด
+  async function readScan(file, what) {
+    var ocr = root.OcrClient;
+    if (!ocr || !(await ocr.isAvailable())) {
+      throw new Error(what + " ต้องอ่านด้วย OCR ในเครื่อง แต่ยังต่อ OCR ไม่ได้ — เปิด research/ocr/server.py ก่อน แล้วเลือกไฟล์ใหม่อีกครั้ง");
+    }
+    var result = await ocr.read(file);
+    var pages = result.pages || [{ lines: result.lines || [] }];
+    var hasBoxes = pages.some(function (p) { return (p.lines || []).some(function (l) { return l.box; }); });
+    if (!hasBoxes) throw new Error("OCR ไม่ส่งตำแหน่งบรรทัดกลับมา — ปิดแล้วเปิด research/ocr/server.py ใหม่ (ต้องเป็นรุ่นล่าสุด)");
+    var out = ocrPagesToRows(pages);
+    if (!out.headerFound) {
+      throw new Error("OCR อ่านไฟล์ได้ แต่หาหัวตาราง 17.2 (ลำดับ / รายการ / งวดที่ / รวม) ไม่เจอ — ลองสแกนให้ชัดขึ้น หรือใช้ไฟล์ Excel/Word ต้นฉบับ");
+    }
+    return out.rows;
+  }
+
   async function readPdf(file) {
     var pdfjs = await import(PDFJS_URL);
     pdfjs.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
@@ -181,20 +300,24 @@
       });
       offset += viewport.height + 50;
     }
-    if (textLength < 20) {
-      throw new Error("PDF นี้ไม่มีข้อความให้อ่าน (น่าจะเป็นไฟล์สแกน) — กรุณาใช้ไฟล์ Excel หรือ Word ต้นฉบับ หรือ PDF ที่ export จากโปรแกรม");
-    }
+    // ไม่มีข้อความ = ไฟล์สแกน → ใช้ OCR แทน
+    if (textLength < 20) return null;
     return pdfItemsToRows(items).rows;
   }
 
-  // คืน { rows, kind } — kind: "excel" | "word" | "pdf" (ใช้แสดงคำเตือนให้ตรวจผลเป็นพิเศษ)
+  // คืน { rows, kind } — kind: "excel" | "word" | "pdf" | "scan" (ใช้แสดงคำเตือนให้ตรวจผลเป็นพิเศษ)
   async function readBudgetFile(file) {
     var ext = extensionOf(file.name);
     if (ext === "xlsx" || ext === "xls" || ext === "csv") return { rows: await readExcel(file), kind: "excel" };
     if (ext === "docx") return { rows: await readDocx(file), kind: "word" };
-    if (ext === "pdf") return { rows: await readPdf(file), kind: "pdf" };
+    if (ext === "pdf") {
+      var rows = await readPdf(file);
+      if (rows) return { rows: rows, kind: "pdf" };
+      return { rows: await readScan(file, "PDF นี้เป็นไฟล์สแกน (ไม่มีข้อความในไฟล์)"), kind: "scan" };
+    }
+    if (ext === "jpg" || ext === "jpeg" || ext === "png") return { rows: await readScan(file, "ไฟล์รูปภาพ"), kind: "scan" };
     if (ext === "doc") throw new Error("ไฟล์ Word รุ่นเก่า (.doc) อ่านไม่ได้ — กรุณาเปิดใน Word แล้วบันทึกเป็น .docx");
-    throw new Error("รองรับเฉพาะไฟล์ .xlsx, .xls, .csv, .docx และ .pdf");
+    throw new Error("รองรับเฉพาะไฟล์ .xlsx, .xls, .csv, .docx, .pdf และรูปภาพ .jpg/.png");
   }
 
   return {
@@ -202,6 +325,7 @@
     docxXmlToTables: docxXmlToTables,
     pickBudgetTable: pickBudgetTable,
     pdfItemsToRows: pdfItemsToRows,
+    ocrPagesToRows: ocrPagesToRows,
     extensionOf: extensionOf,
   };
 });

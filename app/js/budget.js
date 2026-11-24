@@ -114,6 +114,10 @@
         ' — ตรวจชื่อรายการ ยอดเงิน และหมวดของทุกแถวให้ตรงกับเอกสารก่อนบันทึก' +
         (parsedKind === "pdf" ? ' (PDF ไม่มีเส้นตารางให้อ่าน ระบบเรียงคอลัมน์จากตำแหน่งข้อความ จึงพลาดได้มากกว่า)' : '') + '</div>';
     }
+    if (parsedKind === "scan") {
+      html += '<div class="banner banner--error" style="margin:12px 0;">อ่านตารางจากไฟล์สแกนด้วย OCR — ตัวเลข ชื่อรายการ และตัวคูณอาจอ่านผิด ' +
+        'ชื่อรายการที่ยาวหลายบรรทัดอาจเหลือแค่บรรทัดแรก ตรวจทุกแถวเทียบกับเอกสารจริงก่อนบันทึก</div>';
+    }
     if (parsed.warnings.length) {
       html += '<div class="banner banner--error" style="margin:12px 0;">' + parsed.warnings.map(esc).join("<br>") + '</div>';
     }
@@ -150,13 +154,16 @@
     var file = fileInput.files[0];
     if (!file) return;
     try {
-      // อ่านได้ทั้ง Excel/CSV, Word (.docx) และ PDF ที่มีข้อความ (js/budget-file-reader.js)
+      // อ่านได้ทั้ง Excel/CSV, Word (.docx), PDF และไฟล์สแกน/รูปภาพผ่าน OCR (js/budget-file-reader.js)
+      // ไฟล์สแกนใช้ OCR ทีละหน้า อาจใช้เวลาหลายวินาที
+      importPreview.innerHTML = '<p class="help-text" style="margin-top:12px;">กำลังอ่านไฟล์...</p>';
       var read = await window.BudgetFileReader.readBudgetFile(file);
-      parsed = window.BudgetParser.parseRows(read.rows);
+      parsed = window.BudgetParser.parseRows(read.rows, { orderOptional: read.kind === "scan" });
       parsedFileName = file.name;
       parsedKind = read.kind;
       renderPreview();
     } catch (err) {
+      importPreview.innerHTML = "";
       warn("อ่านไฟล์ไม่สำเร็จ: " + err.message);
     }
   });
