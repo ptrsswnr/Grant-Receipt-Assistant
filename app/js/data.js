@@ -76,7 +76,7 @@ window.RECEIPT_DATA = {
   ],
 
   ruleVersions: [
-    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.5", isActive: true, importedByUserId: "user001" },
+    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.6", isActive: true, importedByUserId: "user001" },
   ],
 
   // rateType: "เพดานตามจริง" (เบิกตามจริงไม่เกิน rateAmount) | "เหมาจ่าย" (จ่ายคงที่ rateAmount ต่อ unit)
@@ -246,7 +246,7 @@ window.RECEIPT_DATA = {
       ],
       attestations: [
         { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
-        { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ และหัวหน้าโครงการลงนามแล้ว" },
+        { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ (เช่น \"ตรวจรับพัสดุ\" หรือ \"ได้รับพัสดุ...เรียบร้อยแล้ว\")" },
       ],
     },
     {
@@ -263,7 +263,7 @@ window.RECEIPT_DATA = {
       ],
       attestations: [
         { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
-        { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ และหัวหน้าโครงการลงนามแล้ว" },
+        { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ (เช่น \"ตรวจรับพัสดุ\" หรือ \"ได้รับพัสดุ...เรียบร้อยแล้ว\")" },
       ],
     },
     {
@@ -278,7 +278,7 @@ window.RECEIPT_DATA = {
       ],
       attestations: [
         { id: "paid-stamp", text: "เอกสารการจ่ายเงินทุกใบประทับตรา \"จ่ายแล้ว\" แล้ว" },
-        { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ และหัวหน้าโครงการลงนามแล้ว" },
+        { id: "inspection-stamp", text: "ใบเสร็จมีตราประทับตรวจรับพัสดุ (เช่น \"ตรวจรับพัสดุ\" หรือ \"ได้รับพัสดุ...เรียบร้อยแล้ว\")" },
       ],
     },
     {

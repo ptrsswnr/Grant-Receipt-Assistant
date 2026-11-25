@@ -147,7 +147,7 @@ async function runCase(caseDef, ruleSet, documentNames, documentTypesById, deps,
 
 const CSV_COLUMNS = [
   "id", "category", "amount", "financeVerdict", "predictedStatus", "ruleCheck.status", "ruleCheck.reasonCode",
-  "llmVerdict.verdict", "llmVerdict.budget_check.result", "llmModel", "promptVersion", "ruleSetVersion", "engineVersion", "durationMs", "ocrErrors", "llmVerdict.error",
+  "llmVerdict.verdict", "llmVerdict.budget_check.result", "llmVerdict.cap_check.result", "llmVerdict.documents_check.result", "llmVerdict.attestations_check.result", "llmVerdict.verdict_reported", "llmModel", "promptVersion", "ruleSetVersion", "engineVersion", "durationMs", "ocrErrors", "llmVerdict.error",
 ];
 
 function get(obj, dottedPath) {

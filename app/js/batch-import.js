@@ -158,11 +158,7 @@
   }
 
   function llmVerdictRecord(llm) {
-    if (!llm) return null;
-    return {
-      verdict: llm.verdict, issues: llm.issues, rule_refs: llm.rule_refs, recommendation: llm.recommendation,
-      budget_check: llm.budget_check || null, raw: llm.raw, model: llm.model, promptVersion: llm.promptVersion, durationMs: llm.durationMs, error: llm.error,
-    };
+    return window.LlmVerdict.record(llm);
   }
 
   function stageRecord(stage) {

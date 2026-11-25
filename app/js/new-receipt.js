@@ -435,18 +435,7 @@ var SAMPLE_VENDORS = [
           findings: ruleCheckResult.findings.map(function (f) { return { code: f.code, message: f.message }; }),
         },
         // ผล LLM ดิบทั้งก้อน (null ถ้า verdictMode เป็น 'rule') — เก็บไว้เสมอตามข้อกำหนด "ห้ามทิ้ง"
-        llmVerdict: llmResult ? {
-          verdict: llmResult.verdict,
-          issues: llmResult.issues,
-          rule_refs: llmResult.rule_refs,
-          recommendation: llmResult.recommendation,
-          budget_check: llmResult.budget_check || null,
-          raw: llmResult.raw,
-          model: llmResult.model,
-          promptVersion: llmResult.promptVersion,
-          durationMs: llmResult.durationMs,
-          error: llmResult.error,
-        } : null,
+        llmVerdict: window.LlmVerdict.record(llmResult),
         // ผล OCR ดิบของทุกไฟล์ที่แนบ (ข้อความ+confidence ทุกบรรทัด) — เก็บไว้เสมอไม่ว่าจะใช้ต่อสำเร็จหรือไม่
         ocrRaw: ocrByFile.map(function (f) { return { fileName: f.fileName, text: f.text, lines: f.lines }; }),
         // ประเภทเอกสารที่เดาได้ของแต่ละไฟล์ (heuristic, ดู js/document-classifier.js) — null = เดาไม่ได้

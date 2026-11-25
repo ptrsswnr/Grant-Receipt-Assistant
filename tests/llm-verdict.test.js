@@ -71,7 +71,7 @@ test("evaluateWithLlm never throws — a bad response or a thrown error becomes 
   assert.match(r3.error, /network down/);
 });
 
-test("prompt 1.3.0 gives precomputed budget numbers per line and asks for a budget_check step", () => {
+test("prompt gives precomputed budget numbers per line and asks for a budget_check step", () => {
   const ruleSet = { ruleItems: [
     { id: "ruleitem018", categoryName: "ค่าวัสดุคอมพิวเตอร์", rateType: "เพดานตามจริง", rateAmount: 5000 },
     { id: "ruleitem014", categoryName: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)", rateType: "เหมาจ่าย", rateAmount: 700, averaging: false },
@@ -82,11 +82,11 @@ test("prompt 1.3.0 gives precomputed budget numbers per line and asks for a budg
     { id: "line020", group: "หมวดค่าใช้สอย", itemName: "ค่าแท็กซี่", total: 700, spentBefore: 0, ruleCategory: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)" },
   ];
   const prompt = buildPrompt("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 5210.28, estimate });
-  assert.equal(PROMPT_VERSION, "1.3.0");
+  assert.equal(PROMPT_VERSION, "1.4.0");
   // line011: 4,747.66 + 5,210.28 = 9,957.94 of 5,000 (over the line), group 9,957.94 of 10,000 (within)
   assert.match(prompt, /\[line011\][^\n]*รายการรวมใบนี้ 9,957\.94 บาท จากที่ตั้งไว้ 5,000 บาท \(เกินรายการ 4,957\.94 บาท\)[^\n]*หมวดรวมใบนี้ 9,957\.94 บาท จากที่ตั้งไว้ 10,000 บาท \(ไม่เกินหมวด\), หมวดนี้ถัวได้, รายการนี้ถัวได้/);
   assert.match(prompt, /\[line020\][^\n]*รายการนี้ห้ามถัว/);
-  assert.match(prompt, /ขั้นตอนตรวจประมาณการ/);
+  assert.match(prompt, /ข้อ 1 ประมาณการ \(budget_check\)/);
   assert.match(prompt, /"budget_check"/);
   assert.match(prompt, /"averaged"/);
 });
@@ -99,4 +99,42 @@ test("budget_check in the LLM reply is parsed and cleaned", async () => {
   assert.deepEqual(r.budget_check, { line_id: "line011", line_total_after: 9957.94, line_budget: 5000, group_total_after: 9957.94, group_budget: 10000, averaging_allowed: true, result: "averaged" });
   const bad = await evaluateWithLlm("x", { ruleItems: [], evidenceChains: {} }, {}, {}, { aiClient: { ...ai, chat: async () => JSON.stringify({ verdict: "pass", budget_check: { result: "maybe" } }) } });
   assert.equal(bad.budget_check.result, null);
+});
+
+test("prompt 1.4.0 is a 4-item checklist and shows each rule's evidence chain", () => {
+  const ruleSet = { ruleItems: [{ id: "ruleitem018", categoryName: "ค่าวัสดุคอมพิวเตอร์", rateType: "เพดานตามจริง", rateAmount: 5000, evidenceChainId: "chain-purchase" }], evidenceChains: {} };
+  const prompt = buildPrompt("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 5210.28, estimate: [] });
+  assert.match(prompt, /\[ruleitem018\][^\n]*ชุดเอกสาร \[chain-purchase\]/);
+  for (const key of ["budget_check", "cap_check", "documents_check", "attestations_check"]) assert.match(prompt, new RegExp('"' + key + '"'));
+  assert.match(prompt, /ข้อ 2 เพดานตามระเบียบ/);
+  assert.match(prompt, /ข้อ 4 ตราประทับ/);
+});
+
+test("a pass that contradicts the LLM's own failed checklist item becomes fail; the reported verdict is kept", async () => {
+  const reply = {
+    budget_check: { line_id: "line011", result: "averaged" },
+    cap_check: { rule_ref: "ruleitem018", cap: "5,000", unit: null, amount: 5210.28, result: "over" },
+    documents_check: { required: ["ใบเสร็จ", "รูปถ่ายพัสดุ"], found: ["ใบเสร็จ"], missing: ["รูปถ่ายพัสดุ"], result: "complete" },
+    attestations_check: { required: ["จ่ายแล้ว"], found: ["จ่ายแล้ว"], missing: [], result: "complete" },
+    verdict: "pass", issues: [], rule_refs: [], recommendation: "",
+  };
+  const ai = { chat: async () => JSON.stringify(reply), extractJson: (t) => JSON.parse(t), modelName: () => "fake" };
+  const r = await evaluateWithLlm("x", { ruleItems: [], evidenceChains: {} }, {}, {}, { aiClient: ai });
+  assert.equal(r.verdict_reported, "pass");
+  assert.equal(r.verdict, "fail");
+  assert.deepEqual(r.failed_checks, ["cap_check", "documents_check"]);
+  assert.equal(r.cap_check.cap, 5000);
+  assert.equal(r.documents_check.result, "missing"); // a listed missing document overrides "complete"
+
+  const allOk = { ...reply, cap_check: { result: "within" }, documents_check: { missing: [], result: "complete" } };
+  const r2 = await evaluateWithLlm("x", { ruleItems: [], evidenceChains: {} }, {}, {}, { aiClient: { ...ai, chat: async () => JSON.stringify(allOk) } });
+  assert.equal(r2.verdict, "pass");
+  assert.deepEqual(r2.failed_checks, []);
+});
+
+test("record() gives the Firestore shape with every checklist field", () => {
+  const { record } = require("../app/js/llm-verdict.js");
+  assert.equal(record(null), null);
+  const rec = record({ verdict: "fail", issues: [], rule_refs: [], recommendation: "", raw: "{}", model: "m", promptVersion: "1.4.0", durationMs: 1, error: null });
+  assert.deepEqual(Object.keys(rec).sort(), ["attestations_check", "budget_check", "cap_check", "documents_check", "durationMs", "error", "failed_checks", "issues", "model", "promptVersion", "raw", "recommendation", "rule_refs", "verdict", "verdict_reported"].sort());
 });
