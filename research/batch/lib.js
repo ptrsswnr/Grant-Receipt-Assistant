@@ -57,10 +57,9 @@ async function ocrOneFile(fileDef, caseDir, OcrClient) {
 // ประมาณการของเคส (meta.json "estimate") → รูปแบบ budget ที่ rule engine รับ โดยจับคู่รายการด้วยหมวด
 // แบบเดียวกับ matchBudget() ในเว็บ (ruleCategory ของรายการ = หมวดของใบเสร็จ, เอารายการแรกที่ตรง)
 // ไม่มี estimate → undefined (rule engine บันทึกว่ายังตรวจกับประมาณการไม่ได้)
+// ใช้ RuleEngine.budgetFromEstimate ตัวเดียวกับเว็บ (รวมยอดของหมวดไว้ตรวจการถัวเฉลี่ยด้วย)
 function budgetForRuleEngine(estimate, category) {
-  if (!estimate || !estimate.length) return undefined;
-  const line = estimate.find((l) => l.ruleCategory === category) || null;
-  return { line: line, spentBefore: line ? line.spentBefore || 0 : 0 };
+  return RuleEngine.budgetFromEstimate(category, estimate);
 }
 
 function hasRealFiles(cases) {
@@ -148,7 +147,7 @@ async function runCase(caseDef, ruleSet, documentNames, documentTypesById, deps,
 
 const CSV_COLUMNS = [
   "id", "category", "amount", "financeVerdict", "predictedStatus", "ruleCheck.status", "ruleCheck.reasonCode",
-  "llmVerdict.verdict", "llmModel", "promptVersion", "ruleSetVersion", "engineVersion", "durationMs", "ocrErrors", "llmVerdict.error",
+  "llmVerdict.verdict", "llmVerdict.budget_check.result", "llmModel", "promptVersion", "ruleSetVersion", "engineVersion", "durationMs", "ocrErrors", "llmVerdict.error",
 ];
 
 function get(obj, dottedPath) {

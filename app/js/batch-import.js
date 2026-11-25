@@ -161,7 +161,7 @@
     if (!llm) return null;
     return {
       verdict: llm.verdict, issues: llm.issues, rule_refs: llm.rule_refs, recommendation: llm.recommendation,
-      raw: llm.raw, model: llm.model, promptVersion: llm.promptVersion, durationMs: llm.durationMs, error: llm.error,
+      budget_check: llm.budget_check || null, raw: llm.raw, model: llm.model, promptVersion: llm.promptVersion, durationMs: llm.durationMs, error: llm.error,
     };
   }
 

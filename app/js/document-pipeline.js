@@ -318,8 +318,8 @@
     var evidence = { documentTypeIds: documentTypeIds, attestationIds: deps.DocumentClassifier.detectAttestations(members.map(function (d) { return d.text; })) };
 
     var estimate = ctx.estimate || [];
-    var line = matchBudgetLine(category, estimate);
-    var budget = estimate.length ? { line: line, spentBefore: line ? line.spentBefore || 0 : 0 } : undefined;
+    // รายการในประมาณการ + ยอดรวมของหมวด (ใช้ตรวจการถัวเฉลี่ยในหมวด) — ฟังก์ชันเดียวกับหน้าอัปโหลดใบเดียว
+    var budget = deps.RuleEngine.budgetFromEstimate(category, estimate);
 
     var ruleCheck = deps.RuleEngine.evaluate({ category: category, amount: amount, evidence: evidence, budget: budget }, ctx.ruleSet, ctx.documentNames);
     ruleCheck.aiExplanation = ruleCheck.explanation;

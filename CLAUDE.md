@@ -417,6 +417,71 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
 - **Page change:** `projects.html` now loads GIS and `google-drive.js`.
 - **Verified:** in the browser, only up to the confirm panel and Cancel. A real delete was not run on live data.
 
+## Averaging within a budget group (ถัวเฉลี่ยภายในหมวด) — 2026-11-25 (engine 1.6.0, rule set 2570.5, prompt 1.2.0)
+
+- **The rule (from the owner, who administers these grants):** spending on a line already in the estimate may go over that line without explanation, as long as the whole group's spending stays within the group's total. Example: office supplies 100 + computer supplies 100 = group 200; actual 50 + 120 = 170 is fine.
+- **Exceptions:**
+  - The compensation group (ค่าตอบแทน/ค่าจ้าง) and the equipment group (ครุภัณฑ์) never average. `RuleEngine.groupAllowsAveraging(groupName)` checks the group name with `/ตอบแทน|ค่าจ้าง|ครุภัณฑ์/`.
+  - Items with a percentage limit must not exceed their own estimate line (the owner's answer). They have `averaging: false` on their `ruleItems` in `data.js`:
+    - all travel items (ruleitem011–015, 028). The owner said the estimate-preparation table caps travel at 25%; that figure is not recorded or checked anywhere in the repo.
+    - ค่าจ้างเหมาบริการ (006)
+    - plus 001, 002, 005 and 022, which sit in non-averaging groups anyway.
+  - A receipt not in the estimate at all still needs approval.
+- **Engine:** `RuleEngine.budgetFromEstimate(category, estimate)` builds the `budget` input, now with `group: { name, total, spentBefore }`. All callers use it: `new-receipt.js` (via `estimateWithSpent`; `spentOnLine` was removed), `document-pipeline.js` and `research/batch/lib.js`.
+  - Over the line but averaged → `AVERAGED_WITHIN_GROUP` (status ผ่าน), with `averagedAmount`. The message says how much it went over and that it was averaged.
+  - Otherwise → `OVER_ESTIMATE`. The message says why: the group can't average, the item is no-averaging, or the whole group is over.
+- **LLM prompt 1.2.0:** `rulesAsText` marks no-averaging items. `estimateAsText` adds per-group totals and states the averaging rule.
+- **Rule editor (`fund-sources.js`):** each rule row has a "ห้ามถัว" checkbox, saved immediately with `{ averaging: !checked }` and `merge`. The add-rule form has "ห้ามถัวเฉลี่ยในหมวด" and saves `averaging` on new rules. Only syntax-checked: the signed-in test account is not an admin.
+- **Estimate page:**
+  - Each group row shows set / spent / remaining and whether the group averages.
+  - A group over its total gets "หมวดเกินประมาณการ".
+  - An over-line row that averages shows "ถัวจ่ายในหมวด" instead of "เกินประมาณการ".
+  - "ห้ามถัว" tags no-averaging items, but only inside averaging groups.
+  - The page loads `rule-engine.js` for this. It reads `averaging` from `data.js`, not live Firestore.
+- **Not done yet:**
+  - Live Firestore gets `averaging: false` only after an admin presses "อัปเดตเฉพาะระเบียบ/กฎ" on `seed.html`. Until then the live engine averages travel too.
+  - Receipts already saved keep the status they were given.
+
+## Prompt 1.3.0: precomputed budget numbers + budget_check — 2026-11-25
+
+- **Why:** with prompt 1.2.0 the LLM still called averaged spending "over the estimate", and once quoted another receipt's amount. The owner chose to keep the LLM as the judge, give it the arithmetic, and make it show its steps.
+- **`RuleEngine.budgetFacts(estimate, ruleSet, amount)`:** for every estimate line, the numbers "if this receipt belongs to this line": line spent after, line total, group spent after, group total, and whether the group and the line may average. Facts only, no verdict.
+- **Prompt:**
+  - `estimateAsText(estimate, ruleSet, amount)` appends those numbers to each line.
+  - A 5-step "ขั้นตอนตรวจประมาณการ" tells the model to pick the line, use the given numbers without calculating, and classify the result as `within` / `averaged` / `over` / `not_in_estimate`. `averaged` is explicitly not a problem.
+  - The reply JSON now starts with `budget_check` { line_id, line_total_after, line_budget, group_total_after, group_budget, averaging_allowed, result }.
+- **Saving:** `evaluateWithLlm` parses it (`cleanBudgetCheck`: numbers are coerced, an unknown `result` becomes null). It is saved as `llmVerdict.budget_check` on upload, import and re-check, and the batch CSV has `llmVerdict.budget_check.result`.
+- **First run on the owner's two receipts (gemini-2.5-flash-lite, via re-check):**
+  - **receipt001:** the right line and correct copied numbers (line 9,957.94/5,000, group 9,957.94/47,700, averaging allowed), but it still answered `over`. Its issue text compared ฿5,210.28 with ฿5,000; that is really the per-purchase regulation cap for computer materials, mislabelled as the estimate.
+  - **receipt002:** copied the wrong line number (4,747.66 instead of 9,957.94), answered `within`, and returned **pass**, ignoring the missing inspection photos and paid stamp that it flagged before. This is a false pass, and the receipt's live status is now ผ่าน. The earlier verdicts are in `verdictHistory`.
+- **Conclusion so far:** giving the numbers fixed the arithmetic only partly. The small model still gets the averaging logic wrong, and the longer prompt may have pushed the evidence checks out. Not yet decided: change model, use the rule engine for the budget part (option 3), or shorten the prompt.
+
+## Stamp keywords — 2026-11-25
+
+- **`document-classifier.js` `ATTESTATION_KEYWORDS`:** each stamp now has a list of phrases, and any one counts. `inspection-stamp` accepts "ตรวจรับพัสดุ" and "ได้รับพัสดุ". The second comes from the owner's real stamp, "ได้รับพัสดุตามใบส่งของเรียบร้อยแล้ว", which OCR read correctly but the old single keyword missed. A general phrase like "ได้รับสินค้า" does not count.
+- **Re-check result:** with this change, receipt002 now has `inspection-stamp`. It is still ต้องแก้ไข: no inspection photos, and no "จ่ายแล้ว" stamp in the OCR text.
+- **Redaction:** the owner covered page 1's stamp while blanking a signature. Signatures are never checked (OCR cannot read handwriting), so they need no stand-in. Stamps must not be covered.
+
+## Re-check saved receipts — 2026-11-25
+
+- **Why:** the owner asked that receipts saved before the averaging rule be judged again under it.
+- **`app/js/receipt-recheck.js` (`window.ReceiptRecheck.recheck(receiptRef, uid)`)** re-runs the check on a saved receipt with the current regulations, estimate and prompt. It uses the same modules as upload: `RuleEngine`, `LlmVerdict` and `ReceiptPipeline.decideVerdict`.
+  - **No new reading:** no OCR, no AI field reading. It reuses `confirmed*`, `providedDocumentTypeIds`, `confirmedAttestations` and `summaryAmount`.
+  - **OCR text for the LLM:** from `ocrRaw` (single upload) or `importBatches/{id}/pages` by `documentClassification` page ranges (scanned-project import).
+  - **"Spent before":** counts every receipt in the project now, minus this receipt's own amount on its own line.
+  - **History kept:** the old result (status, explanation, verdictMode, ruleCheck, llmVerdict, budgetLineId, checkedAt) is appended to `verdictHistory` with `arrayUnion` before the new one is written. `recheckedAt` is set.
+  - **Stamps are detected again** from the stored OCR text with the current keywords, and saved to `confirmedAttestations`. Document types are not re-detected.
+  - **AI check:** `AiClient.isConfigured()` is called with no argument. Passing `{}` overrides the legacy `OPENROUTER_API_KEY` and reads as "not configured".
+- **Development only (owner, 2026-11-25):** re-checking is for tuning prompts. Real users must not re-check. `budget.js` shows the buttons only when `DEV_TOOLS` is true, i.e. the page is opened on localhost, 127.0.0.1 or [::1]; they are not shown on the live site.
+- **`budget.html`:**
+  - each receipt has a "ตรวจใหม่" button, and the header has "ตรวจใหม่ทุกใบ" (asks to confirm first);
+  - the page reloads after re-checking;
+  - it now also loads `receipt-store.js`, `ai-config.local.js`, `ai-client.js`, `llm-verdict.js` and `receipt-recheck.js`.
+- **Run on the owner's project (receipt001/002, computer materials):**
+  - The rule engine now gives `AVERAGED_WITHIN_GROUP` for both.
+  - Both stay ต้องแก้ไข for real reasons: inspection photos missing, the "จ่ายแล้ว"/"ตรวจรับพัสดุ" stamps not found in the OCR text, and receipt001's ฿5,210.28 over the ฿5,000-per-purchase cap for computer materials.
+  - The LLM (prompt 1.2.0) still said "ยอดเกินประมาณการ" despite the averaging rule. For receipt002 it also quoted receipt001's amount. Keep both as LLM error examples for the thesis.
+
 ## Advice in Thai — 2026-11-25
 
 - **Why:** the owner saw raw LLM codes in the advice ("amount_exceeded:", "missing_attachment:", "[chain-purchase]") and asked for Thai.

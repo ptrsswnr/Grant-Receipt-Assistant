@@ -103,6 +103,9 @@
         '<span class="text-tiny" style="flex:1 1 110px;">' + esc(item.requiredEvidenceType) + '</span>' +
         '<span class="text-tiny" style="flex:1 1 150px;">' + esc(chainText) + '</span>' +
         '<span class="text-tiny" style="flex:1 1 130px;">' + esc(item.note) + '</span>' +
+        // ห้ามถัวเฉลี่ยกับรายการอื่นในหมวด (averaging: false) — ติ๊กแล้วบันทึกทันที
+        '<label class="text-small ri-averaging-toggle" title="ใช้ได้ไม่เกินยอดของรายการตัวเองในประมาณการ เช่น ค่าเดินทาง และรายการที่ระเบียบกำหนดเป็น %">' +
+          '<input type="checkbox" data-action="toggle-averaging"' + (ri.averaging === false ? " checked" : "") + '> ห้ามถัว</label>' +
         // กฎที่เคยใช้ตัดสินใบเสร็จไปแล้วต้องเก็บไว้ย้อนตรวจ (NFR-04) จึงปิดใช้งานแทนการลบ
         '<button type="button" class="btn btn-ghost btn-sm" data-action="toggle-rule-item" data-active="' + (inactive ? "0" : "1") + '">' + (inactive ? "เปิดใช้งาน" : "ปิดใช้งาน") + '</button>' +
       '</div>'
@@ -124,6 +127,8 @@
         '<input type="text" class="ri-evidence" placeholder="เอกสารที่ต้องใช้" style="flex:1 1 120px;">' +
         '<select class="ri-evidence-chain" style="flex:1 1 160px;" title="ชุดเอกสารที่ต้องมีครบ (evidenceChains)">' + chainOptions + '</select>' +
         '<input type="text" class="ri-note" placeholder="หมายเหตุ" style="flex:1 1 140px;">' +
+        '<label class="text-small ri-averaging-toggle" title="ใช้ได้ไม่เกินยอดของรายการตัวเองในประมาณการ เช่น ค่าเดินทาง และรายการที่ระเบียบกำหนดเป็น %">' +
+          '<input type="checkbox" class="ri-no-averaging"> ห้ามถัวเฉลี่ยในหมวด</label>' +
         '<button type="button" class="btn btn-secondary btn-sm" data-action="add-rule-item">เพิ่มกฎ</button>' +
       '</div>'
     );
@@ -249,6 +254,23 @@
   // เดลิเกตคลิกทั้งหมดของการ์ดแหล่งทุน (toggle-fund-source / add-rule-item / toggle-rule-item) ที่
   // #fund-source-list เดียว เพราะแต่ละหน้ามีหลายการ์ด/หลายฟอร์มซ้ำกัน ใช้ id ซ้ำไม่ได้ ต้องอ่านค่าจาก
   // data-fs-id/data-ri-id + querySelector ภายใน container ที่คลิกแทน
+  // ติ๊ก/เอาติ๊ก "ห้ามถัว" ของกฎที่มีอยู่ — บันทึกด้วย merge ไม่แตะ field อื่น
+  fundSourceList.addEventListener("change", async function (e) {
+    var box = e.target.closest('input[data-action="toggle-averaging"]');
+    if (!box) return;
+    var row = box.closest("[data-fs-id][data-ri-id]");
+    box.disabled = true;
+    try {
+      var versionRef = await getOrCreateActiveRuleVersion(row.dataset.fsId);
+      await versionRef.collection("ruleItems").doc(row.dataset.riId).set({ averaging: !box.checked }, { merge: true });
+    } catch (err) {
+      box.checked = !box.checked;
+      warn("บันทึก \"ห้ามถัว\" ไม่สำเร็จ: " + err.message);
+    } finally {
+      box.disabled = false;
+    }
+  });
+
   fundSourceList.addEventListener("click", async function (e) {
     var button = e.target.closest("button[data-action]");
     if (!button) return;
@@ -285,6 +307,7 @@
       var requiredEvidenceType = formRow.querySelector(".ri-evidence").value.trim();
       var evidenceChainId = formRow.querySelector(".ri-evidence-chain").value || null;
       var note = formRow.querySelector(".ri-note").value.trim();
+      var noAveraging = formRow.querySelector(".ri-no-averaging").checked;
 
       if (!categoryName) {
         warn("กรุณากรอกชื่อหมวดค่าใช้จ่าย");
@@ -311,6 +334,7 @@
           requiredEvidenceType: requiredEvidenceType,
           evidenceChainId: evidenceChainId,
           note: note,
+          averaging: !noAveraging,
           ruleVersionId: activeVersionRef.id,
         });
         existingDocs = await loadFundSourceList();

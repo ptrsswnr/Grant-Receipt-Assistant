@@ -981,6 +981,9 @@ footer.page-footer {
 .budget-table-wrap { overflow-x: auto; }
 .budget-table td[data-label] { white-space: nowrap; }
 .budget-table .group-row td { background: var(--color-surface); font-weight: 600; color: var(--color-text); }
+.budget-table .group-row td { white-space: normal; }
+.group-row__sum, .group-row__rule { margin-left: 14px; font-weight: 400; font-size: 14px; color: var(--color-text-2); font-variant-numeric: tabular-nums; }
+.budget-table .group-row .chip-status { margin-left: 10px; font-size: 14px; padding: 3px 10px 3px 8px; }
 .budget-table .line-name { min-width: 220px; }
 .budget-table .total-row td { font-weight: 700; border-bottom: none; }
 .budget-table .is-over td[data-label="คงเหลือ"] { color: var(--status-approval-ink); font-weight: 600; }
@@ -1133,3 +1136,8 @@ footer.page-footer {
   .receipt-pane { display: none; }
   .receipt-detail .receipt-entry { display: block; margin-bottom: var(--sp-4); }
 }
+
+/* fund-sources.html: "ห้ามถัว" checkbox on each rule — label is the tap target (≥44px) */
+.ri-averaging-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; cursor: pointer; white-space: nowrap; }
+.ri-averaging-toggle input { width: 18px; height: 18px; min-height: 0; margin: 0; accent-color: var(--color-accent); }
+.line-receipt__recheck { margin-left: auto; }

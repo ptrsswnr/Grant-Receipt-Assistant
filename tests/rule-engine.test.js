@@ -389,3 +389,62 @@ test("an inactive fund source still checks with stored rules but warns first", (
   assert.match(inactive.explanation, /^แหล่งทุนนี้ถูกปิดใช้งานแล้ว/);
   assert.ok(!active.findings.some((f) => f.code === REASON.FUND_SOURCE_INACTIVE));
 });
+
+// ─── ถัวเฉลี่ยภายในหมวด (engine 1.6.0) — ตัวอย่างจากเจ้าของโครงการ: วัสดุสำนักงาน 100 + วัสดุคอม 100 = หมวด 200
+// ใช้จริง วัสดุสำนักงาน 50 วัสดุคอม 120 → วัสดุคอมเกินรายการ แต่ทั้งหมวดยังไม่เกิน จึงถัวได้ ไม่ต้องชี้แจง
+const materialEstimate = (officeSpent, computerSpent) => [
+  { id: "line010", group: "หมวดค่าวัสดุ", itemName: "ค่าวัสดุสำนักงาน", total: 100, spentBefore: officeSpent, ruleCategory: "ค่าวัสดุสำนักงาน" },
+  { id: "line011", group: "หมวดค่าวัสดุ", itemName: "ค่าวัสดุคอมพิวเตอร์", total: 100, spentBefore: computerSpent, ruleCategory: "ค่าวัสดุคอมพิวเตอร์" },
+];
+const budgetFinding = (r) => r.findings.find((f) => f.group === "budget");
+
+test("budgetFromEstimate adds the line's group totals; no estimate → undefined; no matching line → not in estimate", () => {
+  const b = RuleEngine.budgetFromEstimate("ค่าวัสดุคอมพิวเตอร์", materialEstimate(50, 0));
+  assert.deepEqual(b.group, { name: "หมวดค่าวัสดุ", total: 200, spentBefore: 50 });
+  assert.equal(b.line.id, "line011");
+  assert.equal(RuleEngine.budgetFromEstimate("x", []), undefined);
+  assert.deepEqual(RuleEngine.budgetFromEstimate("ค่าแท็กซี่ (เดินทางปฏิบัติงาน)", materialEstimate(0, 0)), { line: null, spentBefore: 0 });
+});
+
+test("over its own line but within the group total → averaged, passes, no approval needed", () => {
+  const budget = RuleEngine.budgetFromEstimate("ค่าวัสดุคอมพิวเตอร์", materialEstimate(50, 0));
+  const r = evaluate({ category: "ค่าวัสดุคอมพิวเตอร์", amount: 120, budget }, ruleSet2570);
+  const f = budgetFinding(r);
+  assert.equal(f.code, REASON.AVERAGED_WITHIN_GROUP);
+  assert.equal(f.status, STATUS.PASS);
+  assert.equal(f.averagedAmount, 20);
+  assert.notEqual(r.status, STATUS.APPROVAL);
+  assert.match(r.explanation, /ถัวจ่ายในหมวด/);
+});
+
+test("over the line and the group total → approval, saying the whole group is over", () => {
+  const budget = RuleEngine.budgetFromEstimate("ค่าวัสดุคอมพิวเตอร์", materialEstimate(90, 0));
+  const r = evaluate({ category: "ค่าวัสดุคอมพิวเตอร์", amount: 120, budget }, ruleSet2570);
+  assert.equal(budgetFinding(r).code, REASON.OVER_ESTIMATE);
+  assert.equal(r.status, STATUS.APPROVAL);
+  assert.match(budgetFinding(r).message, /ยอดรวมทั้งหมวดก็เกิน/);
+});
+
+test("compensation group never averages, even with room in the group", () => {
+  const estimate = [
+    { id: "line001", group: "1. หมวดค่าตอบแทน", itemName: "ค่าตอบแทนอาสาสมัคร", total: 1000, spentBefore: 0, ruleCategory: "ค่าตอบแทนอาสาสมัคร/ผู้ให้ข้อมูล" },
+    { id: "line002", group: "1. หมวดค่าตอบแทน", itemName: "ค่าตอบแทนผู้ทรงคุณวุฒิ", total: 10000, spentBefore: 0, ruleCategory: "ค่าตอบแทนผู้ทรงคุณวุฒิพิจารณาเครื่องมือ" },
+  ];
+  const budget = RuleEngine.budgetFromEstimate("ค่าตอบแทนอาสาสมัคร/ผู้ให้ข้อมูล", estimate);
+  const r = evaluate({ category: "ค่าตอบแทนอาสาสมัคร/ผู้ให้ข้อมูล", amount: 1100, budget }, ruleSet2570);
+  assert.equal(budgetFinding(r).code, REASON.OVER_ESTIMATE);
+  assert.match(budgetFinding(r).message, /ถัวเฉลี่ยไม่ได้/);
+});
+
+test("travel (averaging: false) must stay within its own line even inside an averaging group", () => {
+  const estimate = [
+    { id: "line020", group: "หมวดค่าใช้สอย", itemName: "ค่าแท็กซี่", total: 700, spentBefore: 0, ruleCategory: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)" },
+    { id: "line021", group: "หมวดค่าใช้สอย", itemName: "ค่าถ่ายเอกสาร", total: 5000, spentBefore: 0, ruleCategory: "ค่าถ่ายเอกสาร" },
+  ];
+  const budget = RuleEngine.budgetFromEstimate("ค่าแท็กซี่ (เดินทางปฏิบัติงาน)", estimate);
+  const r = evaluate({ category: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)", amount: 800, budget }, ruleSet2570);
+  assert.equal(budgetFinding(r).code, REASON.OVER_ESTIMATE);
+  assert.match(budgetFinding(r).message, /ห้ามถัวเฉลี่ย/);
+  assert.equal(RuleEngine.groupAllowsAveraging("หมวดค่าใช้สอย"), true);
+  assert.equal(RuleEngine.groupAllowsAveraging("5.หมวดครุภัณฑ์ (ถ้ามี)"), false);
+});

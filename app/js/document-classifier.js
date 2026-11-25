@@ -50,17 +50,20 @@
 
   // attestations (สิ่งที่ต้องมี "บนตัวเอกสาร" เช่นตราประทับ) — จับคำสำคัญที่ปรากฏบนตราประทับจริง
   // ไม่ใช่ข้อความอธิบายเต็มประโยคใน data.js (ซึ่งยาวเกินจะไปปรากฏบนเอกสารตรงๆ)
+  // ข้อความบนตรายางแต่ละแบบ (พบคำใดคำหนึ่งก็นับ) — "ได้รับพัสดุ" มาจากตราตรวจรับที่ใช้จริงในเอกสารของ
+  // เจ้าของโครงการ ("ได้รับพัสดุตามใบส่งของเรียบร้อยแล้ว", 2026-11-25)
   var ATTESTATION_KEYWORDS = {
-    "paid-stamp": "จ่ายแล้ว",
-    "inspection-stamp": "ตรวจรับพัสดุ",
+    "paid-stamp": ["จ่ายแล้ว"],
+    "inspection-stamp": ["ตรวจรับพัสดุ", "ได้รับพัสดุ"],
   };
 
   // ocrTexts: [ข้อความ OCR ของแต่ละไฟล์ที่แนบ] — คืนรายชื่อ attestationId ที่พบคำสำคัญในไฟล์ใดไฟล์หนึ่ง
   function detectAttestations(ocrTexts) {
     var found = [];
+    var texts = (ocrTexts || []).map(normalize);
     Object.keys(ATTESTATION_KEYWORDS).forEach(function (id) {
-      var k = normalize(ATTESTATION_KEYWORDS[id]);
-      if ((ocrTexts || []).some(function (t) { return normalize(t).indexOf(k) !== -1; })) found.push(id);
+      var keys = ATTESTATION_KEYWORDS[id].map(normalize);
+      if (texts.some(function (t) { return keys.some(function (k) { return t.indexOf(k) !== -1; }); })) found.push(id);
     });
     return found;
   }

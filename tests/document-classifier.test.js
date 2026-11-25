@@ -37,3 +37,8 @@ test("detects attestations from stamp keywords across files, not full sentences"
   assert.deepEqual(detectAttestations(["จ่ายแล้ว", "ตรวจรับพัสดุ เรียบร้อย"]).sort(), ["inspection-stamp", "paid-stamp"]);
   assert.deepEqual(detectAttestations(["ไม่มีตราประทับใดๆ"]), []);
 });
+
+test("inspection stamp worded as 'ได้รับพัสดุ...' counts too (real stamp, OCR without tone marks)", () => {
+  assert.deepEqual(detectAttestations(["ไดรับพัสดุตามใบส่งของเรียบรอยแลว"]), ["inspection-stamp"]);
+  assert.deepEqual(detectAttestations(["เมื่อลูกค้าได้รับสินค้ากรุณาตรวจสอบ"]), [], "receiving goods in general is not the stamp");
+});

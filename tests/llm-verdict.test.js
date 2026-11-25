@@ -70,3 +70,33 @@ test("evaluateWithLlm never throws — a bad response or a thrown error becomes 
   assert.equal(r3.verdict, null);
   assert.match(r3.error, /network down/);
 });
+
+test("prompt 1.3.0 gives precomputed budget numbers per line and asks for a budget_check step", () => {
+  const ruleSet = { ruleItems: [
+    { id: "ruleitem018", categoryName: "ค่าวัสดุคอมพิวเตอร์", rateType: "เพดานตามจริง", rateAmount: 5000 },
+    { id: "ruleitem014", categoryName: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)", rateType: "เหมาจ่าย", rateAmount: 700, averaging: false },
+  ], evidenceChains: {} };
+  const estimate = [
+    { id: "line010", group: "หมวดวัสดุ", itemName: "ค่าวัสดุสำนักงาน", total: 5000, spentBefore: 0, ruleCategory: "ค่าวัสดุสำนักงาน" },
+    { id: "line011", group: "หมวดวัสดุ", itemName: "ค่าวัสดุคอมพิวเตอร์", total: 5000, spentBefore: 4747.66, ruleCategory: "ค่าวัสดุคอมพิวเตอร์" },
+    { id: "line020", group: "หมวดค่าใช้สอย", itemName: "ค่าแท็กซี่", total: 700, spentBefore: 0, ruleCategory: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)" },
+  ];
+  const prompt = buildPrompt("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 5210.28, estimate });
+  assert.equal(PROMPT_VERSION, "1.3.0");
+  // line011: 4,747.66 + 5,210.28 = 9,957.94 of 5,000 (over the line), group 9,957.94 of 10,000 (within)
+  assert.match(prompt, /\[line011\][^\n]*รายการรวมใบนี้ 9,957\.94 บาท จากที่ตั้งไว้ 5,000 บาท \(เกินรายการ 4,957\.94 บาท\)[^\n]*หมวดรวมใบนี้ 9,957\.94 บาท จากที่ตั้งไว้ 10,000 บาท \(ไม่เกินหมวด\), หมวดนี้ถัวได้, รายการนี้ถัวได้/);
+  assert.match(prompt, /\[line020\][^\n]*รายการนี้ห้ามถัว/);
+  assert.match(prompt, /ขั้นตอนตรวจประมาณการ/);
+  assert.match(prompt, /"budget_check"/);
+  assert.match(prompt, /"averaged"/);
+});
+
+test("budget_check in the LLM reply is parsed and cleaned", async () => {
+  const reply = { budget_check: { line_id: "line011", line_total_after: "9,957.94", line_budget: 5000, group_total_after: 9957.94, group_budget: 10000, averaging_allowed: true, result: "averaged" },
+    verdict: "fail", issues: [], rule_refs: [], recommendation: "แนบรูปถ่ายพัสดุ" };
+  const ai = { chat: async () => JSON.stringify(reply), extractJson: (t) => JSON.parse(t), modelName: () => "fake" };
+  const r = await evaluateWithLlm("x", { ruleItems: [], evidenceChains: {} }, {}, {}, { aiClient: ai });
+  assert.deepEqual(r.budget_check, { line_id: "line011", line_total_after: 9957.94, line_budget: 5000, group_total_after: 9957.94, group_budget: 10000, averaging_allowed: true, result: "averaged" });
+  const bad = await evaluateWithLlm("x", { ruleItems: [], evidenceChains: {} }, {}, {}, { aiClient: { ...ai, chat: async () => JSON.stringify({ verdict: "pass", budget_check: { result: "maybe" } }) } });
+  assert.equal(bad.budget_check.result, null);
+});

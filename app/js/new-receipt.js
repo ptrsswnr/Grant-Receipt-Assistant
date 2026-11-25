@@ -134,21 +134,12 @@ var SAMPLE_VENDORS = [
     return budgetLinesCache[projectId];
   }
 
-  // ยอดของใบเสร็จอื่นที่ตัดจากรายการเดียวกันแล้ว — query ตรงใน subcollection ของโครงการตัวเอง ไม่ต้องใช้ index พิเศษ
-  async function spentOnLine(projectId, lineId) {
-    var snap = await projectRefFor(projectId).collection("receipts").where("budgetLineId", "==", lineId).get();
-    var sum = 0;
-    snap.forEach(function (d) { sum += d.data().confirmedAmount || 0; });
-    return sum;
-  }
-
   // คืน undefined ถ้าโครงการยังไม่มีไฟล์ประมาณการเลย (ปกติไปไม่ถึงตรงนี้ เพราะปุ่มอัปโหลดบังคับให้มีประมาณการก่อน)
   // คืน { line: null, spentBefore: 0 } ถ้ามีประมาณการแต่ไม่มีรายการไหนตรงกับหมวดที่อ่านได้ (ไม่อยู่ในประมาณการ)
+  // ยอดรวมของหมวดใช้ตรวจการถัวเฉลี่ยในหมวด จึงอ่านยอดที่ใช้ไปของทุกรายการ (estimateWithSpent) แล้วให้
+  // RuleEngine.budgetFromEstimate จับคู่ — ฟังก์ชันเดียวกับการนำเข้าไฟล์สแกนและ batch runner
   async function matchBudget(projectId, category) {
-    var lines = await getBudgetLines(projectId);
-    if (!lines.length) return undefined;
-    var line = lines.filter(function (l) { return l.ruleCategory === category; })[0] || null;
-    return { line: line, spentBefore: line ? await spentOnLine(projectId, line.id) : 0 };
+    return window.RuleEngine.budgetFromEstimate(category, await estimateWithSpent(projectId));
   }
 
   // ประมาณการทั้งโครงการพร้อมยอดที่เบิกไปแล้วต่อรายการ (ไม่รวมใบนี้) เป็นข้อมูลดิบให้ LLM (js/llm-verdict.js)
@@ -449,6 +440,7 @@ var SAMPLE_VENDORS = [
           issues: llmResult.issues,
           rule_refs: llmResult.rule_refs,
           recommendation: llmResult.recommendation,
+          budget_check: llmResult.budget_check || null,
           raw: llmResult.raw,
           model: llmResult.model,
           promptVersion: llmResult.promptVersion,

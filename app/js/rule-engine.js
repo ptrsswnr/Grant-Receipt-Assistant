@@ -11,7 +11,7 @@
   else root.RuleEngine = api;
 })(typeof self !== "undefined" ? self : this, function () {
   // เพิ่มเลขนี้ทุกครั้งที่ตรรกะการตัดสินเปลี่ยน — บันทึกลงใบเสร็จทุกใบ เพื่อให้รู้ว่าผลแต่ละใบมาจากตรรกะชุดไหน
-  var ENGINE_VERSION = "1.5.0";
+  var ENGINE_VERSION = "1.6.0";
 
   var STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", APPROVAL: "ต้องชี้แจง/ขออนุมัติ", REJECT: "ไม่เข้าเงื่อนไข" };
 
@@ -32,6 +32,7 @@
     NOT_IN_ESTIMATE: "NOT_IN_ESTIMATE",
     OVER_ESTIMATE: "OVER_ESTIMATE",
     WITHIN_ESTIMATE: "WITHIN_ESTIMATE",
+    AVERAGED_WITHIN_GROUP: "AVERAGED_WITHIN_GROUP",
     ESTIMATE_NOT_CHECKED: "ESTIMATE_NOT_CHECKED",
     OVER_RATE_ALLOWANCE: "OVER_RATE_ALLOWANCE",
     WITHIN_RATE_ALLOWANCE: "WITHIN_RATE_ALLOWANCE",
@@ -51,6 +52,8 @@
       unit: item.unit || null,
       note: item.note || null,
       evidenceChainId: item.evidenceChainId || null,
+      // false = ห้ามถัวเฉลี่ยกับรายการอื่นในหมวด (รายการที่ระเบียบกำหนดเป็น % เช่น ค่าเดินทาง ค่าจ้างเหมาบริการ)
+      averaging: item.averaging !== false,
     };
   }
 
@@ -150,7 +153,62 @@
     return [{ group: "summary", status: STATUS.PASS, code: REASON.SUMMARY_MATCHES, message: "ยอดในใบสรุปรายรับ-จ่ายตรงกับใบเสร็จ" }];
   }
 
-  function checkBudget(receipt) {
+  // ถัวเฉลี่ยภายในหมวด (เจ้าของโครงการ/การเงิน 2026-11-25): หมวดค่าใช้สอย ค่าวัสดุ และหมวดอื่น ใช้เงินถัวกัน
+  // ระหว่างรายการที่ตั้งไว้แล้วในหมวดเดียวกันได้ ไม่ต้องชี้แจง ถ้ายอดรวมทั้งหมวดไม่เกินที่ตั้งไว้ — ยกเว้นหมวด
+  // ค่าตอบแทน/ค่าจ้าง และครุภัณฑ์ (ถัวไม่ได้ทั้งหมวด) และรายการที่ระเบียบกำหนดเป็น % (ruleItem.averaging
+  // === false) ซึ่งห้ามเกินยอดของรายการตัวเอง รายการที่ไม่อยู่ในประมาณการเลยยังต้องขออนุมัติเสมอ
+  function groupAllowsAveraging(groupName) {
+    return !!groupName && !/ตอบแทน|ค่าจ้าง|ครุภัณฑ์/.test(groupName);
+  }
+
+  // ประมาณการทั้งโครงการ (มี spentBefore ต่อรายการ) → budget ที่ evaluate() รับ: จับคู่รายการด้วยหมวด
+  // (ruleCategory) แล้วรวมยอดตั้งไว้/ใช้ไปของทั้งหมวดสำหรับการถัว — undefined เมื่อยังไม่มีประมาณการ
+  function budgetFromEstimate(category, estimate) {
+    if (!estimate || !estimate.length) return undefined;
+    var line = estimate.filter(function (l) { return l.ruleCategory === category; })[0] || null;
+    if (!line) return { line: null, spentBefore: 0 };
+    var name = line.group || "";
+    var sameGroup = estimate.filter(function (l) { return (l.group || "") === name; });
+    return {
+      line: { id: line.id, itemName: line.itemName, total: line.total, quantity: line.quantity, group: name },
+      spentBefore: line.spentBefore || 0,
+      group: {
+        name: name,
+        total: sameGroup.reduce(function (s, l) { return s + (l.total || 0); }, 0),
+        spentBefore: sameGroup.reduce(function (s, l) { return s + (l.spentBefore || 0); }, 0),
+      },
+    };
+  }
+
+  // ตัวเลขประมาณการต่อรายการ "ถ้าใบเสร็จนี้อยู่ในรายการนี้" สำหรับ prompt ของ LLM (js/llm-verdict.js)
+  // เป็นข้อเท็จจริงเชิงตัวเลขเท่านั้น ไม่มีผลตัดสิน — LLM ยังต้องเลือกรายการและตัดสินเอง แค่ไม่ต้องบวกเลขเอง
+  // (LLM รุ่นเล็กบวกยอดผิดและข้ามกติกาถัวเฉลี่ยบ่อย 2026-11-25)
+  // คืน [{ id, lineTotal, lineAfter, groupName, groupTotal, groupAfter, groupAverages, lineAverages }]
+  function budgetFacts(estimate, ruleSet, amount) {
+    if (!estimate || !estimate.length || typeof amount !== "number" || !isFinite(amount)) return [];
+    var groups = {};
+    estimate.forEach(function (l) {
+      var g = groups[l.group || ""] = groups[l.group || ""] || { total: 0, spent: 0 };
+      g.total += l.total || 0;
+      g.spent += l.spentBefore || 0;
+    });
+    return estimate.map(function (l) {
+      var g = groups[l.group || ""];
+      var item = l.ruleCategory ? findRuleItem(l.ruleCategory, ruleSet) : null;
+      return {
+        id: l.id,
+        lineTotal: l.total || 0,
+        lineAfter: (l.spentBefore || 0) + amount,
+        groupName: l.group || "",
+        groupTotal: g.total,
+        groupAfter: g.spent + amount,
+        groupAverages: groupAllowsAveraging(l.group || ""),
+        lineAverages: !item || item.averaging,
+      };
+    });
+  }
+
+  function checkBudget(receipt, ruleSet) {
     var budget = receipt.budget;
     var amount = receipt.amount;
     if (!budget.line) {
@@ -167,9 +225,28 @@
       " ใช้ไปแล้ว " + formatCurrency(spentBefore) + " รวมใบนี้เป็น " + formatCurrency(spentAfter) +
       (percent != null ? " (" + percent + "%)" : "");
     if (spentAfter > line.total) {
+      var over = spentAfter - line.total;
+      var group = budget.group;
+      var item = findRuleItem(receipt.category, ruleSet);
+      var lineAverages = !item || item.averaging;
+      var groupAverages = !!group && groupAllowsAveraging(group.name);
+      var groupAfter = group ? group.spentBefore + amount : null;
+      if (groupAverages && lineAverages && groupAfter <= group.total) {
+        return [{
+          group: "budget", status: STATUS.PASS, code: REASON.AVERAGED_WITHIN_GROUP,
+          message: "ถัวจ่ายในหมวด: " + usage + " เกินรายการนี้ " + formatCurrency(over) + " ถัวจากรายการอื่นใน\"" +
+            group.name + "\" ได้ (หมวดตั้งไว้ " + formatCurrency(group.total) + " รวมใบนี้ใช้ไป " + formatCurrency(groupAfter) +
+            ") ไม่ต้องชี้แจง",
+          budgetLineId: line.id, percentUsed: percent, averagedAmount: over,
+        }];
+      }
+      var why = !group ? ""
+        : !groupAverages ? " (หมวด\"" + group.name + "\" ถัวเฉลี่ยไม่ได้)"
+        : !lineAverages ? " (รายการนี้ระเบียบกำหนดเป็น % ห้ามถัวเฉลี่ย ใช้ได้ไม่เกินยอดที่ตั้งไว้)"
+        : " (ยอดรวมทั้งหมวดก็เกิน: หมวดตั้งไว้ " + formatCurrency(group.total) + " รวมใบนี้ใช้ไป " + formatCurrency(groupAfter) + ")";
       return [{
         group: "budget", status: STATUS.APPROVAL, code: REASON.OVER_ESTIMATE,
-        message: "ใช้จ่ายเกินประมาณการ: " + usage + " ต้องชี้แจงเหตุผลและขออนุมัติ",
+        message: "ใช้จ่ายเกินประมาณการ: " + usage + why + " ต้องชี้แจงเหตุผลและขออนุมัติ",
         budgetLineId: line.id, percentUsed: percent,
       }];
     }
@@ -217,7 +294,8 @@
   // receipt: {
   //   category, amount,
   //   evidence?: { documentTypeIds, attestationIds }   — ไม่ส่งมา = ยังไม่ได้ตรวจเอกสารแนบ
-  //   budget?: { line: { id, itemName, total } | null, spentBefore }
+  //   budget?: { line: { id, itemName, total } | null, spentBefore, group?: { name, total, spentBefore } }
+  //     — สร้างจากประมาณการด้วย budgetFromEstimate(); group ใช้ตรวจการถัวเฉลี่ยภายในหมวด
   //     — ไม่ส่งมา = โครงการยังไม่ได้นำเข้าประมาณการ; line: null = ใบนี้ไม่อยู่ในประมาณการ
   //     — spentBefore คือยอดของใบเสร็จอื่นที่ตัดจากรายการเดียวกันแล้ว (ไม่รวมใบนี้)
   // }
@@ -250,7 +328,7 @@
     }
 
     var findings = [];
-    if (hasBudget) findings = findings.concat(checkBudget(receipt));
+    if (hasBudget) findings = findings.concat(checkBudget(receipt, ruleSet));
     else {
       result.autoVerified = false;
       findings.push({ group: "budget", status: STATUS.PASS, code: REASON.ESTIMATE_NOT_CHECKED, message: "ทุกรายจ่ายต้องเป็นไปตามประมาณการที่อนุมัติแล้ว แต่โครงการนี้ยังไม่มีไฟล์ประมาณการในระบบ กรุณาอัปโหลดไฟล์ประมาณการ (ตาราง 17.2) ที่ปุ่ม \"ประมาณการ\" ในหน้าโครงการของฉัน เพื่อให้ระบบตรวจกับประมาณการ", unverified: true });
@@ -403,5 +481,8 @@
     normalizeRuleItem: normalizeRuleItem,
     requiredEvidence: requiredEvidence,
     evaluate: evaluate,
+    groupAllowsAveraging: groupAllowsAveraging,
+    budgetFromEstimate: budgetFromEstimate,
+    budgetFacts: budgetFacts,
   };
 });
