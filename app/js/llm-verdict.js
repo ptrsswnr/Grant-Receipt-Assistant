@@ -354,7 +354,8 @@
       checks.attestations_check = guarded.check;
       var issues = Array.isArray(parsed.issues) ? parsed.issues.slice() : [];
       guarded.rejected.forEach(function (f) {
-        issues.push({ type: "missing_stamp", description: "ไม่พบตรา " + f.name + " (ข้อความที่อ้างเป็นหลักฐาน \"" + (f.quote || "") + "\" ไม่ใช่ข้อความของตรานี้)" });
+        // ข้อความถึงผู้ใช้บอกแค่ว่าขาดตรา — หลักฐานที่ AI อ้างผิดเก็บไว้ใน attestations_rejected สำหรับงานวิจัย
+        issues.push({ type: "missing_stamp", description: "ไม่พบตรา \"" + f.name + "\" บนเอกสาร กรุณาขอประทับตราให้ครบ" });
       });
       var failed = failedChecks(checks);
       var verdict = reported === "pass" && failed.length ? "fail" : reported;

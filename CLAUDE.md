@@ -490,6 +490,12 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - It exists because three prompt wordings could not stop the model claiming a "จ่ายแล้ว" stamp from lines like "…E-TAX เรียบร้อยแอ้ว".
 - **`ReceiptRecheck.recheck(ref, uid, { dryRun: true })`** returns the full result without writing, used to run repeated trials.
 - **Results on the two receipts:** 1.5.4 was fully correct 10/10 and 1.5.5 6/6 (the model alone 9/10 and 5/6; the guard caught the rest). Both receipts are saved live under 1.5.5. This is the tuning set, so it is not a reportable accuracy.
+- **Rule set 2570.7 — line ceilings, not per-receipt caps (owner, 2026-11-25).** The ฿5,000 for computer and office supplies and the ฿3,000 for utilities are ceilings for budgeting that line in the estimate, not per-receipt caps.
+  - The owner's example: a ฿5,000 line, then a ฿5,000 ink receipt plus a ฿1,500 CD receipt. That is over the estimate and averaged within the materials group, so it passes.
+  - `ruleitem018`, `019` and `021` are now `ตามข้อเสนอโครงการ` (`rateAmount: null`), with the old figure explained in `note`.
+  - No unit-less cap remains in `data.js`; every remaining cap has a unit.
+  - Results under 2570.7 with prompt 1.5.5: fully correct 3/3 and 6/7. The one miss was receipt002's inspection stamp, a false negative the guard cannot fix. It is logged as a residual error, not tuned away.
+  - The guard's user-facing issue now just says the stamp is missing. The wrongly cited quote stays only in `attestations_rejected`.
 - **Ground truth corrected:** receipt001 has a damaged inspection stamp. OCR reads it as "ได้รับพัสดตามใจศ่๑๑ี" (80% confidence). The LLM finds it; the rule engine's keyword classifier misses it ("พัสด" has no ุ).
 
 ## Stamp keywords — 2026-11-25

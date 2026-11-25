@@ -52,12 +52,13 @@ test("every dropdown category except the unsupported one has exactly one rule it
   }
 });
 
-test("office supplies: cap ฿5,000 — at cap passes, above cap needs fix", () => {
-  assert.equal(check("ค่าวัสดุสำนักงาน", 5000).status, STATUS.PASS);
-  const over = check("ค่าวัสดุสำนักงาน", 5000.01);
-  assert.equal(over.status, STATUS.FIX);
-  assert.equal(over.reasonCode, REASON.AMOUNT_EXCEEDS_CAP);
-  assert.equal(over.ruleItemId, "ruleitem019");
+test("office/computer supplies ฿5,000 is a line ceiling for budgeting, not a per-receipt cap (2570.7)", () => {
+  for (const category of ["ค่าวัสดุสำนักงาน", "ค่าวัสดุคอมพิวเตอร์"]) {
+    const r = check(category, 9000);
+    assert.equal(r.status, STATUS.PASS, category);
+    assert.equal(r.reasonCode, REASON.NO_FIXED_CAP, category);
+  }
+  assert.equal(check("ค่าวัสดุสำนักงาน", 9000).ruleItemId, "ruleitem019");
 });
 
 test("flat-rate (เหมาจ่าย) taxi ฿700 is compared like a cap", () => {
@@ -134,7 +135,7 @@ test("no evidence given → amount verdict stands but is not auto-verified", () 
 test("purchase with receipt, inspection photos and both stamps confirmed → pass", () => {
   const r = withDocs("ค่าวัสดุสำนักงาน", 1000, ["tax-invoice-full", "inspection-photos"], ["paid-stamp", "inspection-stamp"]);
   assert.equal(r.status, STATUS.PASS);
-  assert.equal(r.reasonCode, REASON.WITHIN_CAP);
+  assert.equal(r.reasonCode, REASON.NO_FIXED_CAP);
 });
 
 test("purchase without inspection stamp confirmed → needs fix", () => {
@@ -209,7 +210,7 @@ test("equipment over ฿100,000 also requires the procurement committee certific
 });
 
 test("amount over cap stays the primary reason even when documents are also missing", () => {
-  const r = withDocs("ค่าวัสดุสำนักงาน", 9000, [], []);
+  const r = withDocs("ค่าแท็กซี่ (เดินทางปฏิบัติงาน)", 900, [], []);
   assert.equal(r.status, STATUS.FIX);
   assert.equal(r.reasonCode, REASON.AMOUNT_EXCEEDS_CAP);
   const codes = r.findings.map((f) => f.code);
@@ -269,7 +270,9 @@ test("a category the regulations forbid is rejected even if it was in the estima
 });
 
 test("whole-amount caps (no unit) still apply when an estimate line is given", () => {
-  const r = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 6000, evidence: completePurchase, budget: { line: { ...officeLine, total: 10000 }, spentBefore: 0 } }, ruleSet2570);
+  // ไม่มีเพดานแบบไม่มีหน่วยในชุด 2570.7 แล้ว จึงสร้างชุดทดสอบที่มีเพดาน 5,000 ต่อครั้ง
+  const capped = { ...ruleSet2570, ruleItems: ruleSet2570.ruleItems.map((ri) => ri.id === "ruleitem019" ? { ...ri, rateType: "เพดานตามจริง", rateAmount: 5000 } : ri) };
+  const r = evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 6000, evidence: completePurchase, budget: { line: { ...officeLine, total: 10000 }, spentBefore: 0 } }, capped);
   assert.equal(r.status, STATUS.FIX);
   assert.equal(r.reasonCode, REASON.AMOUNT_EXCEEDS_CAP);
 });

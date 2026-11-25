@@ -1,6 +1,6 @@
 case_id,category,amount,in_estimate,line_name,line_total,line_quantity,spent_before,documents,attestations,summary_amount,finance_verdict,finance_note
 EX01,ค่าวัสดุสำนักงาน,3200,yes,ค่าวัสดุสำนักงาน,10000,,0,tax-invoice-full;inspection-photos,paid-stamp;inspection-stamp,,ผ่าน,ตัวอย่างสมมติ ไม่ใช่ข้อมูลจริง
-EX02,ค่าวัสดุสำนักงาน,6500,yes,ค่าวัสดุสำนักงาน,10000,,0,tax-invoice-full;inspection-photos,paid-stamp;inspection-stamp,,ต้องแก้ไข,เกินเพดาน 5000 ต่อครั้ง
+EX02,ค่าวัสดุสำนักงาน,6500,yes,ค่าวัสดุสำนักงาน,10000,,0,tax-invoice-full;inspection-photos,paid-stamp;inspection-stamp,,ผ่าน,5000 เป็นเพดานตอนตั้งงบ ไม่ใช่ต่อใบเสร็จ ยอดอยู่ในประมาณการ
 EX03,ค่าวัสดุคอมพิวเตอร์,2000,yes,ค่าวัสดุคอมพิวเตอร์,8000,,0,tax-invoice-full;inspection-photos,paid-stamp,,ต้องแก้ไข,ลืมประทับตราตรวจรับพัสดุ
 EX04,ค่าอาหารกลางวัน (ประชุม/อบรม),3000,yes,ค่าอาหารกลางวัน,6000,40,3000,tax-invoice-full;attendee-signin-sheet,paid-stamp,,ผ่าน,150 บาท x 40 คนมื้อ ใช้ครบพอดี
 EX05,ค่าตอบแทนนักศึกษาช่วยงาน (วิชาการ),7000,yes,ค่าตอบแทนนักศึกษาช่วยงานด้านวิชาการ,6000,100,0,committee-pre-approval;timesheet-parttime-vj8;voucher-vj1;id-card-copy,paid-stamp,,ต้องชี้แจง/ขออนุมัติ,เกินประมาณการ

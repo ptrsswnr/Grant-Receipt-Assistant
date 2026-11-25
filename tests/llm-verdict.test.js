@@ -183,7 +183,8 @@ test("a found stamp whose quote lacks the stamp's keyword is moved to missing (O
   assert.equal(r.attestations_rejected.length, 1);
   assert.equal(r.verdict, "fail");
   assert.equal(r.verdict_reported, "pass");
-  assert.ok(r.issues.some((i) => i.type === "missing_stamp" && /E-TAX/.test(i.description)));
+  assert.ok(r.issues.some((i) => i.type === "missing_stamp" && /จ่ายแล้ว/.test(i.description) && !/E-TAX/.test(i.description)));
+  assert.match(r.attestations_rejected[0].quote, /E-TAX/);
 
   const real = { ...reply, attestations_check: { ...reply.attestations_check, found: [{ name: "จ่ายแล้ว", quote: "จายแลว 12/11/68" }] } };
   const r2 = await evaluateWithLlm("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์" }, { aiClient: { ...ai, chat: async () => JSON.stringify(real) } });
