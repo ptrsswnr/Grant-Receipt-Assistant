@@ -40,6 +40,11 @@ function esc(s) {
   });
 }
 
+// คำแนะนำเป็นภาษาไทย: แปลงรหัสปัญหาและรหัสอ้างอิงของ AI (js/receipt-pipeline.js) — ใบเสร็จเก่าก็แสดงเป็นไทย
+function adviceText(text) {
+  return window.ReceiptPipeline ? window.ReceiptPipeline.humanizeAdvice(text, window.ReceiptPipeline.referenceNames(window.RECEIPT_DATA)) : text;
+}
+
 function filesHtml(files) {
   if (!files || files.length === 0) {
     return '<p class="text-small">ไฟล์แนบ: ไม่มี (ไม่ได้แนบไฟล์จริงตอนอัปโหลด — โหมดสาธิต)</p>';
@@ -87,7 +92,7 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
   if (receipt.aiExplanation) {
     html +=
       '<div class="rule-callout rule-callout--' + calloutKind + '">' +
-        '<p class="rule-callout__explain">' + esc(receipt.aiExplanation) + '</p>' +
+        '<p class="rule-callout__explain">' + esc(adviceText(receipt.aiExplanation)) + '</p>' +
       '</div>';
   }
   html += '</div>';

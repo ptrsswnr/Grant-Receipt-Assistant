@@ -336,7 +336,7 @@
         '<div class="receipt-card__meta">' + esc(rec.receiptId) + " · " + esc(res.category || "(ไม่ทราบหมวด)") + " · " + esc(res.date) + " · " + esc(res.vendorName) + "</div>" +
         '<div class="text-small">' + rec.group.documentIndexes.map(function (i) { var d = r.documents[i]; return esc(pageRange(d) + ": " + typeName(d.documentTypeId)); }).join("<br>") + "</div>" +
         '</div><div class="receipt-card__status"><span class="chip-status ' + chip + '">' + esc(res.status) + "</span></div></div>" +
-        '<div class="rule-callout rule-callout--' + chip.replace("chip-status--", "") + '"><p class="rule-callout__explain">' + esc(res.explanation) + "</p></div></div>";
+        '<div class="rule-callout rule-callout--' + chip.replace("chip-status--", "") + '"><p class="rule-callout__explain">' + esc(window.ReceiptPipeline.humanizeAdvice(res.explanation, window.ReceiptPipeline.referenceNames(window.RECEIPT_DATA))) + "</p></div></div>";
     });
     if (r.grouping.unassigned.length) {
       html += '<p class="text-small">เอกสารที่ไม่อยู่ในรายการใด (เก็บไว้ในผลการนำเข้า): ' +

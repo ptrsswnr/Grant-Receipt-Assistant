@@ -151,7 +151,7 @@
           '<td>' + (r.fileCount > 0 ? r.fileCount + " ไฟล์" : "-") + '</td>' +
         '</tr>' +
         // คำอธิบายยาว — แสดงเป็นแถวเต็มความกว้างใต้ใบเสร็จแทนคอลัมน์ที่ตกขอบตาราง
-        '<tr class="explain-row"><td colspan="9">' + esc(receipt.aiExplanation) + '</td></tr>'
+        '<tr class="explain-row"><td colspan="9">' + esc(window.ReceiptPipeline ? window.ReceiptPipeline.humanizeAdvice(receipt.aiExplanation, window.ReceiptPipeline.referenceNames(window.RECEIPT_DATA)) : receipt.aiExplanation) + '</td></tr>'
       );
     }).join("");
   }

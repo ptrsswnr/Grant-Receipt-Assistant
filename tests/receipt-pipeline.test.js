@@ -55,3 +55,26 @@ test("decideVerdict falls back to the rule-engine result when the LLM call faile
   assert.equal(decided2.status, STATUS.PASS);
   assert.match(decided2.explanation, /ไม่ได้ตั้งค่า AI/);
 });
+
+test("LLM issue codes become Thai labels, one issue per line", () => {
+  const llm = { verdict: "fail", recommendation: "โปรดชี้แจงเหตุผล", issues: [
+    { type: "amount_exceeded", description: "ยอดเกินประมาณการ" },
+    { type: "missing_attachment", description: "ขาดรูปถ่ายพัสดุ" },
+    { type: "something_new_from_llm", description: "อื่นๆ" },
+  ] };
+  const decided = decideVerdict("llm", { status: STATUS.PASS }, llm, STATUS);
+  assert.equal(decided.explanation, "โปรดชี้แจงเหตุผล\n• ยอดเกิน: ยอดเกินประมาณการ\n• ขาดเอกสาร: ขาดรูปถ่ายพัสดุ\n• ข้อสังเกต: อื่นๆ");
+  assert.doesNotMatch(decided.explanation, /[a-z]+_[a-z]+/);
+});
+
+test("humanizeAdvice rewrites codes and [references] in advice saved before this change", () => {
+  const { humanizeAdvice, referenceNames } = require("../app/js/receipt-pipeline.js");
+  const names = referenceNames({
+    ruleItems: [{ id: "ruleitem019", categoryName: "ค่าวัสดุสำนักงาน" }],
+    evidenceChains: [{ id: "chain-purchase", chainName: "ซื้อวัสดุ" }],
+  }, [{ id: "line011", itemName: "ค่าวัสดุคอมพิวเตอร์" }]);
+  const old = "โปรดชี้แจง — amount_exceeded: เกินยอดใน [line011]; missing_attachment: ขาดเอกสารตาม [chain-purchase] ตาม [ruleitem019] และ [chain-unknown]";
+  const out = humanizeAdvice(old, names);
+  assert.equal(out, "โปรดชี้แจง — ยอดเกิน: เกินยอดใน รายการ “ค่าวัสดุคอมพิวเตอร์” ในประมาณการ; ขาดเอกสาร: ขาดเอกสารตาม ชุดเอกสาร“ซื้อวัสดุ” ตาม “ค่าวัสดุสำนักงาน” และ ชุดเอกสารที่กำหนด");
+  assert.equal(humanizeAdvice("ราคา 1,500 บาท: ผ่าน", names), "ราคา 1,500 บาท: ผ่าน", "Thai text and numbers are left alone");
+});

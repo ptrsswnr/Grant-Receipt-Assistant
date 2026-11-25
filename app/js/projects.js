@@ -69,15 +69,16 @@
   function projectCardHtml(projectId, project) {
     var fundSourceName = fundSourceNameById[project.fundSourceId] || "(ไม่พบแหล่งทุน)";
     return (
-      '<div class="card" data-project-id="' + esc(projectId) + '" data-project-name="' + esc(project.projectName) + '">' +
+      '<div class="card project-card" data-project-id="' + esc(projectId) + '" data-project-name="' + esc(project.projectName) + '">' +
+        '<button type="button" class="icon-button project-card__delete" data-action="delete-project" aria-label="ลบโครงการ ' + esc(project.projectName) + '" title="ลบโครงการ">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>' +
+        '</button>' +
         '<h3>' + esc(project.projectName) + '</h3>' +
         '<p class="text-small">แหล่งทุน: ' + esc(fundSourceName) + '</p>' +
         '<div class="row" style="margin-top:8px;">' +
-          '<a class="btn btn-secondary btn-sm" href="receipts.html?projectId=' + esc(projectId) + '">ใบเสร็จในโครงการนี้</a>' +
-          '<a class="btn btn-secondary btn-sm" href="budget.html?projectId=' + esc(projectId) + '">ประมาณการ</a>' +
-          '<a class="btn btn-secondary btn-sm" href="batch-import.html?projectId=' + esc(projectId) + '">นำเข้าไฟล์สแกนทั้งโครงการ</a>' +
           '<a class="btn btn-primary btn-sm" href="new-receipt.html?projectId=' + esc(projectId) + '">อัปโหลดใบเสร็จ</a>' +
-          '<button type="button" class="btn btn-ghost btn-sm" data-action="delete-project">ลบโครงการ</button>' +
+          '<a class="btn btn-secondary btn-sm" href="budget.html?projectId=' + esc(projectId) + '">ประมาณการและใบเสร็จ</a>' +
+          '<a class="btn btn-secondary btn-sm" href="batch-import.html?projectId=' + esc(projectId) + '">นำเข้าไฟล์สแกนทั้งโครงการ</a>' +
         '</div>' +
         '<div class="project-delete-panel"></div>' +
       '</div>'

@@ -560,7 +560,7 @@ var SAMPLE_VENDORS = [
           '<div class="receipt-card__status"><span class="chip-status ' + chipClass + '">' + esc(checkResult.status) + '</span></div>' +
         '</div>' +
         '<div class="rule-callout rule-callout--' + calloutKind + '">' +
-          '<p class="rule-callout__explain">' + esc(checkResult.aiExplanation) + '</p>' +
+          '<p class="rule-callout__explain">' + esc(window.ReceiptPipeline.humanizeAdvice(checkResult.aiExplanation, window.ReceiptPipeline.referenceNames(window.RECEIPT_DATA))) + '</p>' +
         '</div>' +
         '<p class="text-small" style="color:var(--color-content-secondary);">' + esc(aiModeNote) + '</p>' +
         (docLines ? '<p class="text-small" style="color:var(--color-content-secondary);">เอกสารที่ตรวจพบ:<br>' + docLines + '</p>' : '') +

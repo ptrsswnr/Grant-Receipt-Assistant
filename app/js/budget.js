@@ -28,7 +28,7 @@
   }
 
   if (!projectId) {
-    warn("ไม่ได้ระบุโครงการ — กรุณาเข้าหน้านี้จากปุ่ม \"ประมาณการ\" ในหน้าโครงการของฉัน");
+    warn("ไม่ได้ระบุโครงการ — กรุณาเข้าหน้านี้จากปุ่ม \"ประมาณการและใบเสร็จ\" ในหน้าโครงการของฉัน");
     currentBudget.innerHTML = "";
     return;
   }
@@ -41,33 +41,125 @@
     return;
   }
   document.getElementById("projectNameLine").textContent = "โครงการ: " + projectDoc.data().projectName;
+  // ลบใบเสร็จทำที่หน้ารายการใบเสร็จ (มีขั้นตอนลบไฟล์ใน Drive ด้วย) จึงลิงก์ไว้ให้
+  document.getElementById("pageActions").innerHTML =
+    '<a class="btn btn-primary btn-sm" href="new-receipt.html?projectId=' + esc(projectId) + '">อัปโหลดใบเสร็จ</a>' +
+    '<a class="btn btn-secondary btn-sm" href="receipts.html?projectId=' + esc(projectId) + '">ดูแบบรายการใบเสร็จ / ลบใบเสร็จ</a>';
 
   var linesSnap = await projectRef.collection("budgetLines").orderBy("order").get();
   var receiptsSnap = await projectRef.collection("receipts").get();
   var spentByLine = {};
   var linkedReceiptCount = 0;
+  var allReceipts = [];
   receiptsSnap.forEach(function (doc) {
     var r = doc.data();
+    allReceipts.push({ id: doc.id, ref: doc.ref, data: r, files: [] });
     if (!r.budgetLineId) return;
     linkedReceiptCount++;
     spentByLine[r.budgetLineId] = (spentByLine[r.budgetLineId] || 0) + (r.confirmedAmount || 0);
   });
+  allReceipts.sort(function (a, b) { return String(a.data.confirmedDate || "").localeCompare(String(b.data.confirmedDate || "")); });
+  // ลิงก์ไฟล์แนบของแต่ละใบ — อ่านพร้อมกันทุกใบ อ่านไม่ได้ก็แสดงใบเสร็จต่อโดยไม่มีลิงก์
+  await Promise.all(allReceipts.map(function (rec) {
+    return rec.ref.collection("files").get().then(function (s) {
+      rec.files = s.docs.map(function (d) { return d.data(); });
+    }).catch(function () {});
+  }));
+
+  // ใบเสร็จของแต่ละรายการในประมาณการ (แสดงต่อท้ายรายการนั้นพร้อมคำแนะนำ) — ใบที่ไม่ผูกรายการที่มีอยู่จริงอยู่ใน "none"
+  // จัดกลุ่มใหม่ทุกครั้งที่วาด เพราะนำเข้าประมาณการใหม่แล้วรายการเปลี่ยนได้
+  var receiptsByLine = {};
+  // ชื่ออ้างอิงสำหรับแปลงคำแนะนำ — รวมชื่อรายการในประมาณการปัจจุบัน
+  var adviceNames = {};
+  function adviceText(text) {
+    return window.ReceiptPipeline ? window.ReceiptPipeline.humanizeAdvice(text, adviceNames) : text;
+  }
+
+  function groupReceipts() {
+    adviceNames = window.ReceiptPipeline
+      ? window.ReceiptPipeline.referenceNames(window.RECEIPT_DATA, linesSnap.docs.map(function (d) { return { id: d.id, itemName: d.data().itemName }; }))
+      : {};
+    var lineIds = {};
+    linesSnap.forEach(function (doc) { lineIds[doc.id] = true; });
+    receiptsByLine = {};
+    allReceipts.forEach(function (rec) {
+      var key = rec.data.budgetLineId && lineIds[rec.data.budgetLineId] ? rec.data.budgetLineId : "none";
+      (receiptsByLine[key] = receiptsByLine[key] || []).push(rec);
+    });
+  }
+
+  var STATUS_CHIP_CLASS = {
+    "ผ่าน": "chip-status--pass",
+    "ต้องแก้ไข": "chip-status--fix",
+    "ต้องชี้แจง/ขออนุมัติ": "chip-status--approval",
+    "ไม่เข้าเงื่อนไข": "chip-status--reject",
+  };
+
+  function fileLinksHtml(files) {
+    // ไฟล์จากการนำเข้าไฟล์สแกนมีช่วงหน้าอยู่ในชื่อไฟล์แล้ว
+    var links = (files || []).filter(function (f) { return f.fileReference; }).map(function (f) {
+      return '<a href="' + esc(f.fileReference) + '" target="_blank" rel="noopener">' + esc(f.originalFileName || "ไฟล์แนบ") + '</a>';
+    });
+    return links.length ? '<span class="text-small">' + links.join(" · ") + '</span>' : "";
+  }
+
+  // ใบเสร็จ 1 ใบใต้รายการ: สถานะ ยอด วันที่ ร้าน ไฟล์ และคำแนะนำ
+  // คำแนะนำพับไว้เสมอ (ยาวมากเมื่อ AI อธิบายหลายข้อ) — ตอนพับเห็นตัวอย่าง 2 บรรทัดแรก กดแล้วเห็นทั้งหมด
+  function lineReceiptHtml(rec) {
+    var r = rec.data;
+    var chip = STATUS_CHIP_CLASS[r.status] || "chip-status--pending";
+    var calloutKind = chip.replace("chip-status--", "").replace("pending", "reject");
+    var html = '<li class="line-receipt"><div class="line-receipt__head">' +
+      '<span class="chip-status ' + chip + '">' + esc(r.status || "ไม่ทราบสถานะ") + '</span>' +
+      '<span class="line-receipt__amount">' + (typeof r.confirmedAmount === "number" ? money(r.confirmedAmount) : "-") + '</span>' +
+      '<span class="text-small">' + esc([r.confirmedDate, r.confirmedVendorName].filter(Boolean).join(" · ")) + '</span>' +
+      fileLinksHtml(rec.files) +
+      '</div>';
+    if (r.aiExplanation) {
+      var advice = adviceText(r.aiExplanation);
+      html += '<details class="line-receipt__advice">' +
+        '<summary><span class="line-receipt__advice-label">คำแนะนำ</span>' +
+          '<span class="line-receipt__advice-preview">' + esc(advice.replace(/\s*\n\s*/g, " ")) + '</span>' +
+          '<span class="line-receipt__advice-toggle"></span></summary>' +
+        '<div class="rule-callout rule-callout--' + calloutKind + '"><p class="rule-callout__explain">' + esc(advice) + '</p></div>' +
+        '</details>';
+    }
+    return html + '</li>';
+  }
+
+  // คอลัมน์สุดท้ายของแต่ละรายการ: ใบเสร็จที่เบิกจากรายการนั้นพร้อมคำแนะนำ
+  function receiptsCellHtml(list) {
+    var inner = list && list.length
+      ? '<ul class="line-receipts">' + list.map(lineReceiptHtml).join("") + '</ul>'
+      : '<span class="line-receipts--none">ยังไม่มีใบเสร็จ</span>';
+    return '<td class="receipts-cell">' + inner + '</td>';
+  }
+
+  // ใบเสร็จที่ไม่ได้ผูกกับรายการใดในประมาณการ (ไม่อยู่ในประมาณการ หรืออัปโหลดก่อนมีประมาณการ)
+  function unlinkedHtml() {
+    var list = receiptsByLine.none;
+    if (!list || !list.length) return "";
+    return '<h3 style="margin-top:24px;">ใบเสร็จที่ไม่อยู่ในประมาณการ (' + list.length + ' ใบ)</h3>' +
+      '<p class="text-small">ไม่ตรงกับรายการใดในประมาณการ — ต้องชี้แจงเหตุผลและขออนุมัติ</p>' +
+      '<ul class="line-receipts" style="margin-top:8px;">' + list.map(lineReceiptHtml).join("") + '</ul>';
+  }
 
   function renderCurrent() {
+    groupReceipts();
     if (linesSnap.empty) {
-      currentBudget.innerHTML = '<p class="text-body">ยังไม่ได้นำเข้าประมาณการ — ใบเสร็จของโครงการนี้จะยังไม่ถูกเทียบกับประมาณการ</p>';
+      currentBudget.innerHTML = '<p class="text-body">ยังไม่ได้นำเข้าประมาณการ — นำเข้าจากไฟล์ด้านล่างก่อน แล้วจึงอัปโหลดใบเสร็จได้</p>' + unlinkedHtml();
       return;
     }
     // data-label ใช้ตอนจอแคบ: style.css แปลงแต่ละแถวเป็นการ์ดที่มีป้ายกำกับตัวเลขทุกช่อง
     var html = '<div class="budget-table-wrap"><table class="admin-table budget-table"><thead><tr>' +
-      '<th>รายการ</th><th>ตั้งไว้</th><th>ใช้ไปแล้ว</th><th>คงเหลือ</th><th>ใช้ไป</th></tr></thead><tbody>';
+      '<th>รายการ</th><th>ตั้งไว้</th><th>ใช้ไปแล้ว</th><th>คงเหลือ</th><th>ใช้ไป</th><th>ใบเสร็จและคำแนะนำ</th></tr></thead><tbody>';
     var group = null;
     var totals = { budget: 0, spent: 0 };
     linesSnap.forEach(function (doc) {
       var line = doc.data();
       if (line.group !== group) {
         group = line.group;
-        html += '<tr class="group-row"><td colspan="5">' + esc(group || "(ไม่ระบุหมวด)") + '</td></tr>';
+        html += '<tr class="group-row"><td colspan="6">' + esc(group || "(ไม่ระบุหมวด)") + '</td></tr>';
       }
       var spent = spentByLine[doc.id] || 0;
       var percent = line.total > 0 ? Math.round((spent / line.total) * 1000) / 10 : 0;
@@ -84,12 +176,13 @@
           '<span class="usage__track"><span class="usage__fill" style="width:' + Math.min(percent, 100) + '%"></span></span>' +
           '<span class="usage__pct">' + percent + '%</span>' +
           (over ? '<span class="chip-status chip-status--approval">เกินประมาณการ</span>' : '') +
-        '</div></td></tr>';
+        '</div></td>' + receiptsCellHtml(receiptsByLine[doc.id]) + '</tr>';
     });
     html += '<tr class="total-row"><td>รวม</td><td data-label="ตั้งไว้">' + money(totals.budget) + '</td><td data-label="ใช้ไปแล้ว">' + money(totals.spent) +
-      '</td><td data-label="คงเหลือ">' + money(totals.budget - totals.spent) + '</td><td></td></tr></tbody></table></div>';
+      '</td><td data-label="คงเหลือ">' + money(totals.budget - totals.spent) + '</td><td></td><td></td></tr></tbody></table></div>';
     var source = linesSnap.docs[0].data().sourceFileName;
     if (source) html += '<p class="text-small">นำเข้าจากไฟล์: ' + esc(source) + '</p>';
+    html += unlinkedHtml();
     currentBudget.innerHTML = html;
   }
   renderCurrent();

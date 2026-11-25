@@ -470,6 +470,8 @@ body:has(> #nav) { padding-left: var(--rail-w); }
   margin: 0 auto;
   padding: 40px 40px 72px;
 }
+/* budget.html: the table carries a receipts-and-advice column, so it needs more room */
+.page-shell--wide { max-width: 1440px; }
 
 @media (max-width: 959px) {
   .page-shell { padding: 24px 16px 40px; }
@@ -864,7 +866,7 @@ input[disabled], select[disabled] { opacity: 0.5; }
 .rule-callout--approval { --panel-bg: var(--status-approval-bg); --panel-edge: var(--status-approval-edge); --panel-icon: var(--icon-approval); --panel-glyph: var(--status-approval-ink); }
 .rule-callout--reject { --panel-bg: var(--status-reject-bg); --panel-edge: var(--status-reject-edge); --panel-icon: var(--icon-reject); --panel-glyph: var(--status-reject-ink); }
 
-.rule-callout__explain { font-size: 15.5px; line-height: 1.75; color: var(--panel-ink); margin: 0; max-width: 75ch; }
+.rule-callout__explain { font-size: 15.5px; line-height: 1.75; color: var(--panel-ink); margin: 0; max-width: 75ch; white-space: pre-line; }
 
 .rule-callout__ref {
   font-size: 14px;
@@ -970,7 +972,7 @@ footer.page-footer {
 #receiptTable th { white-space: normal; }
 #receiptTable td:nth-child(3), #receiptTable td:nth-child(5), #receiptTable td:nth-child(6) { min-width: 7em; }
 #receiptTable .chip-status { font-size: 14px; padding: 4px 11px 4px 9px; }
-#receiptTable .explain-row td { padding-top: 0; color: var(--color-text-2); font-size: 15px; line-height: 1.65; }
+#receiptTable .explain-row td { padding-top: 0; color: var(--color-text-2); font-size: 15px; line-height: 1.65; white-space: pre-line; }
 #receiptTable tbody tr:not(.explain-row) td { border-bottom: none; }
 #receiptTable tbody tr:hover td { background: transparent; }
 
@@ -1012,7 +1014,53 @@ footer.page-footer {
   .budget-table .usage__track { max-width: none; }
   .budget-table .total-row td:empty { display: none; }
   .budget-table tbody tr:hover td { background: transparent; }
+  .budget-table td.receipts-cell { display: block; max-width: none; padding-top: 10px; }
+  .budget-table td.receipts-cell::before { content: "ใบเสร็จและคำแนะนำ"; display: block; margin-bottom: 6px; color: var(--color-text-2); font-weight: 500; }
 }
+
+/* ---------- budget.html: last column = receipts charged to the line, with the check's advice ---------- */
+
+.budget-table .line-row td { vertical-align: top; }
+.budget-table td.receipts-cell { min-width: 320px; max-width: 460px; white-space: normal; }
+.line-receipts { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.line-receipts > li + li { border-top: 1px solid var(--color-divider); padding-top: 12px; }
+.line-receipt__head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.line-receipt__amount { font-weight: 700; font-variant-numeric: tabular-nums; }
+.line-receipt__head .chip-status { font-size: 14px; padding: 3px 10px 3px 8px; }
+.line-receipt__advice { margin-top: 6px; }
+/* พับไว้: ป้าย "คำแนะนำ" + ตัวอย่าง 2 บรรทัด + "ดูรายละเอียด"; เปิดแล้วซ่อนตัวอย่าง แสดงข้อความเต็มด้านล่าง */
+.line-receipt__advice > summary {
+  cursor: pointer; list-style: none; min-height: 44px;
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: baseline;
+  font-size: 14px; color: var(--color-text-2);
+}
+.line-receipt__advice > summary::-webkit-details-marker { display: none; }
+.line-receipt__advice-label { font-weight: 600; color: var(--color-text); }
+.line-receipt__advice-preview {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  line-height: 1.5;
+}
+.line-receipt__advice-toggle { grid-column: 2; font-weight: 600; color: var(--color-accent-deep); }
+.line-receipt__advice-toggle::after { content: "ดูรายละเอียด ▾"; }
+.line-receipt__advice[open] .line-receipt__advice-toggle::after { content: "ซ่อนรายละเอียด ▴"; }
+.line-receipt__advice[open] .line-receipt__advice-preview { display: none; }
+.line-receipt__advice > summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: 6px; }
+.line-receipt__advice .rule-callout { margin-top: 6px; }
+.line-receipt__advice .rule-callout__explain { font-size: 15px; }
+.line-receipts--none { color: var(--color-text-2); font-size: 14px; }
+
+/* ---------- projects.html: delete is a quiet icon in the card's corner ---------- */
+
+.project-card { position: relative; }
+.project-card h3 { padding-right: 52px; }
+.icon-button {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 44px; height: 44px; border: none; border-radius: var(--radius-pill);
+  background: transparent; color: var(--color-text-2); cursor: pointer;
+}
+.icon-button:hover { background: var(--status-reject-bg); color: var(--status-reject-ink); }
+.icon-button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.project-card__delete { position: absolute; top: 12px; right: 12px; }
 
 /* ---------- receipts.html: list/detail — the accent-coloured list pane is the page's one committed colour field ---------- */
 

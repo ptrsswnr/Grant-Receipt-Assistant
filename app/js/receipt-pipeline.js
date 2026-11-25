@@ -32,6 +32,67 @@
   // pass/fail เท่านั้น ตามโครงสร้างของ js/llm-verdict.js) ไม่สำเร็จ/ไม่มี verdict ก็ fallback กลับไปใช้
   // ผลของ rule-engine พร้อมบอกเหตุผลที่ fallback ไว้ในคำอธิบาย
   // STATUS: ค่าคงที่จาก RuleEngine.STATUS ({ PASS, FIX, APPROVAL, REJECT })
+  // ─── คำแนะนำเป็นภาษาไทย ───
+  // LLM ตอบ issues[].type เป็นรหัสภาษาอังกฤษ (prompt ไม่ได้กำหนดชุดรหัสตายตัว) และอ้างระเบียบด้วยรหัสในวงเล็บ
+  // เหลี่ยม เช่น [chain-purchase] — แปลงเป็นข้อความที่นักวิจัยอ่านเข้าใจ ทั้งตอนบันทึก (decideVerdict) และตอนแสดง
+  // (humanizeAdvice ใช้กับใบเสร็จเก่าที่บันทึกรหัสไว้แล้วด้วย)
+  var ISSUE_LABELS = {
+    amount_exceeded: "ยอดเกิน", over_budget: "ยอดเกินประมาณการ", over_estimate: "ยอดเกินประมาณการ",
+    exceeds_estimate: "ยอดเกินประมาณการ", exceeds_cap: "ยอดเกินเพดาน", over_cap: "ยอดเกินเพดาน",
+    not_in_estimate: "ไม่อยู่ในประมาณการ", budget: "ประมาณการ", estimate: "ประมาณการ",
+    missing_attachment: "ขาดเอกสาร", missing_document: "ขาดเอกสาร", missing_documents: "ขาดเอกสาร",
+    missing_evidence: "ขาดเอกสาร", evidence: "เอกสารประกอบ",
+    missing_stamp: "ขาดตราประทับ", missing_attestation: "ขาดตราประทับ/การรับรอง",
+    missing_signature: "ขาดลายมือชื่อ", invalid_amount: "ยอดเงินไม่ถูกต้อง", amount_mismatch: "ยอดเงินไม่ตรงกัน",
+    date_issue: "วันที่", invalid_date: "วันที่ไม่ถูกต้อง", category_mismatch: "หมวดค่าใช้จ่ายไม่ตรง",
+    category_not_allowed: "หมวดที่ไม่สนับสนุน", unreadable: "อ่านเอกสารไม่ได้", ocr_unclear: "อ่านเอกสารไม่ชัด",
+  };
+
+  function issueLabel(type) {
+    var t = String(type || "").trim();
+    if (!t) return "ข้อสังเกต";
+    if (/[฀-๿]/.test(t)) return t; // เป็นภาษาไทยอยู่แล้ว
+    var key = t.toLowerCase().replace(/[\s-]+/g, "_");
+    if (ISSUE_LABELS[key]) return ISSUE_LABELS[key];
+    if (/missing|lack|absent/.test(key) && /stamp|attest/.test(key)) return "ขาดตราประทับ/การรับรอง";
+    if (/missing|lack|absent|attach|document|evidence/.test(key)) return "ขาดเอกสาร";
+    if (/exceed|over|above/.test(key)) return "ยอดเกิน";
+    if (/estimate|budget/.test(key)) return "ประมาณการ";
+    if (/amount|total/.test(key)) return "ยอดเงิน";
+    if (/date/.test(key)) return "วันที่";
+    if (/category/.test(key)) return "หมวดค่าใช้จ่าย";
+    if (/stamp|sign/.test(key)) return "ตราประทับ/ลายมือชื่อ";
+    return "ข้อสังเกต";
+  }
+
+  // รหัสอ้างอิง → ชื่อที่อ่านได้: ระเบียบ (ruleItems → ชื่อหมวด), ชุดเอกสาร (evidenceChains), ประเภทเอกสาร
+  // และรายการในประมาณการ (ถ้ามี) — data = window.RECEIPT_DATA หรือข้อมูลรูปแบบเดียวกัน
+  function referenceNames(data, estimateLines) {
+    var names = {};
+    data = data || {};
+    (data.ruleItems || []).forEach(function (r) { if (r.id) names[r.id] = r.categoryName; });
+    (data.evidenceChains || []).forEach(function (c) { if (c.id) names[c.id] = "ชุดเอกสาร" + (c.chainName ? "“" + c.chainName + "”" : ""); });
+    (data.documentTypes || []).forEach(function (d) { if (d.id) names[d.id] = d.documentName; });
+    (estimateLines || []).forEach(function (l) { if (l.id) names[l.id] = "รายการ “" + (l.itemName || l.id) + "” ในประมาณการ"; });
+    return names;
+  }
+
+  function humanizeAdvice(text, names) {
+    if (!text) return text;
+    names = names || {};
+    return String(text)
+      // รหัสปัญหาแบบ snake_case ตามด้วย ":" เช่น "amount_exceeded:"
+      .replace(/\b([a-z]+(?:_[a-z]+)+)\s*:/g, function (m, code) { return issueLabel(code) + ":"; })
+      // รหัสอ้างอิงในวงเล็บเหลี่ยม เช่น [chain-purchase], [ruleitem019], [line011]
+      .replace(/\[([a-z0-9][a-z0-9-]*)\]/gi, function (m, id) {
+        if (names[id]) return /^ชุดเอกสาร|^รายการ/.test(names[id]) ? names[id] : "“" + names[id] + "”";
+        if (/^line\d+$/i.test(id)) return "รายการในประมาณการ";
+        if (/^ruleitem\d+$/i.test(id)) return "ระเบียบที่เกี่ยวข้อง";
+        if (/^chain-/i.test(id)) return "ชุดเอกสารที่กำหนด";
+        return m;
+      });
+  }
+
   function decideVerdict(verdictMode, ruleCheckResult, llmResult, STATUS) {
     if (verdictMode !== "llm") {
       return { status: ruleCheckResult.status, explanation: ruleCheckResult.aiExplanation || ruleCheckResult.explanation };
@@ -39,7 +100,10 @@
     if (llmResult && llmResult.verdict) {
       var explanation = llmResult.recommendation || "";
       if (llmResult.issues && llmResult.issues.length) {
-        explanation += (explanation ? " — " : "") + llmResult.issues.map(function (i) { return i.type + ": " + i.description; }).join("; ");
+        // ปัญหาละบรรทัด หัวข้อเป็นภาษาไทย (หน้าเว็บแสดงคำแนะนำแบบคงการขึ้นบรรทัดไว้)
+        explanation += (explanation ? "\n" : "") + llmResult.issues.map(function (i) {
+          return "• " + issueLabel(i.type) + ": " + (i.description || "");
+        }).join("\n");
       }
       return { status: llmResult.verdict === "pass" ? STATUS.PASS : STATUS.FIX, explanation: explanation };
     }
@@ -48,5 +112,8 @@
     return { status: ruleCheckResult.status, explanation: "LLM ตัดสินไม่สำเร็จ (" + reason + ") — ใช้ผลของ Rule Engine แทน: " + fallbackExplanation };
   }
 
-  return { classifyAttachedFiles: classifyAttachedFiles, buildEvidence: buildEvidence, decideVerdict: decideVerdict };
+  return {
+    classifyAttachedFiles: classifyAttachedFiles, buildEvidence: buildEvidence, decideVerdict: decideVerdict,
+    issueLabel: issueLabel, referenceNames: referenceNames, humanizeAdvice: humanizeAdvice,
+  };
 });

@@ -390,7 +390,16 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
 
 ## Delete project — 2026-11-24
 
-- **What it is:** each card on `projects.html` has a "ลบโครงการ" button. It deletes the project and everything under it, because Firestore does not delete subcollections with their parent.
+- **What it is:** each card on `projects.html` has a trash-icon button (`.project-card__delete`, 44px, top-right corner, `aria-label` "ลบโครงการ …"). It deletes the project and everything under it, because Firestore does not delete subcollections with their parent.
+- **Card layout (2026-11-25, owner's request):** the buttons are "อัปโหลดใบเสร็จ" (primary, first), then "ประมาณการและใบเสร็จ" (`budget.html`), then "นำเข้าไฟล์สแกนทั้งโครงการ". The separate "ใบเสร็จในโครงการนี้" button is gone.
+- **`budget.html` is now "ประมาณการและใบเสร็จ".** The table's last column, "ใบเสร็จและคำแนะนำ" (`td.receipts-cell`, 320–460px wide, cells top-aligned), lists the receipts whose `budgetLineId` is that line. A line with none shows "ยังไม่มีใบเสร็จ". The page uses `.page-shell--wide` (max 1440px) so the table fits without sideways scrolling on a wide screen; on phones the column stacks under the line's numbers like the others. Each receipt shows:
+  - status chip, amount, date, vendor
+  - file links (from the receipt's `files`)
+  - `aiExplanation` in a `<details>`, always collapsed (the owner found it too long). Collapsed, it shows a 2-line preview (CSS line-clamp) and "ดูรายละเอียด ▾"; opening hides the preview and shows the full text.
+  
+  Receipts with no `budgetLineId`, or one that no longer exists, are listed after the table as "ใบเสร็จที่ไม่อยู่ในประมาณการ". Grouping is redone on every render, so a re-import regroups them.
+  
+  The page header links to `new-receipt.html` and to `receipts.html?projectId=`. That page still exists, and deleting a single receipt is still done there. Verified on the owner's live project: 3 receipts under 2 lines, and advice is open on the two that need fixing.
 - **What it deletes:**
   - receipts, with their `agentLogs` and `files`
   - `budgetLines`
@@ -407,6 +416,17 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - Project IDs are max+1, so deleting the last project frees its ID for the next one. That's safe because nothing under it remains.
 - **Page change:** `projects.html` now loads GIS and `google-drive.js`.
 - **Verified:** in the browser, only up to the confirm panel and Cancel. A real delete was not run on live data.
+
+## Advice in Thai — 2026-11-25
+
+- **Why:** the owner saw raw LLM codes in the advice ("amount_exceeded:", "missing_attachment:", "[chain-purchase]") and asked for Thai.
+- **Saving:** `ReceiptPipeline.decideVerdict()` (llm mode) now writes the recommendation, then one line per issue as "• <Thai label>: <description>". `issueLabel()` maps known codes (`ISSUE_LABELS`), then guesses from keywords (missing/exceed/estimate/date/category…), and falls back to "ข้อสังเกต". The prompt does not fix a set of issue codes, so new ones may appear.
+- **Display:** `ReceiptPipeline.humanizeAdvice(text, names)` rewrites snake_case codes before ":" and `[id]` references when advice is shown, so receipts saved earlier show Thai too.
+  - `referenceNames(RECEIPT_DATA, estimateLines)` gives the names: ruleItems → category, evidenceChains → ชุดเอกสาร“…”, documentTypes → document name, estimate lines → รายการ “…” ในประมาณการ.
+  - Unknown ids fall back to a generic phrase by prefix (line…, ruleitem…, chain-…).
+  - It is used on budget, receipts, admin dashboard, new-receipt step 3 and batch import. `receipts.html` and `admin-dashboard.html` now load `data.js` and `receipt-pipeline.js` for this.
+  - Names come from `data.js`, not live Firestore, so a rule renamed only in Firestore shows the `data.js` name.
+- **Stored data is unchanged:** `aiExplanation` and `llmVerdict` keep the original text for research. `.rule-callout__explain` and the admin explain row keep line breaks (`white-space: pre-line`).
 
 ## UI/shared code conventions
 
