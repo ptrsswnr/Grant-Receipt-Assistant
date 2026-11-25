@@ -82,7 +82,7 @@ test("prompt gives precomputed budget numbers per line and asks for a budget_che
     { id: "line020", group: "หมวดค่าใช้สอย", itemName: "ค่าแท็กซี่", total: 700, spentBefore: 0, ruleCategory: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)" },
   ];
   const prompt = buildPrompt("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 5210.28, estimate });
-  assert.equal(PROMPT_VERSION, "1.4.0");
+  assert.equal(PROMPT_VERSION, "1.5.5");
   // line011: 4,747.66 + 5,210.28 = 9,957.94 of 5,000 (over the line), group 9,957.94 of 10,000 (within)
   assert.match(prompt, /\[line011\][^\n]*รายการรวมใบนี้ 9,957\.94 บาท จากที่ตั้งไว้ 5,000 บาท \(เกินรายการ 4,957\.94 บาท\)[^\n]*หมวดรวมใบนี้ 9,957\.94 บาท จากที่ตั้งไว้ 10,000 บาท \(ไม่เกินหมวด\), หมวดนี้ถัวได้, รายการนี้ถัวได้/);
   assert.match(prompt, /\[line020\][^\n]*รายการนี้ห้ามถัว/);
@@ -136,5 +136,56 @@ test("record() gives the Firestore shape with every checklist field", () => {
   const { record } = require("../app/js/llm-verdict.js");
   assert.equal(record(null), null);
   const rec = record({ verdict: "fail", issues: [], rule_refs: [], recommendation: "", raw: "{}", model: "m", promptVersion: "1.4.0", durationMs: 1, error: null });
-  assert.deepEqual(Object.keys(rec).sort(), ["attestations_check", "budget_check", "cap_check", "documents_check", "durationMs", "error", "failed_checks", "issues", "model", "promptVersion", "raw", "recommendation", "rule_refs", "verdict", "verdict_reported"].sort());
+  assert.deepEqual(Object.keys(rec).sort(), ["attestations_check", "attestations_rejected", "budget_check", "cap_check", "documents_check", "durationMs", "error", "failed_checks", "issues", "model", "promptVersion", "raw", "recommendation", "rule_refs", "verdict", "verdict_reported"].sort());
+});
+
+test("prompt 1.5 lists only this category's evidence chain and says which amount conditions apply", () => {
+  const ruleSet = {
+    ruleItems: [{ id: "ruleitem018", categoryName: "ค่าวัสดุคอมพิวเตอร์", rateType: "เพดานตามจริง", rateAmount: 5000, evidenceChainId: "chain-purchase" }],
+    evidenceChains: {
+      "chain-purchase": { chainName: "ซื้อวัสดุ", steps: [{ required: true, documentTypeIds: ["tax-invoice-full"] }, { required: true, documentTypeIds: ["inspection-photos"] }],
+        conditionalSteps: [{ when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"] } }],
+        attestations: [{ id: "paid-stamp", text: 'ประทับตรา "จ่ายแล้ว"' }] },
+      "chain-equipment": { chainName: "ครุภัณฑ์", steps: [{ required: true, documentTypeIds: ["committee-pre-approval"] }] },
+    },
+  };
+  const names = { "tax-invoice-full": "ใบเสร็จ", "inspection-photos": "รูปถ่ายพัสดุ", "procurement-committee-cert": "ใบตรวจรับกรรมการ 3 คน", "committee-pre-approval": "หนังสืออนุมัติ" };
+  const small = buildPrompt("x", ruleSet, names, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 4747.66, estimate: [] });
+  assert.match(small, /ชุดเอกสารของหมวดนี้ \[chain-purchase\]/);
+  assert.doesNotMatch(small, /หนังสืออนุมัติ/);
+  assert.match(small, /ไม่ต้องใช้กับใบนี้[^\n]*ใบตรวจรับกรรมการ 3 คน/);
+  const big = buildPrompt("x", ruleSet, names, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 150000, estimate: [] });
+  assert.match(big, /3\) ใบตรวจรับกรรมการ 3 คน \(บังคับเพราะยอด/);
+  assert.match(small, /"quote"/);
+  assert.match(small, /ประทับตรา "จ่ายแล้ว" — คำหลัก: "จ่ายแล้ว"/);
+});
+
+test("a found stamp whose quote lacks the stamp's keyword is moved to missing (OCR misspellings still count)", async () => {
+  const ruleSet = {
+    ruleItems: [{ id: "ruleitem018", categoryName: "ค่าวัสดุคอมพิวเตอร์", evidenceChainId: "chain-purchase" }],
+    evidenceChains: { "chain-purchase": { steps: [], attestations: [
+      { id: "paid-stamp", text: 'เอกสารการจ่ายเงินทุกใบประทับตรา "จ่ายแล้ว" แล้ว' },
+      { id: "inspection-stamp", text: 'ใบเสร็จมีตราประทับตรวจรับพัสดุ (เช่น "ตรวจรับพัสดุ" หรือ "ได้รับพัสดุ...เรียบร้อยแล้ว")' },
+    ] } },
+  };
+  const reply = {
+    attestations_check: { required: ["จ่ายแล้ว", "ตรวจรับพัสดุ"], missing: [], result: "complete", found: [
+      { name: "จ่ายแล้ว", quote: "อิเล็กทรอนิกฉ์(E-TAX) เรียบร้อยแอ้ว as" },
+      { name: "ตรวจรับพัสดุ", quote: "ได้รับพัสดตามใบส่งของเรียบร้อยมล้อ" },
+    ] },
+    verdict: "pass", issues: [],
+  };
+  const ai = { chat: async () => JSON.stringify(reply), extractJson: (t) => JSON.parse(t), modelName: () => "fake" };
+  const r = await evaluateWithLlm("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 4747.66 }, { aiClient: ai });
+  assert.deepEqual(r.attestations_check.found.map((f) => f.name), ["ตรวจรับพัสดุ"]);
+  assert.deepEqual(r.attestations_check.missing, ["จ่ายแล้ว"]);
+  assert.equal(r.attestations_check.result, "missing");
+  assert.equal(r.attestations_rejected.length, 1);
+  assert.equal(r.verdict, "fail");
+  assert.equal(r.verdict_reported, "pass");
+  assert.ok(r.issues.some((i) => i.type === "missing_stamp" && /E-TAX/.test(i.description)));
+
+  const real = { ...reply, attestations_check: { ...reply.attestations_check, found: [{ name: "จ่ายแล้ว", quote: "จายแลว 12/11/68" }] } };
+  const r2 = await evaluateWithLlm("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์" }, { aiClient: { ...ai, chat: async () => JSON.stringify(real) } });
+  assert.equal(r2.attestations_rejected.length, 0);
 });

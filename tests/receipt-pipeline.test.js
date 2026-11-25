@@ -78,3 +78,10 @@ test("humanizeAdvice rewrites codes and [references] in advice saved before this
   assert.equal(out, "โปรดชี้แจง — ยอดเกิน: เกินยอดใน รายการ “ค่าวัสดุคอมพิวเตอร์” ในประมาณการ; ขาดเอกสาร: ขาดเอกสารตาม ชุดเอกสาร“ซื้อวัสดุ” ตาม “ค่าวัสดุสำนักงาน” และ ชุดเอกสารที่กำหนด");
   assert.equal(humanizeAdvice("ราคา 1,500 บาท: ผ่าน", names), "ราคา 1,500 บาท: ผ่าน", "Thai text and numbers are left alone");
 });
+
+test("checklist item names used as issue types get Thai labels", () => {
+  const { issueLabel } = require("../app/js/receipt-pipeline.js");
+  assert.equal(issueLabel("cap_check"), "ยอดเกินเพดาน");
+  assert.equal(issueLabel("attestations_check"), "ขาดตราประทับ");
+  assert.equal(issueLabel("documents_check"), "ขาดเอกสาร");
+});

@@ -63,7 +63,10 @@ window.ReceiptRecheck = (function () {
 
   // receiptRef: DocumentReference ของใบเสร็จ (users/{uid}/projects/{projectId}/receipts/{id})
   // คืน { status, explanation, previousStatus }
-  async function recheck(receiptRef, uid) {
+  // opts.dryRun: ตรวจแต่ไม่บันทึก — คืนผลเต็มเพื่อรันซ้ำหลายรอบตอนทดลอง prompt (ดู research/prompt-log.md)
+  //   โดยไม่ทำให้ verdictHistory ยาวขึ้นทุกรอบ
+  async function recheck(receiptRef, uid, opts) {
+    opts = opts || {};
     var snap = await receiptRef.get();
     if (!snap.exists) throw new Error("ไม่พบใบเสร็จนี้");
     var r = snap.data();
@@ -108,6 +111,10 @@ window.ReceiptRecheck = (function () {
             error: ruleSet ? "ไม่ได้ตั้งค่า AI" : "ไม่พบแหล่งทุนของโครงการนี้" };
     }
     var decided = window.ReceiptPipeline.decideVerdict(mode, ruleCheck, llm, window.RuleEngine.STATUS);
+    if (opts.dryRun) {
+      return { status: decided.status, explanation: decided.explanation, previousStatus: r.status || null,
+        attestationIds: attestationIds, llmVerdict: llmRecord(llm), ruleCheck: ruleCheckRecord(ruleCheck), dryRun: true };
+    }
 
     // ผลเดิมเก็บไว้ใน verdictHistory (serverTimestamp ใช้ในอาร์เรย์ไม่ได้ จึงใช้เวลาที่บันทึกไว้เดิม)
     var previous = {

@@ -469,7 +469,28 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
 - **`LlmVerdict.record(llm)`** is now the single Firestore shape for `receipt.llmVerdict`, used by `new-receipt.js`, `batch-import.js` and `receipt-recheck.js`. The batch CSV gained the three new check results and `verdict_reported`.
 - **Re-check on the owner's two receipts (Qwen3, 18–30 s each):** both `ต้องแก้ไข`, matching the rule engine. receipt001: averaged, over the ฿5,000 cap, no inspection photos, no paid stamp. receipt002: averaged, within cap, no photos, no paid stamp. The LLM itself answered `fail`, so the guard didn't fire.
 - **Remaining LLM errors:** on receipt002 it missed the inspection stamp ("ได้รับพัสดุ…" is in the OCR text; the keyword classifier finds it). It also asked for the project head's signature, because the inspection-stamp attestation text said "…และหัวหน้าโครงการลงนามแล้ว" and OCR cannot read signatures. **Rule set 2570.6** (same day, owner's decision) drops that wording: the text is now the stamp only, with "ตรวจรับพัสดุ" / "ได้รับพัสดุ...เรียบร้อยแล้ว" as examples. Live Firestore gets it after an admin presses "อัปเดตเฉพาะระเบียบ/กฎ" (done 2026-11-25).
-- **Re-check under 2570.6:** overall verdicts still correct, but item-level results got worse. receipt002 still misses the inspection stamp: OCR reads it as "ได้รับพัสดุตามใบส่งของเรียบร้อยมล้อ", and the model won't accept the misspelling. The model also pulled documents from other categories' chains: committee pre-approval for receipt001; the 3-person committee (>฿100,000 only) for a ฿4,747 receipt. Item results also differed between two runs of the same prompt at temperature 0, so record that as a limitation and run experiments more than once. Proposed next (prompt 1.5.0, not built): send only the receipt category's chain, with conditional steps precomputed as applying or not; and ask for the quoted OCR line as evidence for each document/stamp, tolerating OCR misspellings.
+- **Re-check under 2570.6:** overall verdicts still correct, but item-level results got worse. receipt002 still misses the inspection stamp: OCR reads it as "ได้รับพัสดุตามใบส่งของเรียบร้อยมล้อ", and the model won't accept the misspelling. The model also pulled documents from other categories' chains: committee pre-approval for receipt001; the 3-person committee (>฿100,000 only) for a ฿4,747 receipt. Item results also differed between two runs of the same prompt at temperature 0, so record that as a limitation and run experiments more than once. This led to prompt 1.5.x (next section).
+
+## Prompt 1.5.x: one evidence chain, quoted evidence, stamp-evidence guard — 2026-11-25
+
+- **`research/prompt-log.md` is the research log for all prompt rounds** (A–K): ground truth for the two test receipts, per-round changes, scores, observations and limitations. Append to it whenever the prompt changes. It holds no personal data.
+- **Prompt 1.5.5 (current)** — `rulesAsText(ruleSet, names, { category, amount })` prints all rule items but **only this category's evidence chain** (`chainForReceiptText`):
+  - required, optional and conditional steps, with each amount condition precomputed as "applies" or "not needed for this receipt";
+  - stamps with explicit keywords (`attestationKeywords`: the quoted words in the attestation text, cut at "...").
+  
+  Called without the third argument, it lists every chain as before. Other instructions:
+  - the budget check is an explicit ก/ข/ค decision table;
+  - `documents_check.found` and `attestations_check.found` are `[{ name, quote }]`, where quote is the OCR line used as evidence. OCR misspellings are allowed, but a stamp's quote must contain one of its keywords;
+  - issue types use the checklist item names, which `ReceiptPipeline.ISSUE_LABELS` translates;
+  - the advice must never suggest switching category to avoid a cap.
+- **Stamp-evidence guard (`guardAttestationEvidence`, since 1.5.3).** It handles a found stamp whose quote lacks the stamp's keyword:
+  - Matching uses the Thai consonant skeleton, ignoring vowels and tone marks, so OCR drop-outs still match.
+  - A failing stamp moves to `missing`, is recorded in `llmVerdict.attestations_rejected`, and gets a `missing_stamp` issue.
+  - It can only remove evidence the model cited. It never adds a stamp, and never uses the keyword classifier or rule engine.
+  - It exists because three prompt wordings could not stop the model claiming a "จ่ายแล้ว" stamp from lines like "…E-TAX เรียบร้อยแอ้ว".
+- **`ReceiptRecheck.recheck(ref, uid, { dryRun: true })`** returns the full result without writing, used to run repeated trials.
+- **Results on the two receipts:** 1.5.4 was fully correct 10/10 and 1.5.5 6/6 (the model alone 9/10 and 5/6; the guard caught the rest). Both receipts are saved live under 1.5.5. This is the tuning set, so it is not a reportable accuracy.
+- **Ground truth corrected:** receipt001 has a damaged inspection stamp. OCR reads it as "ได้รับพัสดตามใจศ่๑๑ี" (80% confidence). The LLM finds it; the rule engine's keyword classifier misses it ("พัสด" has no ุ).
 
 ## Stamp keywords — 2026-11-25
 

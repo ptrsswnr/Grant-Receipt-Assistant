@@ -46,6 +46,8 @@
     missing_signature: "ขาดลายมือชื่อ", invalid_amount: "ยอดเงินไม่ถูกต้อง", amount_mismatch: "ยอดเงินไม่ตรงกัน",
     date_issue: "วันที่", invalid_date: "วันที่ไม่ถูกต้อง", category_mismatch: "หมวดค่าใช้จ่ายไม่ตรง",
     category_not_allowed: "หมวดที่ไม่สนับสนุน", unreadable: "อ่านเอกสารไม่ได้", ocr_unclear: "อ่านเอกสารไม่ชัด",
+    // ชื่อข้อในเช็กลิสต์ของ prompt 1.4.0 ขึ้นไป (โมเดลมักใช้เป็น issues[].type)
+    budget_check: "ประมาณการ", cap_check: "ยอดเกินเพดาน", documents_check: "ขาดเอกสาร", attestations_check: "ขาดตราประทับ",
   };
 
   function issueLabel(type) {

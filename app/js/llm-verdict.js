@@ -12,7 +12,7 @@
   else root.LlmVerdict = api;
 })(typeof self !== "undefined" ? self : this, function (root) {
   // เพิ่มเลขนี้ทุกครั้งที่แก้ข้อความ prompt — บันทึกไว้กับทุกผลตรวจ เพื่อย้อนดูว่าผลแต่ละใบมาจาก prompt เวอร์ชันไหน
-  var PROMPT_VERSION = "1.4.0";
+  var PROMPT_VERSION = "1.5.5";
 
   function ruleEngine() {
     if (root && root.RuleEngine) return root.RuleEngine;
@@ -26,7 +26,58 @@
   // แปลงกฎ (ruleItems ของเวอร์ชันที่ active) เป็นข้อความอ้างอิงมีรหัสต่อข้อในวงเล็บ — ใช้ id จริงของ
   // ruleItem/evidenceChain ใน Firestore เป็นรหัสอ้างอิงตรงๆ (ไม่ให้ LLM เดาเลขเอง) เพื่อให้ rule_refs
   // ที่ LLM ตอบกลับมาอ้างอิงกลับไปยังข้อมูลจริงได้เสมอ
-  function rulesAsText(ruleSet, documentNames) {
+  var CONDITION_OPS = {
+    ">": function (a, b) { return a > b; }, ">=": function (a, b) { return a >= b; },
+    "<": function (a, b) { return a < b; }, "<=": function (a, b) { return a <= b; },
+  };
+
+  function docList(ids, documentNames) {
+    return (ids || []).map(function (did) { return documentNames[did] || did; }).join(" หรือ ");
+  }
+
+  // ชุดเอกสารของหมวดของใบนี้ชุดเดียว (prompt 1.5.0) — prompt 1.4.0 ส่งทุกชุด แล้วโมเดลหยิบเอกสารข้ามชุด
+  // และขอเอกสารตามเงื่อนไขยอดเงินที่ยอดไม่ถึง จึงบอกไว้เลยว่าเงื่อนไขแต่ละข้อ "ใช้/ไม่ใช้" กับยอดนี้
+  // (เป็นข้อเท็จจริงจากการเทียบตัวเลข ไม่ใช่ผลตัดสินว่าแนบครบหรือไม่ — อันนั้นโมเดลตัดสินเองจาก OCR)
+  function chainForReceiptText(ruleSet, documentNames, receipt) {
+    var item = (ruleSet.ruleItems || []).filter(function (r) {
+      return r.categoryName === receipt.category && r.isActive !== false;
+    })[0];
+    var chainId = item && item.evidenceChainId;
+    var c = chainId && ruleSet.evidenceChains ? ruleSet.evidenceChains[chainId] : null;
+    if (!c) return "ชุดเอกสารของหมวดนี้: (ไม่มีชุดเอกสารกำหนดไว้สำหรับหมวด \"" + (receipt.category || "-") + "\")";
+    var lines = ["ชุดเอกสารของหมวดนี้ [" + chainId + "] " + (c.chainName || chainId) + " — ใช้ชุดนี้ชุดเดียว ห้ามขอเอกสารนอกรายการนี้:"];
+    var required = (c.steps || []).filter(function (s) { return s.required; });
+    var optional = (c.steps || []).filter(function (s) { return !s.required; });
+    lines.push("เอกสารบังคับ (ต้องพบทุกข้อ ข้อที่มีหลายแบบ พบแบบใดแบบหนึ่งก็พอ):");
+    required.forEach(function (s, i) {
+      lines.push("  " + (i + 1) + ") " + docList(s.documentTypeIds, documentNames) + (s.timing === "before" ? " (ต้องได้ก่อนดำเนินการ)" : ""));
+    });
+    (c.conditionalSteps || []).forEach(function (cs) {
+      var op = CONDITION_OPS[cs.when && cs.when.op];
+      var applies = !!(op && typeof receipt.amount === "number" && cs.when.field === "amount" && op(receipt.amount, cs.when.value));
+      var names = docList(cs.addStep && cs.addStep.documentTypeIds, documentNames);
+      if (applies) {
+        lines.push("  " + (required.length + 1) + ") " + names + " (บังคับเพราะยอด " + money(receipt.amount) + " " + cs.when.op + " " + money(cs.when.value) + ")");
+      } else {
+        lines.push("ไม่ต้องใช้กับใบนี้ (ห้ามใส่ใน required/missing): " + names + " — ใช้เฉพาะยอด " + cs.when.op + " " + money(cs.when.value) +
+          " แต่ใบนี้ " + money(receipt.amount));
+      }
+    });
+    if (optional.length) {
+      lines.push("เอกสารไม่บังคับ (ไม่มีก็ไม่ผิด): " + optional.map(function (s) { return docList(s.documentTypeIds, documentNames); }).join("; "));
+    }
+    if ((c.attestations || []).length) {
+      lines.push("ตราประทับ/ข้อความรับรองที่ต้องพบบนเอกสาร:");
+      c.attestations.forEach(function (a, i) {
+        var kws = attestationKeywords(a.text);
+        lines.push("  " + (i + 1) + ") " + a.text + (kws.length ? " — คำหลัก: " + kws.map(function (k) { return "\"" + k + "\""; }).join(" หรือ ") : ""));
+      });
+    }
+    return lines.join("\n");
+  }
+
+  // receipt (ไม่บังคับ): { category, amount } — ถ้าให้มา จะแสดงเฉพาะชุดเอกสารของหมวดนั้น (prompt 1.5.0)
+  function rulesAsText(ruleSet, documentNames, receipt) {
     documentNames = documentNames || {};
     var lines = [];
     lines.push("ระเบียบของแหล่งทุนนี้ (รหัสในวงเล็บเหลี่ยมคือรหัสอ้างอิง — ใช้รหัสนี้เท่านั้นใน rule_refs ห้ามสร้างรหัสเอง):");
@@ -38,6 +89,10 @@
         (r.evidenceChainId ? " — ชุดเอกสาร [" + r.evidenceChainId + "]" : "") + (r.note ? " — หมายเหตุ: " + r.note : ""));
     });
     lines.push("");
+    if (receipt) {
+      lines.push(chainForReceiptText(ruleSet, documentNames, receipt));
+      return lines.join("\n");
+    }
     lines.push("ชุดเอกสารที่ต้องแนบต่อหมวด (ขั้นที่มีเอกสารหลายแบบ แนบอย่างใดอย่างหนึ่งก็พอ; \"ไม่บังคับ\" ไม่ทำให้ผิด):");
     Object.keys(ruleSet.evidenceChains || {}).forEach(function (id) {
       var c = ruleSet.evidenceChains[id];
@@ -105,20 +160,33 @@
       "ข้อ 1 ประมาณการ (budget_check):",
       "  1) เลือกรายการในประมาณการที่ใบเสร็จนี้ตรงที่สุด ถ้าไม่ตรงรายการใดเลย result = \"not_in_estimate\"",
       "  2) ใช้ตัวเลข \"ถ้าใบนี้อยู่ในรายการนี้\" ของรายการนั้นตามที่ให้ไว้ด้านบน ห้ามคำนวณเอง",
-      "  3) ไม่เกินรายการ → \"within\"; เกินรายการ แต่หมวดถัวได้ รายการถัวได้ และไม่เกินหมวด → \"averaged\" (ถัวจ่ายในหมวด ไม่ใช่ปัญหา); กรณีอื่นที่เกินรายการ → \"over\"",
+      "  3) กรอก averaging_allowed = true เมื่อ \"หมวดนี้ถัวได้\" และ \"รายการนี้ถัวได้\" ทั้งคู่ แล้วเลือก result ตามตารางนี้ตามลำดับ:",
+      "     ก. line_total_after ≤ line_budget → \"within\"",
+      "     ข. line_total_after > line_budget และ averaging_allowed = true และ group_total_after ≤ group_budget → \"averaged\" (ถัวจ่ายในหมวด ไม่ใช่ปัญหา)",
+      "     ค. นอกนั้น → \"over\"",
       "ข้อ 2 เพดานตามระเบียบ (cap_check) — เป็นคนละเรื่องกับข้อ 1: แม้ประมาณการจะถัวได้ ใบเสร็จก็ต้องไม่เกินเพดานต่อครั้งของระเบียบ",
       "  - หาระเบียบของหมวดค่าใช้จ่ายของใบนี้ ถ้าไม่มีระเบียบของหมวดนี้ → \"not_in_rules\"",
+      "  - ต้องกรอก cap_check.result ทุกครั้ง ห้ามเป็น null",
       "  - ถ้าเป็นเพดาน \"ต่อครั้ง\" (เพดานตามจริงหรือเหมาจ่ายที่ไม่มีหน่วย): ยอดใบเสร็จมากกว่าเพดาน → \"over\", ไม่เกิน → \"within\"",
       "  - ถ้าเพดานมีหน่วย (ต่อคน ต่อมื้อ ต่อคืน ต่อวัน ต่อกม. ต่อชม.) หรือเป็น \"ไม่มีเพดานกลาง\" → \"not_applicable\" (ข้อ 1 ตรวจแทนแล้ว)",
       "ข้อ 3 เอกสารแนบ (documents_check):",
-      "  - ดูชุดเอกสารของหมวดนี้ (รหัสชุดเอกสารอยู่ท้ายระเบียบของหมวด) ใส่ชื่อเอกสาร \"บังคับ\" ทุกขั้นใน required (รวมขั้นที่บังคับเมื่อยอดเกินเกณฑ์ ถ้ายอดเกิน)",
-      "  - ดูจากข้อความ OCR ว่าพบเอกสารใดบ้าง ใส่ใน found; เอกสารบังคับที่ไม่พบในข้อความ OCR ใส่ใน missing",
+      "  - required = เอกสารบังคับตาม \"ชุดเอกสารของหมวดนี้\" ด้านบนเท่านั้น (ข้อที่มีหลายแบบ นับเป็นหนึ่งรายการ) ห้ามเพิ่มเอกสารอื่น",
+      "  - แต่ละรายการใน required: ถ้าพบในข้อความ OCR ใส่ใน found พร้อม quote = ข้อความ OCR ที่เป็นหลักฐาน (คัดลอกมาตรงๆ); ถ้าหาไม่พบ ใส่ใน missing",
       "  - missing ว่าง → \"complete\", มีเอกสารขาด → \"missing\"",
       "ข้อ 4 ตราประทับ/การรับรอง (attestations_check):",
-      "  - ใส่ข้อ \"ต้องยืนยัน\" ของชุดเอกสารนี้ใน required แล้วหาข้อความของตรานั้นใน OCR (เช่น ตรา \"จ่ายแล้ว\", ตรา \"ตรวจรับพัสดุ\" หรือ \"ได้รับพัสดุ...เรียบร้อยแล้ว\")",
-      "  - ไม่พบข้อความของตราใน OCR ถือว่าขาด ใส่ใน missing; missing ว่าง → \"complete\", มีที่ขาด → \"missing\"",
+      "  - required = ตราประทับ/ข้อความรับรองของชุดเอกสารนี้ทุกข้อ แล้วค้นข้อความของแต่ละตราในข้อความ OCR ทีละบรรทัด",
+      "  - พบ → ใส่ใน found พร้อม quote = บรรทัด OCR ที่พบ (คัดลอกมาตรงๆ); ไม่พบ → ใส่ใน missing",
+      "  - missing ว่าง → \"complete\", มีที่ขาด → \"missing\"",
+      "ข้อความ OCR ภาษาไทยมักสะกดเพี้ยน เช่น วรรณยุกต์/สระหาย (\"ที่\" เป็น \"ที\") หรืออ่านคำผิด (\"แล้ว\" เป็น \"มล้อ\")",
+      "  ถ้าบรรทัดใดมีความหมายตรงกับเอกสารที่ต้องการ แม้สะกดเพี้ยน ให้นับว่าพบ และยกบรรทัดนั้นมาเป็น quote",
+      "  สำหรับตราประทับ: แต่ละตรามี \"คำหลัก\" กำกับไว้ในรายการตราด้านบน quote ต้องมีคำหลักอย่างน้อยหนึ่งคำของตรานั้น (คำอื่นในบรรทัดเดียวกันจะเพี้ยนหรือขาดไปก็ได้)",
+      "  ตรวจซ้ำก่อนใส่ใน found: ทุกพยางค์ของคำหลักที่ใช้ต้องอยู่ใน quote (สะกดเพี้ยนได้) เช่น \"จ่ายแล้ว\" ต้องมีทั้ง \"จ่าย\" (หรือ \"จาย\") และ \"แล้ว\" (หรือ \"แลว\")",
+      "  บรรทัดที่มีแค่บางพยางค์หรือคำทั่วไปที่คล้าย เช่น \"เรียบร้อยแล้ว\" หรือ \"ชำระเงิน\" ไม่นับว่าพบตรานั้น ให้ใส่ใน missing",
       "ตัดสิน: verdict = \"pass\" ก็ต่อเมื่อ ข้อ 1 เป็น within หรือ averaged, ข้อ 2 เป็น within หรือ not_applicable, ข้อ 3 และข้อ 4 เป็น complete",
       "ข้อใดไม่ผ่าน → verdict = \"fail\" และเขียน issues ข้อละหนึ่งรายการต่อทุกข้อที่ไม่ผ่าน (ห้ามเขียนว่าเกินประมาณการเมื่อข้อ 1 เป็น averaged)",
+      "issues: type ใช้ชื่อข้อที่ไม่ผ่าน (budget_check, cap_check, documents_check, attestations_check)",
+      "recommendation: บอกวิธีแก้ตามระเบียบเท่านั้น (แนบเอกสาร/ขอประทับตราที่ขาด, ยอดเกินเพดานให้เบิกไม่เกินเพดานหรือชี้แจงขออนุมัติ)",
+      "  ห้ามแนะนำให้เปลี่ยนหมวดค่าใช้จ่ายเพื่อเลี่ยงเพดาน — หมวดต้องตรงกับสิ่งที่ซื้อจริง",
     ].join("\n");
   }
 
@@ -130,7 +198,7 @@
       "คุณคือผู้ช่วยตรวจใบเสร็จค่าใช้จ่ายโครงการวิจัยของมหาวิทยาลัย ตัดสินผลจากระเบียบและประมาณการที่ให้ไว้ด้านล่างเท่านั้น",
       "ห้ามใช้ความรู้อื่นนอกเหนือจากนี้ และห้ามอ้างอิงระเบียบข้อที่ไม่อยู่ในรายการ",
       "",
-      rulesAsText(ruleSet, documentNames),
+      rulesAsText(ruleSet, documentNames, { category: extra.category, amount: extra.amount }),
       "",
       estimateAsText(extra.estimate, ruleSet, extra.amount),
       "",
@@ -149,8 +217,8 @@
         '"result": "within" หรือ "averaged" หรือ "over" หรือ "not_in_estimate"}, ' +
         '"cap_check": {"rule_ref": "<รหัสระเบียบ หรือ null>", "cap": <ตัวเลข|null>, "unit": "<หน่วยของเพดาน หรือ null>", "amount": <ตัวเลข|null>, ' +
         '"result": "within" หรือ "over" หรือ "not_applicable" หรือ "not_in_rules"}, ' +
-        '"documents_check": {"required": ["..."], "found": ["..."], "missing": ["..."], "result": "complete" หรือ "missing"}, ' +
-        '"attestations_check": {"required": ["..."], "found": ["..."], "missing": ["..."], "result": "complete" หรือ "missing"}, ' +
+        '"documents_check": {"required": ["<ชื่อเอกสาร>"], "found": [{"name": "<ชื่อเอกสาร>", "quote": "<ข้อความ OCR>"}], "missing": ["<ชื่อเอกสาร>"], "result": "complete" หรือ "missing"}, ' +
+        '"attestations_check": {"required": ["<ตรา>"], "found": [{"name": "<ตรา>", "quote": "<บรรทัด OCR>"}], "missing": ["<ตรา>"], "result": "complete" หรือ "missing"}, ' +
         '"verdict": "pass" หรือ "fail", "issues": [{"type": "...", "description": "..."}], ' +
         '"rule_refs": ["<รหัสอ้างอิงในวงเล็บเหลี่ยมด้านบนเท่านั้น>"], "recommendation": "คำแนะนำวิธีแก้เป็นภาษาไทย"}',
     ];
@@ -191,7 +259,16 @@
     var result = COMPLETENESS_RESULTS.indexOf(c.result) !== -1 ? c.result : null;
     // มีรายการใน missing แต่ตอบ complete ถือว่าขาด (คำตอบขัดกันเอง ยึดรายการที่ระบุไว้)
     if (missing.length && result === "complete") result = "missing";
-    return { required: strList(c.required), found: strList(c.found), missing: missing, result: result };
+    return { required: strList(c.required), found: foundList(c.found), missing: missing, result: result };
+  }
+
+  // found: [{ name, quote }] (prompt 1.5.0) — รับแบบสตริงล้วนของ prompt เก่าด้วย (quote = null)
+  function foundList(v) {
+    if (!Array.isArray(v)) return [];
+    return v.filter(function (x) { return x != null && x !== ""; }).map(function (x) {
+      if (typeof x === "object") return { name: x.name != null ? String(x.name) : "", quote: x.quote != null && x.quote !== "" ? String(x.quote) : null };
+      return { name: String(x), quote: null };
+    });
   }
 
   // ข้อในเช็กลิสต์ที่ LLM ตอบเองว่าไม่ผ่าน (ผลที่ไม่รู้จัก/null ไม่นับ) — ใช้ตรวจว่า verdict ขัดกับเช็กลิสต์ของมันเองไหม
@@ -202,6 +279,51 @@
     if (checks.documents_check && checks.documents_check.result === "missing") failed.push("documents_check");
     if (checks.attestations_check && checks.attestations_check.result === "missing") failed.push("attestations_check");
     return failed;
+  }
+
+  // ─── ตรวจหลักฐานของตราประทับ (1.5.3) ───
+  // prompt 1.5.0–1.5.2 ให้โมเดลยก quote เป็นหลักฐาน แต่โมเดลยังนับบรรทัดที่ไม่ใช่ตรา "จ่ายแล้ว" ว่าพบตรา
+  // ("…(E-TAX) เรียบร้อยแอ้ว", "พนักงานเขาย") ทุกรอบ แม้สั่งในข้อความแล้ว — จึงตรวจว่า quote ที่โมเดลอ้าง
+  // มีคำหลักของตรานั้นจริง (เทียบโครงพยัญชนะ ไม่สนสระ/วรรณยุกต์ เพราะ OCR ภาษาไทยมักทำหาย)
+  // ทำได้แค่ย้าย found → missing (ตัดหลักฐานที่ไม่ตรง) ไม่เคยเพิ่มตราที่โมเดลไม่ได้อ้าง และไม่ใช้ผลของ
+  // ตัวจับคำสำคัญ/rule engine — ผลก่อนตรวจเก็บไว้ใน attestations_rejected เพื่อนับความผิดพลาดของโมเดลในงานวิจัย
+  function consonantSkeleton(text) {
+    return String(text || "").replace(/[^ก-ฮ]/g, "");
+  }
+  // คำหลักของตรา = คำในเครื่องหมายคำพูดของข้อความตรา (ส่วนก่อน "..." ถ้ามี) เช่น "จ่ายแล้ว", "ได้รับพัสดุ"
+  function attestationKeywords(text) {
+    var out = [];
+    String(text || "").replace(/["“]([^"”]+)["”]/g, function (m, k) {
+      var kw = k.split("...")[0].trim();
+      if (kw) out.push(kw);
+      return m;
+    });
+    return out;
+  }
+  function chainAttestations(ruleSet, category) {
+    var item = (ruleSet.ruleItems || []).filter(function (r) { return r.categoryName === category && r.isActive !== false; })[0];
+    var chain = item && item.evidenceChainId && ruleSet.evidenceChains ? ruleSet.evidenceChains[item.evidenceChainId] : null;
+    return (chain && chain.attestations) || [];
+  }
+  function guardAttestationEvidence(check, attestations) {
+    if (!check || !attestations.length) return { check: check, rejected: [] };
+    var defs = attestations.map(function (a) {
+      return { text: a.text, skeletons: attestationKeywords(a.text).map(consonantSkeleton).filter(Boolean) };
+    }).filter(function (d) { return d.skeletons.length; });
+    var kept = [], rejected = [], missing = check.missing.slice();
+    check.found.forEach(function (f) {
+      var nameSk = consonantSkeleton(f.name);
+      var def = defs.filter(function (d) {
+        return d.skeletons.some(function (s) { return nameSk.indexOf(s) !== -1; }) || consonantSkeleton(d.text) === nameSk;
+      })[0];
+      if (!def) { kept.push(f); return; }
+      var quoteSk = consonantSkeleton(f.quote);
+      if (def.skeletons.some(function (s) { return quoteSk.indexOf(s) !== -1; })) { kept.push(f); return; }
+      rejected.push(f);
+      if (missing.indexOf(f.name) === -1) missing.push(f.name);
+    });
+    if (!rejected.length) return { check: check, rejected: [] };
+    return { check: { required: check.required, found: kept, missing: missing, result: "missing" }, rejected: rejected };
   }
 
   // คืน { verdict, verdict_reported, failed_checks, issues, rule_refs, recommendation, budget_check, cap_check,
@@ -228,13 +350,20 @@
         documents_check: cleanCompleteness(parsed.documents_check),
         attestations_check: cleanCompleteness(parsed.attestations_check),
       };
+      var guarded = guardAttestationEvidence(checks.attestations_check, chainAttestations(ruleSet || {}, extra && extra.category));
+      checks.attestations_check = guarded.check;
+      var issues = Array.isArray(parsed.issues) ? parsed.issues.slice() : [];
+      guarded.rejected.forEach(function (f) {
+        issues.push({ type: "missing_stamp", description: "ไม่พบตรา " + f.name + " (ข้อความที่อ้างเป็นหลักฐาน \"" + (f.quote || "") + "\" ไม่ใช่ข้อความของตรานี้)" });
+      });
       var failed = failedChecks(checks);
       var verdict = reported === "pass" && failed.length ? "fail" : reported;
       return {
         verdict: verdict,
         verdict_reported: reported,
         failed_checks: failed,
-        issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+        attestations_rejected: guarded.rejected,
+        issues: issues,
         rule_refs: Array.isArray(parsed.rule_refs) ? parsed.rule_refs : [],
         recommendation: parsed.recommendation || "",
         budget_check: checks.budget_check,
@@ -257,6 +386,7 @@
     if (!llm) return null;
     return {
       verdict: llm.verdict, verdict_reported: llm.verdict_reported || null, failed_checks: llm.failed_checks || [],
+      attestations_rejected: llm.attestations_rejected || [],
       issues: llm.issues, rule_refs: llm.rule_refs, recommendation: llm.recommendation,
       budget_check: llm.budget_check || null, cap_check: llm.cap_check || null,
       documents_check: llm.documents_check || null, attestations_check: llm.attestations_check || null,
