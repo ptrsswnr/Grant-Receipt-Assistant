@@ -82,7 +82,7 @@ test("prompt gives precomputed budget numbers per line and asks for a budget_che
     { id: "line020", group: "หมวดค่าใช้สอย", itemName: "ค่าแท็กซี่", total: 700, spentBefore: 0, ruleCategory: "ค่าแท็กซี่ (เดินทางปฏิบัติงาน)" },
   ];
   const prompt = buildPrompt("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 5210.28, estimate });
-  assert.equal(PROMPT_VERSION, "1.5.5");
+  assert.equal(PROMPT_VERSION, "1.7.0");
   // line011: 4,747.66 + 5,210.28 = 9,957.94 of 5,000 (over the line), group 9,957.94 of 10,000 (within)
   assert.match(prompt, /\[line011\][^\n]*รายการรวมใบนี้ 9,957\.94 บาท จากที่ตั้งไว้ 5,000 บาท \(เกินรายการ 4,957\.94 บาท\)[^\n]*หมวดรวมใบนี้ 9,957\.94 บาท จากที่ตั้งไว้ 10,000 บาท \(ไม่เกินหมวด\), หมวดนี้ถัวได้, รายการนี้ถัวได้/);
   assert.match(prompt, /\[line020\][^\n]*รายการนี้ห้ามถัว/);
@@ -136,7 +136,7 @@ test("record() gives the Firestore shape with every checklist field", () => {
   const { record } = require("../app/js/llm-verdict.js");
   assert.equal(record(null), null);
   const rec = record({ verdict: "fail", issues: [], rule_refs: [], recommendation: "", raw: "{}", model: "m", promptVersion: "1.4.0", durationMs: 1, error: null });
-  assert.deepEqual(Object.keys(rec).sort(), ["attestations_check", "attestations_rejected", "budget_check", "cap_check", "documents_check", "durationMs", "error", "failed_checks", "issues", "model", "promptVersion", "raw", "recommendation", "rule_refs", "verdict", "verdict_reported"].sort());
+  assert.deepEqual(Object.keys(rec).sort(), ["attestations_check", "attestations_rejected", "budget_check", "cap_check", "documents_check", "durationMs", "error", "failed_checks", "issues", "model", "period_check", "period_rejected", "project_check", "project_rejected", "promptVersion", "raw", "recommendation", "rule_refs", "verdict", "verdict_reported"].sort());
 });
 
 test("prompt 1.5 lists only this category's evidence chain and says which amount conditions apply", () => {
@@ -155,7 +155,7 @@ test("prompt 1.5 lists only this category's evidence chain and says which amount
   assert.doesNotMatch(small, /หนังสืออนุมัติ/);
   assert.match(small, /ไม่ต้องใช้กับใบนี้[^\n]*ใบตรวจรับกรรมการ 3 คน/);
   const big = buildPrompt("x", ruleSet, names, { category: "ค่าวัสดุคอมพิวเตอร์", amount: 150000, estimate: [] });
-  assert.match(big, /3\) ใบตรวจรับกรรมการ 3 คน \(บังคับเพราะยอด/);
+  assert.match(big, /3\) ใบตรวจรับกรรมการ 3 คน \(บังคับเฉพาะยอดเกิน/);
   assert.match(small, /"quote"/);
   assert.match(small, /ประทับตรา "จ่ายแล้ว" — คำหลัก: "จ่ายแล้ว"/);
 });
@@ -189,4 +189,84 @@ test("a found stamp whose quote lacks the stamp's keyword is moved to missing (O
   const real = { ...reply, attestations_check: { ...reply.attestations_check, found: [{ name: "จ่ายแล้ว", quote: "จายแลว 12/11/68" }] } };
   const r2 = await evaluateWithLlm("x", ruleSet, {}, { category: "ค่าวัสดุคอมพิวเตอร์" }, { aiClient: { ...ai, chat: async () => JSON.stringify(real) } });
   assert.equal(r2.attestations_rejected.length, 0);
+});
+
+test("prompt 1.6 gives the project name and receipt date, and project_check mismatch makes the verdict fail", async () => {
+  const { buildPrompt, evaluateWithLlm } = require("../app/js/llm-verdict.js");
+  const ruleSet = {
+    ruleItems: [{ id: "ruleitem019", categoryName: "ค่าวัสดุสำนักงาน", rateType: "ตามข้อเสนอโครงการ", evidenceChainId: "chain-purchase" }],
+    evidenceChains: { "chain-purchase": { steps: [{ required: true, documentTypeIds: ["tax-invoice-full"] }],
+      conditionalSteps: [{ when: { field: "date", op: ">=", value: "2026-04-22" }, addStep: { documentTypeIds: ["inspection-photos"] } }], attestations: [] } },
+  };
+  const names = { "tax-invoice-full": "ใบเสร็จ", "inspection-photos": "รูปถ่ายพัสดุ" };
+  const old = buildPrompt("x", ruleSet, names, { category: "ค่าวัสดุสำนักงาน", amount: 100, date: "2025-12-01", projectName: "โครงการ ก", estimate: [] });
+  assert.match(old, /ไม่ต้องใช้กับใบนี้[^\n]*รูปถ่ายพัสดุ[^\n]*ตั้งแต่ 22 เม\.ย\. 2569[^\n]*ใบนี้ลงวันที่ 2025-12-01/);
+  assert.match(old, /- ชื่อโครงการ: โครงการ ก/);
+  assert.match(old, /project_check/);
+  const recent = buildPrompt("x", ruleSet, names, { category: "ค่าวัสดุสำนักงาน", amount: 100, date: "2026-05-01", estimate: [] });
+  assert.match(recent, /2\) รูปถ่ายพัสดุ \(บังคับเฉพาะใบเสร็จลงวันที่ตั้งแต่ 22 เม\.ย\. 2569/);
+
+  const reply = JSON.stringify({ verdict: "pass", issues: [], rule_refs: [], recommendation: "",
+    documents_check: { required: [], found: [], missing: [], result: "complete" },
+    project_check: { quote: "โครงการ ข โดย นาย ค", result: "mismatch" } });
+  const aiClient = { chat: async () => reply, extractJson: (t) => JSON.parse(t), modelName: () => "m" };
+  const r = await evaluateWithLlm("x", ruleSet, names, { category: "ค่าวัสดุสำนักงาน", amount: 100, projectName: "โครงการ ก" }, { aiClient });
+  assert.equal(r.verdict, "fail");
+  assert.equal(r.verdict_reported, "pass");
+  assert.deepEqual(r.failed_checks, ["project_check"]);
+  assert.deepEqual(r.project_check, { quote: "โครงการ ข โดย นาย ค", result: "mismatch" });
+});
+
+test("a project_check 'match' whose own quote names another project becomes mismatch (1.6.1 guard)", async () => {
+  const { evaluateWithLlm } = require("../app/js/llm-verdict.js");
+  const ruleSet = { ruleItems: [{ id: "ruleitem019", categoryName: "ค่าวัสดุสำนักงาน", evidenceChainId: null }], evidenceChains: {} };
+  const reply = (quote) => JSON.stringify({ verdict: "pass", issues: [], rule_refs: [], recommendation: "", project_check: { quote, result: "match" } });
+  const run = (quote, projectName) => evaluateWithLlm("x", ruleSet, {}, { category: "ค่าวัสดุสำนักงาน", amount: 100, projectName },
+    { aiClient: { chat: async () => reply(quote), extractJson: (t) => JSON.parse(t), modelName: () => "m" } });
+  const bad = await run("การประยุกต์ใช้ปัญญาประดิษฐ์และการวิเคราะห์ฯ โดย นาย ก", "โครงการทดสอบจริงๆ");
+  assert.equal(bad.verdict, "fail");
+  assert.equal(bad.project_check.result, "mismatch");
+  assert.deepEqual(bad.project_rejected, { quote: "การประยุกต์ใช้ปัญญาประดิษฐ์และการวิเคราะห์ฯ โดย นาย ก", result: "match" });
+  assert.ok(bad.issues.some((i) => i.type === "project_check"));
+  const ok = await run("โครงการ AI เกษตร โดย นาย ก", "พัฒนาโมเดล AI เพื่อการเกษตร");
+  assert.equal(ok.verdict, "pass");
+  assert.equal(ok.project_rejected, null);
+});
+
+test("contract period: prompt states it, 'outside' fails, and a 'within' whose own date is outside becomes outside (1.7.0)", async () => {
+  const { evaluateWithLlm, buildPrompt } = require("../app/js/llm-verdict.js");
+  const ruleSet = { ruleItems: [{ id: "ruleitem019", categoryName: "ค่าวัสดุสำนักงาน", evidenceChainId: null }], evidenceChains: {} };
+  const contract = { start: "2025-10-01", end: "2026-09-30" };
+  const prompt = buildPrompt("x", ruleSet, {}, { category: "ค่าวัสดุสำนักงาน", amount: 100, date: "2026-01-05", contract, estimate: [] });
+  assert.match(prompt, /- ระยะเวลาสัญญา: 2025-10-01 ถึง 2026-09-30/);
+  assert.match(prompt, /period_check/);
+  assert.match(buildPrompt("x", ruleSet, {}, { estimate: [] }), /- ระยะเวลาสัญญา: \(โครงการยังไม่ได้กรอก\)/);
+
+  const run = (period, c) => evaluateWithLlm("x", ruleSet, {}, { category: "ค่าวัสดุสำนักงาน", amount: 100, contract: c },
+    { aiClient: { chat: async () => JSON.stringify({ verdict: "pass", issues: [], rule_refs: [], recommendation: "", period_check: period }), extractJson: (t) => JSON.parse(t), modelName: () => "m" } });
+  const outside = await run({ receipt_date: "2026-11-01", result: "outside" }, contract);
+  assert.equal(outside.verdict, "fail");
+  assert.deepEqual(outside.failed_checks, ["period_check"]);
+  const lied = await run({ receipt_date: "2026-11-01", result: "within" }, contract);
+  assert.equal(lied.verdict, "fail");
+  assert.equal(lied.period_check.result, "outside");
+  assert.deepEqual(lied.period_rejected, { receipt_date: "2026-11-01", result: "within" });
+  assert.ok(lied.issues.some((i) => i.type === "period_check"));
+  const ok = await run({ receipt_date: "2026-09-30", result: "within" }, contract);
+  assert.equal(ok.verdict, "pass");
+  assert.equal(ok.period_rejected, null);
+  const unknown = await run({ receipt_date: null, result: "unknown" }, null);
+  assert.equal(unknown.verdict, "pass");
+});
+
+test("the prompt states the extended contract end and the guard uses it", async () => {
+  const { evaluateWithLlm, buildPrompt } = require("../app/js/llm-verdict.js");
+  const RuleEngine = require("../app/js/rule-engine.js");
+  const ruleSet = { ruleItems: [{ id: "ruleitem019", categoryName: "ค่าวัสดุสำนักงาน", evidenceChainId: null }], evidenceChains: {} };
+  const contract = RuleEngine.contractOf({ contractStartDate: "2025-10-01", contractEndDate: "2026-09-30", contractExtensions: [{ endDate: "2027-03-31" }] });
+  assert.match(buildPrompt("x", ruleSet, {}, { contract, estimate: [] }), /- ระยะเวลาสัญญา: 2025-10-01 ถึง 2027-03-31 \(ขยายเวลาแล้ว 1 ครั้ง จากเดิมสิ้นสุด 2026-09-30\)/);
+  const r = await evaluateWithLlm("x", ruleSet, {}, { category: "ค่าวัสดุสำนักงาน", amount: 100, contract },
+    { aiClient: { chat: async () => JSON.stringify({ verdict: "pass", issues: [], rule_refs: [], recommendation: "", period_check: { receipt_date: "2027-01-10", result: "within" } }), extractJson: (t) => JSON.parse(t), modelName: () => "m" } });
+  assert.equal(r.verdict, "pass");
+  assert.equal(r.period_rejected, null);
 });

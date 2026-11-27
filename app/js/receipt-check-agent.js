@@ -97,7 +97,10 @@ async function summarizeWithAi(opts, sources) {
       lines.push("- ลำดับ " + step.order + " (" + step.timing + (step.required ? ", บังคับ" : ", ไม่บังคับ") + "): " + docNames + (step.note ? " — หมายเหตุ: " + step.note : ""));
     });
     (sources.evidenceChain.conditionalSteps || []).forEach(function (conditionalStep) {
-      lines.push("- เงื่อนไขเพิ่มเติม: ถ้า " + conditionalStep.when.field + " " + conditionalStep.when.op + " " + conditionalStep.when.value +
+      var conditionLabel = window.RuleEngine && window.RuleEngine.describeCondition
+        ? window.RuleEngine.describeCondition(conditionalStep.when)
+        : conditionalStep.when.field + " " + conditionalStep.when.op + " " + conditionalStep.when.value;
+      lines.push("- เงื่อนไขเพิ่มเติม: ถ้า" + conditionLabel +
         " ต้องมีเอกสารเพิ่ม: " + ((conditionalStep.addStep && conditionalStep.addStep.documentTypeIds) || []).map(function (id) {
           return documentNameById(sources.documentTypes, id);
         }).join(", "));

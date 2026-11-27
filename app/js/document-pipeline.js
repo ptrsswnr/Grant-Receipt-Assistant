@@ -161,7 +161,7 @@
     ];
     if (payment) {
       return head.concat([
-        "วันที่ตอบเป็นปี ค.ศ. รูปแบบ YYYY-MM-DD (ถ้าเอกสารเป็น พ.ศ. ให้ลบ 543) ยอดเงินคือยอดรวมสุทธิที่จ่ายจริง",
+        "วันที่ตอบเป็นปี ค.ศ. รูปแบบ YYYY-MM-DD (ถ้าเอกสารเป็น พ.ศ. ให้ลบ 543) ยอดเงินคือยอดรวมทั้งสิ้นที่จ่ายจริงรวมภาษีมูลค่าเพิ่มแล้ว (รวมเงินทั้งสิ้น / Grand total) ห้ามใช้มูลค่าสินค้าก่อนภาษี (Sub total)",
         "หมวดค่าใช้จ่ายต้องเป็นหนึ่งในรายการนี้เท่านั้น หรือ null:",
         categories.join(", "),
         "ตอบเป็น JSON เท่านั้น: {\"amount\": <ตัวเลข|null>, \"date\": \"YYYY-MM-DD\"|null, \"vendorName\": \"...\"|null, \"category\": \"...\"|null}",
@@ -303,7 +303,7 @@
   }
 
   // group: { documentIndexes, paymentDocumentIndex }; documents: ผลขั้นที่ 2+3 พร้อม text
-  // ctx: { ruleSet, documentNames, documentTypesById, estimate (มี spentBefore ต่อรายการ — ผู้เรียกต้องบวกยอด
+  // ctx: { ruleSet, documentNames, documentTypesById, projectName?, contract? ({ start, end }), estimate (มี spentBefore ต่อรายการ — ผู้เรียกต้องบวกยอด
   //        ของรายการที่ตัดสินไปแล้วในไฟล์เดียวกันเข้าไปก่อนเรียกรายการถัดไป), verdictMode }
   // deps: { RuleEngine, LlmVerdict, ReceiptPipeline, DocumentClassifier, AiClient, config, fetchImpl }
   async function evaluateGroup(group, documents, ctx, deps) {
@@ -321,19 +321,21 @@
     // รายการในประมาณการ + ยอดรวมของหมวด (ใช้ตรวจการถัวเฉลี่ยในหมวด) — ฟังก์ชันเดียวกับหน้าอัปโหลดใบเดียว
     var budget = deps.RuleEngine.budgetFromEstimate(category, estimate);
 
-    var ruleCheck = deps.RuleEngine.evaluate({ category: category, amount: amount, evidence: evidence, budget: budget }, ctx.ruleSet, ctx.documentNames);
-    ruleCheck.aiExplanation = ruleCheck.explanation;
-
     var ocrText = group.documentIndexes.map(function (i) {
       var d = documents[i];
       var t = ctx.documentTypesById[d.documentTypeId];
       return "เอกสาร #" + i + " หน้า " + d.pageFrom + (d.pageTo !== d.pageFrom ? "–" + d.pageTo : "") + " (" + (t ? t.documentName : "ไม่ทราบประเภท") + "):\n" + (d.text || "(OCR อ่านไม่ได้)");
     }).join("\n\n");
 
+    var date = r.date || null;
+    var project = ctx.projectName ? { name: ctx.projectName, ocrText: ocrText } : undefined;
+    var ruleCheck = deps.RuleEngine.evaluate({ category: category, amount: amount, date: date, evidence: evidence, budget: budget, project: project, contract: ctx.contract || undefined }, ctx.ruleSet, ctx.documentNames);
+    ruleCheck.aiExplanation = ruleCheck.explanation;
+
     var llm = null;
     if (ctx.verdictMode === "llm") {
       llm = await deps.LlmVerdict.evaluateWithLlm(ocrText, ctx.ruleSet, ctx.documentNames,
-        { category: category, amount: amount, estimate: estimate }, { aiClient: deps.AiClient, config: deps.config, fetchImpl: deps.fetchImpl });
+        { category: category, amount: amount, date: date, projectName: ctx.projectName || null, contract: ctx.contract || null, estimate: estimate }, { aiClient: deps.AiClient, config: deps.config, fetchImpl: deps.fetchImpl });
     }
     var decided = deps.ReceiptPipeline.decideVerdict(ctx.verdictMode, ruleCheck, llm, deps.RuleEngine.STATUS);
     return {

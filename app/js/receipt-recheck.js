@@ -78,6 +78,7 @@ window.ReceiptRecheck = (function () {
   //   โดยไม่ทำให้ verdictHistory ยาวขึ้นทุกรอบ
   async function recheck(receiptRef, uid, opts) {
     opts = opts || {};
+    var contractOf = window.RuleEngine.contractOf; // ยึดวันขยายเวลาล่าสุด
     var snap = await receiptRef.get();
     if (!snap.exists) throw new Error("ไม่พบใบเสร็จนี้");
     var r = snap.data();
@@ -102,7 +103,8 @@ window.ReceiptRecheck = (function () {
     var summary = typeof r.summaryAmount === "number" ? { amount: r.summaryAmount } : undefined;
 
     var ruleCheck = window.RuleEngine.evaluate(
-      { category: category, amount: amount, evidence: evidence, budget: budget, summary: summary },
+      { category: category, amount: amount, date: r.confirmedDate || null, evidence: evidence, budget: budget, summary: summary,
+        project: { name: project.projectName || "", ocrText: ocr.text }, contract: contractOf(project) },
       ruleSet, ref.documentNames);
     ruleCheck.aiExplanation = ruleCheck.explanation;
 
@@ -111,7 +113,7 @@ window.ReceiptRecheck = (function () {
     if (mode === "llm") {
       llm = ruleSet && window.AiClient && window.AiClient.isConfigured()
         ? await window.LlmVerdict.evaluateWithLlm(ocr.text, ruleSet, ref.documentNames,
-            { category: category, amount: amount, estimate: estimate }, { config: window.AI_CONFIG })
+            { category: category, amount: amount, date: r.confirmedDate || null, projectName: project.projectName || "", contract: contractOf(project), estimate: estimate }, { config: window.AI_CONFIG })
         : { verdict: null, issues: [], rule_refs: [], recommendation: "", raw: null, model: null,
             promptVersion: window.LlmVerdict.PROMPT_VERSION, durationMs: 0,
             error: ruleSet ? "ไม่ได้ตั้งค่า AI" : "ไม่พบแหล่งทุนของโครงการนี้" };

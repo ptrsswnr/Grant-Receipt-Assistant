@@ -21,18 +21,21 @@
 
 <main class="page-shell">
 
-  <div class="section text-left-block">
-    <h1>โครงการของฉัน</h1>
-    <p class="text-body">
-      สร้างโครงการวิจัยของตัวเองไว้ผูกกับแหล่งทุน แล้วเลือกใช้ตอนอัปโหลดใบเสร็จที่หน้า
-      <a href="new-receipt.html">อัปโหลดใบเสร็จใหม่</a> — รายการแหล่งทุนด้านล่างเป็นข้อมูลกลางที่
-      ผู้ดูแลระบบ (admin) เป็นคนเพิ่มเข้ามาเท่านั้น
-    </p>
+  <div class="section page-head">
+    <div>
+      <h1>โครงการของฉัน</h1>
+      <p class="text-body">โครงการวิจัยที่คุณดูแลอยู่</p>
+    </div>
+    <button type="button" class="btn btn-primary btn-md" id="showAddProjectButton" aria-expanded="false" aria-controls="addProjectSection">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+      เพิ่มโครงการ
+    </button>
   </div>
 
-  <div class="section">
+  <div class="section" id="addProjectSection" hidden>
     <div class="card">
       <h2>เพิ่มโครงการใหม่</h2>
+      <p class="help-text">แหล่งทุนเป็นข้อมูลกลางที่ผู้ดูแลระบบ (admin) เพิ่มไว้</p>
       <div id="warningBox" class="banner banner--error" style="display:none;"></div>
 
       <div class="field">
@@ -43,9 +46,24 @@
         <label for="fundSourceId">แหล่งทุน</label>
         <select id="fundSourceId"></select>
       </div>
+      <fieldset class="field contract-fields">
+        <legend>ระยะเวลาสัญญา</legend>
+        <p class="help-text">วันที่ในใบเสร็จต้องอยู่ในช่วงนี้ ใบเสร็จนอกช่วงจะเบิกไม่ได้</p>
+        <div class="contract-fields__row">
+          <div class="field">
+            <label for="contractStartDate">วันเริ่มสัญญา</label>
+            <input type="date" id="contractStartDate">
+          </div>
+          <div class="field">
+            <label for="contractEndDate">วันสิ้นสุดสัญญา</label>
+            <input type="date" id="contractEndDate">
+          </div>
+        </div>
+      </fieldset>
 
       <div class="row" style="justify-content:flex-end;">
-        <button type="button" class="btn btn-primary btn-md" id="addProjectButton">เพิ่มโครงการ</button>
+        <button type="button" class="btn btn-secondary btn-md" id="cancelAddProjectButton">ยกเลิก</button>
+        <button type="button" class="btn btn-primary btn-md" id="addProjectButton">บันทึกโครงการ</button>
       </div>
     </div>
   </div>

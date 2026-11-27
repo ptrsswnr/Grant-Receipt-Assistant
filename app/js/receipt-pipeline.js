@@ -48,6 +48,8 @@
     category_not_allowed: "หมวดที่ไม่สนับสนุน", unreadable: "อ่านเอกสารไม่ได้", ocr_unclear: "อ่านเอกสารไม่ชัด",
     // ชื่อข้อในเช็กลิสต์ของ prompt 1.4.0 ขึ้นไป (โมเดลมักใช้เป็น issues[].type)
     budget_check: "ประมาณการ", cap_check: "ยอดเกินเพดาน", documents_check: "ขาดเอกสาร", attestations_check: "ขาดตราประทับ",
+    project_check: "ชื่อโครงการไม่ตรง", project_mismatch: "ชื่อโครงการไม่ตรง", project_name_mismatch: "ชื่อโครงการไม่ตรง",
+    period_check: "นอกระยะเวลาสัญญา", outside_contract_period: "นอกระยะเวลาสัญญา",
   };
 
   function issueLabel(type) {
@@ -101,13 +103,22 @@
     }
     if (llmResult && llmResult.verdict) {
       var explanation = llmResult.recommendation || "";
+      // LLM ตอบ pass แต่ตัวกันขัดแย้ง/ตัวตรวจหลักฐานเปลี่ยนเป็น fail — คำแนะนำของโมเดลจะเป็น "ไม่มีปัญหา ผ่านทุกข้อ"
+      // ซึ่งขัดกับผล จึงไม่ใช้ แต่บอกให้แก้ตามรายการด้านล่างแทน (ผลดิบยังอยู่ใน llmVerdict.recommendation)
+      if (llmResult.verdict === "fail" && llmResult.verdict_reported === "pass") {
+        explanation = "ต้องแก้ไขตามรายการด้านล่าง";
+      }
       if (llmResult.issues && llmResult.issues.length) {
         // ปัญหาละบรรทัด หัวข้อเป็นภาษาไทย (หน้าเว็บแสดงคำแนะนำแบบคงการขึ้นบรรทัดไว้)
         explanation += (explanation ? "\n" : "") + llmResult.issues.map(function (i) {
           return "• " + issueLabel(i.type) + ": " + (i.description || "");
         }).join("\n");
       }
-      return { status: llmResult.verdict === "pass" ? STATUS.PASS : STATUS.FIX, explanation: explanation };
+      // นอกระยะเวลาสัญญา (เช็กลิสต์ข้อ 6 ของ LLM เอง) = ไม่เข้าเงื่อนไข เหมือน rule engine — เบิกไม่ได้ แก้ด้วยการแนบเอกสารไม่ได้
+      // (เจ้าของโครงการ 2026-11-27) ข้อไม่ผ่านอื่นยังเป็นต้องแก้ไขตามเดิม
+      var outsideContract = llmResult.period_check && llmResult.period_check.result === "outside";
+      var status = llmResult.verdict === "pass" ? STATUS.PASS : (outsideContract ? STATUS.REJECT : STATUS.FIX);
+      return { status: status, explanation: explanation };
     }
     var fallbackExplanation = ruleCheckResult.aiExplanation || ruleCheckResult.explanation;
     var reason = (llmResult && llmResult.error) || "ไม่ได้ตั้งค่า AI";

@@ -37,6 +37,7 @@
   if (!privacyConsentAlreadyGiven) privacyConsentCard.style.display = "block";
 
   var projectFundSourceId = {};
+  var projectContract = {};
   var userProjects = await db.collection("users").doc(user.uid).collection("projects").get();
   userProjects.forEach(function (doc) {
     var option = document.createElement("option");
@@ -44,6 +45,7 @@
     option.textContent = doc.data().projectName;
     projectSelect.appendChild(option);
     projectFundSourceId[doc.id] = doc.data().fundSourceId;
+    projectContract[doc.id] = window.RuleEngine.contractOf(doc.data()); // ยึดวันขยายเวลาล่าสุด
   });
   var preselect = new URLSearchParams(location.search).get("projectId");
   if (preselect && projectFundSourceId.hasOwnProperty(preselect)) projectSelect.value = preselect;
@@ -218,7 +220,7 @@
         var group = grouping.groups[g];
         var result = await DP.evaluateGroup(group, documents, {
           ruleSet: ctx.ruleSet, documentNames: refData.documentNames, documentTypesById: refData.documentTypesById,
-          estimate: ctx.estimate, verdictMode: VERDICT_MODE,
+          estimate: ctx.estimate, verdictMode: VERDICT_MODE, projectName: ctx.projectName, contract: ctx.contract,
         }, ctx.deps);
         // รายการถัดไปในไฟล์เดียวกันต้องเห็นยอดที่รายการนี้ตัดไปแล้ว
         var line = ctx.estimate.filter(function (l) { return l.id === result.budgetLineId; })[0];
@@ -373,6 +375,8 @@
       progress("กำลังโหลดระเบียบและประมาณการ...");
       var ctx = {
         projectId: projectId,
+        projectName: projectSelect.options[projectSelect.selectedIndex].textContent,
+        contract: projectContract[projectId],
         ruleSet: await Store.loadActiveRuleSet(projectFundSourceId[projectId], refData.evidenceChainsById),
         estimate: await Store.estimateWithSpent(user.uid, projectId, await getBudgetLines(projectId)),
         nextReceiptNumber: await Store.maxReceiptNumber(user.uid) + 1,

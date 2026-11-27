@@ -67,6 +67,7 @@ var SAMPLE_VENDORS = [
   // เก็บ fundSourceId ของแต่ละโครงการไว้ใน projectFundSourceId ด้วย เพื่อให้ checkAgainstRules
   // (ตอนส่งเข้าตรวจ) รู้ว่าโครงการที่เลือกอยู่ต้องเทียบกับระเบียบของแหล่งทุนไหน
   var projectFundSourceId = {};
+  var projectContract = {}; // ระยะเวลาสัญญาของแต่ละโครงการ { start, end } — วันที่ในใบเสร็จต้องอยู่ในช่วงนี้
   var userProjects = await db.collection("users").doc(user.uid).collection("projects").get();
   if (userProjects.empty) {
     var noProjectOption = document.createElement("option");
@@ -81,6 +82,7 @@ var SAMPLE_VENDORS = [
       option.textContent = doc.data().projectName;
       projectSelect.appendChild(option);
       projectFundSourceId[doc.id] = doc.data().fundSourceId;
+      projectContract[doc.id] = window.RuleEngine.contractOf(doc.data()); // ยึดวันขยายเวลาล่าสุด
     });
   }
 
@@ -166,9 +168,9 @@ var SAMPLE_VENDORS = [
 
   // ตัดสินด้วย rule engine เสมอ (ไม่ว่า VERDICT_MODE จะเป็นอะไร) — ใช้คำนวณกลุ่มประมาณการ/เอกสารที่เป็น
   // ตัวเลขล้วน และเก็บผลไว้ตรวจสอบย้อนหลัง/เทียบผลใน Stage B เสมอ
-  async function checkWithRuleEngine(fundSourceId, category, amount, evidence, budget, summary) {
+  async function checkWithRuleEngine(fundSourceId, category, amount, evidence, budget, summary, date, project, contract) {
     var ruleSet = await getRuleSet(fundSourceId);
-    var result = window.RuleEngine.evaluate({ category: category, amount: amount, evidence: evidence, budget: budget, summary: summary }, ruleSet, documentNames);
+    var result = window.RuleEngine.evaluate({ category: category, amount: amount, date: date, evidence: evidence, budget: budget, summary: summary, project: project, contract: contract }, ruleSet, documentNames);
     result.aiExplanation = result.explanation;
     return result;
   }
@@ -459,7 +461,10 @@ var SAMPLE_VENDORS = [
 
       // 5) ตรวจตามระเบียบ — รัน rule-engine เสมอ (ใช้คำนวณกลุ่มประมาณการ/เอกสาร + เก็บไว้ตรวจสอบย้อนหลัง)
       aiProcessingText.textContent = "กำลังตรวจสอบตามระเบียบแหล่งทุน...";
-      var ruleCheckResult = await checkWithRuleEngine(fundSourceId, confirmedCategory, confirmedAmount, evidence, budget, summary);
+      // ชื่อโครงการที่อัปโหลด — เทียบกับชื่อผู้ซื้อบนหลักฐานการเงิน (ชื่อโครงการ โดย หัวหน้าโครงการ)
+      var uploadProjectName = projectSelect.options[projectSelect.selectedIndex].textContent;
+      var ruleCheckResult = await checkWithRuleEngine(fundSourceId, confirmedCategory, confirmedAmount, evidence, budget, summary,
+        confirmedDate || null, { name: uploadProjectName, ocrText: ocrTextCombined }, projectContract[projectId]);
 
       // 6) ถ้า verdictMode เป็น 'llm' (ค่าเริ่มต้น) ให้ LLM ตัดสิน pass/fail เองจากผล OCR + ระเบียบ แทน
       // ผลของ rule-engine ข้างบน (ซึ่งยังเก็บไว้ใน ruleCheck เพื่อเทียบ/ตรวจสอบย้อนหลังเสมอ) — เรียกไม่
@@ -470,7 +475,7 @@ var SAMPLE_VENDORS = [
         var ruleSetForLlm = await getRuleSet(fundSourceId);
         var estimate = await estimateWithSpent(projectId);
         llmResult = ruleSetForLlm
-          ? await window.LlmVerdict.evaluateWithLlm(ocrTextCombined, ruleSetForLlm, documentNames, { category: confirmedCategory, amount: confirmedAmount, estimate: estimate }, { config: window.AI_CONFIG })
+          ? await window.LlmVerdict.evaluateWithLlm(ocrTextCombined, ruleSetForLlm, documentNames, { category: confirmedCategory, amount: confirmedAmount, date: confirmedDate || null, projectName: uploadProjectName, contract: projectContract[projectId], estimate: estimate }, { config: window.AI_CONFIG })
           : { verdict: null, issues: [], rule_refs: [], recommendation: "", raw: null, model: null, promptVersion: window.LlmVerdict.PROMPT_VERSION, durationMs: 0, error: "ไม่พบแหล่งทุนของโครงการนี้" };
       }
       var decided = window.ReceiptPipeline.decideVerdict(VERDICT_MODE, ruleCheckResult, llmResult, window.RuleEngine.STATUS);

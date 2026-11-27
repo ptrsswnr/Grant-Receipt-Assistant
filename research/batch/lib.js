@@ -22,7 +22,7 @@ function extensionOf(fileName) {
 }
 
 // โหลดเคสทั้งหมดจากโฟลเดอร์ (แต่ละเคสเป็นโฟลเดอร์ย่อยที่มี meta.json — ดู research/batch/README.md)
-// meta.json: { fundSourceId, category, amount, financeVerdict?, note?,
+// meta.json: { fundSourceId, category, amount, date? (ISO), projectName?, contractStart?, contractEnd? (ISO), financeVerdict?, note?,
 //              files: [ { fileName, path? (ไฟล์จริงในโฟลเดอร์เคส ให้ OCR อ่าน) |
 //                                    ocrText? (ข้อความ OCR ที่เตรียมไว้แล้ว ข้ามการเรียก OCR จริง) } ] }
 function loadCases(casesDir) {
@@ -60,6 +60,13 @@ async function ocrOneFile(fileDef, caseDir, OcrClient) {
 // ใช้ RuleEngine.budgetFromEstimate ตัวเดียวกับเว็บ (รวมยอดของหมวดไว้ตรวจการถัวเฉลี่ยด้วย)
 function budgetForRuleEngine(estimate, category) {
   return RuleEngine.budgetFromEstimate(category, estimate);
+}
+
+// ระยะเวลาสัญญาจาก meta.json (contractStart/contractEnd แบบ ISO, contractExtensions?: [{ endDate }]) — ไม่มีทั้งคู่ = ไม่ตรวจข้อนี้
+// ใช้ RuleEngine.contractOf เดียวกับแอป (ยึดวันขยายเวลาล่าสุด)
+function contractOf(caseDef) {
+  if (!caseDef.contractStart && !caseDef.contractEnd) return undefined;
+  return RuleEngine.contractOf({ contractStartDate: caseDef.contractStart, contractEndDate: caseDef.contractEnd, contractExtensions: caseDef.contractExtensions });
 }
 
 function hasRealFiles(cases) {
@@ -109,13 +116,14 @@ async function runCase(caseDef, ruleSet, documentNames, documentTypesById, deps,
   const evidence = ReceiptPipeline.buildEvidence(ocrByFile, classification, DocumentClassifier);
 
   const estimate = caseDef.estimate || null;
-  const ruleCheckResult = RuleEngine.evaluate({ category: caseDef.category, amount: caseDef.amount, evidence: evidence, budget: budgetForRuleEngine(estimate, caseDef.category) }, ruleSet, documentNames);
+  const project = caseDef.projectName ? { name: caseDef.projectName, ocrText: ocrTextCombined } : undefined;
+  const ruleCheckResult = RuleEngine.evaluate({ category: caseDef.category, amount: caseDef.amount, date: caseDef.date || null, evidence: evidence, budget: budgetForRuleEngine(estimate, caseDef.category), project: project, contract: contractOf(caseDef) }, ruleSet, documentNames);
   ruleCheckResult.aiExplanation = ruleCheckResult.explanation;
 
   let llmResult = null;
   if (verdictMode === "llm") {
     llmResult = await LlmVerdict.evaluateWithLlm(
-      ocrTextCombined, ruleSet, documentNames, { category: caseDef.category, amount: caseDef.amount, estimate: estimate },
+      ocrTextCombined, ruleSet, documentNames, { category: caseDef.category, amount: caseDef.amount, date: caseDef.date || null, projectName: caseDef.projectName || null, contract: contractOf(caseDef) || null, estimate: estimate },
       { aiClient: deps.AiClient, config: opts.aiConfig }
     );
   }
@@ -147,7 +155,7 @@ async function runCase(caseDef, ruleSet, documentNames, documentTypesById, deps,
 
 const CSV_COLUMNS = [
   "id", "category", "amount", "financeVerdict", "predictedStatus", "ruleCheck.status", "ruleCheck.reasonCode",
-  "llmVerdict.verdict", "llmVerdict.budget_check.result", "llmVerdict.cap_check.result", "llmVerdict.documents_check.result", "llmVerdict.attestations_check.result", "llmVerdict.verdict_reported", "llmModel", "promptVersion", "ruleSetVersion", "engineVersion", "durationMs", "ocrErrors", "llmVerdict.error",
+  "llmVerdict.verdict", "llmVerdict.budget_check.result", "llmVerdict.cap_check.result", "llmVerdict.documents_check.result", "llmVerdict.attestations_check.result", "llmVerdict.project_check.result", "llmVerdict.period_check.result", "llmVerdict.verdict_reported", "llmModel", "promptVersion", "ruleSetVersion", "engineVersion", "durationMs", "ocrErrors", "llmVerdict.error",
 ];
 
 function get(obj, dottedPath) {
@@ -165,4 +173,4 @@ function resultsToCsv(results) {
   return lines.join("\n");
 }
 
-module.exports = { ROOT, loadCases, ocrOneFile, runCase, resultsToCsv, extensionOf, CSV_COLUMNS, budgetForRuleEngine, hasRealFiles, computeBinaryMetrics };
+module.exports = { ROOT, loadCases, ocrOneFile, runCase, resultsToCsv, extensionOf, CSV_COLUMNS, budgetForRuleEngine, hasRealFiles, computeBinaryMetrics, contractOf };

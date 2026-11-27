@@ -2,7 +2,7 @@
 // research/batch/bundle-lib.js — batch runner แบบ "ไฟล์สแกนทั้งโครงการ" (Stage C) ส่วนที่ทดสอบได้
 // ใช้ app/js/document-pipeline.js ตัวเดียวกับหน้า app/batch-import.html ทุกขั้น ไม่มีตรรกะคู่ขนาน
 // meta.json ของเคส (1 เคส = 1 โครงการ):
-//   { fundSourceId, estimate: [...เหมือน run-batch...],
+//   { fundSourceId, projectName?, contractStart?, contractEnd?, estimate: [...เหมือน run-batch...],
 //     files: [ { fileName, path } | { fileName, pages: [{ page, text }] } ],    ← pages = OCR เตรียมไว้แล้ว
 //     expectedItems?: [ { fileName, paymentPage, financeVerdict, note? } ] }   ← ผลของการเงินต่อรายการ
 // รายการที่ระบบสร้างจับคู่กับ expectedItems ด้วย (ไฟล์, หน้าแรกของเอกสารจ่ายเงิน)
@@ -17,7 +17,7 @@ const ReceiptPipeline = require(path.join(ROOT, "app/js/receipt-pipeline.js"));
 const LlmVerdict = require(path.join(ROOT, "app/js/llm-verdict.js"));
 const DocumentPipeline = require(path.join(ROOT, "app/js/document-pipeline.js"));
 const evalLib = require("../eval/lib.js");
-const { extensionOf } = require("./lib.js");
+const { extensionOf, contractOf } = require("./lib.js");
 
 const MIME_BY_EXT = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", pdf: "application/pdf" };
 
@@ -61,7 +61,7 @@ async function runBundleFile(fileDef, caseDir, ctx, deps) {
   for (const group of grouping.groups) {
     const result = await DocumentPipeline.evaluateGroup(group, documents, {
       ruleSet: ctx.ruleSet, documentNames: ctx.documentNames, documentTypesById: ctx.documentTypesById,
-      estimate: ctx.estimate, verdictMode: ctx.verdictMode,
+      estimate: ctx.estimate, verdictMode: ctx.verdictMode, projectName: ctx.projectName || null, contract: ctx.contract || null,
     }, pipelineDeps);
     const line = ctx.estimate.find((l) => l.id === result.budgetLineId);
     if (line && typeof result.amount === "number") line.spentBefore = (line.spentBefore || 0) + result.amount;
@@ -87,7 +87,7 @@ async function runBundleCase(caseDef, ctx, deps) {
   const estimate = JSON.parse(JSON.stringify(caseDef.estimate || []));
   const files = [];
   for (const fileDef of caseDef.files || []) {
-    files.push(await runBundleFile(fileDef, caseDef.dir, Object.assign({}, ctx, { estimate }), deps));
+    files.push(await runBundleFile(fileDef, caseDef.dir, Object.assign({}, ctx, { estimate, projectName: caseDef.projectName || null, contract: contractOf(caseDef) }), deps));
   }
   const expected = (caseDef.expectedItems || []).map((e) => Object.assign({}, e, { expected: evalLib.normalizeLabel(e.financeVerdict) }));
   const pairs = [];

@@ -451,3 +451,90 @@ test("travel (averaging: false) must stay within its own line even inside an ave
   assert.equal(RuleEngine.groupAllowsAveraging("หมวดค่าใช้สอย"), true);
   assert.equal(RuleEngine.groupAllowsAveraging("5.หมวดครุภัณฑ์ (ถ้ามี)"), false);
 });
+
+test("inspection photos are required only for receipts dated from 22 Apr 2569 (2026-04-22)", () => {
+  const ids = (date) => RuleEngine.requiredEvidence("ค่าวัสดุสำนักงาน", { amount: 1000, date }, ruleSet2570).steps.map((s) => s.documentTypeIds[0]);
+  assert.ok(!ids("2026-04-21").includes("inspection-photos"));
+  assert.ok(ids("2026-04-22").includes("inspection-photos"));
+  assert.ok(ids("2026-11-01").includes("inspection-photos"));
+  // อ่านวันที่ไม่ได้ → ถือว่าต้องแนบ และบอกเหตุผลไว้
+  const unknown = RuleEngine.requiredEvidence("ค่าวัสดุสำนักงาน", { amount: 1000, date: null }, ruleSet2570).steps.find((s) => s.documentTypeIds[0] === "inspection-photos");
+  assert.match(unknown.note, /อ่านวันที่ในใบเสร็จไม่ได้/);
+  // ครุภัณฑ์ใช้เงื่อนไขเดียวกัน และลำดับเอกสารเดิมยังคงอยู่
+  const equip = (date) => RuleEngine.requiredEvidence("ค่าครุภัณฑ์", { amount: 1000, date }, ruleSet2570).steps.map((s) => s.documentTypeIds[0]);
+  assert.equal(equip("2026-01-10").join(","), "committee-pre-approval,tax-invoice-full");
+  assert.equal(equip("2026-05-10").join(","), "committee-pre-approval,tax-invoice-full,inspection-photos");
+  assert.equal(RuleEngine.describeCondition({ field: "date", op: ">=", value: "2026-04-22" }), "ใบเสร็จลงวันที่ตั้งแต่ 22 เม.ย. 2569");
+});
+
+test("an old receipt without inspection photos is not flagged for missing photos", () => {
+  const evidence = { documentTypeIds: ["tax-invoice-full"], attestationIds: ["paid-stamp", "inspection-stamp"] };
+  const old = RuleEngine.evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 1000, date: "2025-12-01", evidence }, ruleSet2570, {});
+  assert.ok(!old.findings.some((f) => f.code === "MISSING_EVIDENCE"));
+  const recent = RuleEngine.evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 1000, date: "2026-06-01", evidence }, ruleSet2570, {});
+  assert.ok(recent.findings.some((f) => f.code === "MISSING_EVIDENCE" && f.documentTypeIds.includes("inspection-photos")));
+});
+
+test("project name on financial evidence must match the project (abbreviations allowed)", () => {
+  const ocr = "ใบเสร็จรับเงิน\nการประยุกต์ใช้ปัญญาประดิษฐ์และการวิเคราะห์ฯ โดย\nค่าธรรมเนียมจริยธรรมวิจัยในมนูษย์ มฟล.\n(โครงการวิจัย การประยุกต์ใช้ปัญญาประดิษฐ์และ\nชำระโดย เงินสด 0.00\nลงชื่อ............หัวหน้าโครงการ";
+  const base = { category: "ค่าวัสดุสำนักงาน", amount: 1000 };
+  const wrong = RuleEngine.evaluate(Object.assign({ project: { name: "โครงการทดสอบจริงๆ", ocrText: ocr } }, base), ruleSet2570, {});
+  const f = wrong.findings.find((x) => x.code === "PROJECT_NAME_MISMATCH");
+  assert.ok(f);
+  assert.equal(wrong.status, "ต้องแก้ไข");
+  assert.match(wrong.explanation, /ชื่อโครงการในเอกสาร/);
+  const right = RuleEngine.evaluate(Object.assign({ project: { name: "การประยุกต์ใช้ปัญญาประดิษฐ์และการวิเคราะห์การเคลื่อนไหวเพื่อทดสอบความสามารถ", ocrText: ocr } }, base), ruleSet2570, {});
+  assert.ok(right.findings.some((x) => x.code === "PROJECT_NAME_MATCHES"));
+  assert.ok(!right.findings.some((x) => x.code === "PROJECT_NAME_MISMATCH"));
+  // ไม่มีบรรทัดชื่อผู้ซื้อ/ชื่อโครงการเลย → ไม่มี finding ข้อนี้
+  const none = RuleEngine.evaluate(Object.assign({ project: { name: "โครงการทดสอบจริงๆ", ocrText: "ร้านค้า\nรวมเงิน 1,000\nชำระโดย เงินสด" } }, base), ruleSet2570, {});
+  assert.ok(!none.findings.some((x) => x.group === "project"));
+  assert.ok(RuleEngine.projectNameMatches("โครงการ AI เกษตร", "พัฒนาโมเดล AI เพื่อการเกษตร"));
+});
+
+test("receipt date must be within the contract period (engine 1.8.0)", () => {
+  const contract = { start: "2025-10-01", end: "2026-09-30" };
+  const base = { category: "ค่าวัสดุสำนักงาน", amount: 1000, contract };
+  const inside = RuleEngine.evaluate(Object.assign({ date: "2026-09-30" }, base), ruleSet2570, {});
+  assert.ok(inside.findings.some((f) => f.code === "WITHIN_CONTRACT_PERIOD"));
+  assert.notEqual(inside.status, "ไม่เข้าเงื่อนไข");
+
+  const after = RuleEngine.evaluate(Object.assign({ date: "2026-10-01" }, base), ruleSet2570, {});
+  assert.equal(after.status, "ไม่เข้าเงื่อนไข");
+  assert.equal(after.reasonCode, "OUTSIDE_CONTRACT_PERIOD");
+  assert.match(after.explanation, /นอกระยะเวลาสัญญา/);
+  assert.match(after.explanation, /1 ต\.ค\. 2568 – 30 ก\.ย\. 2569/);
+
+  // หมวดไม่อยู่ในระเบียบ (ตัดจบก่อน) ยังแจ้งเรื่องนอกสัญญาเป็นเหตุผลหลัก
+  const rejected = RuleEngine.evaluate({ category: "ค่าตอบแทนคณะผู้วิจัย", amount: 1000, date: "2024-01-01", contract }, ruleSet2570, {});
+  assert.equal(rejected.reasonCode, "OUTSIDE_CONTRACT_PERIOD");
+  assert.ok(rejected.findings.some((f) => f.code === "CATEGORY_NOT_IN_RULES"));
+
+  // ยังไม่ได้กรอกสัญญา / อ่านวันที่ไม่ได้ → ไม่เปลี่ยนผล แต่ไม่นับว่าตรวจครบ และบอกให้กรอก
+  const noContract = RuleEngine.evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 1000, date: "2026-01-01", contract: { start: null, end: null } }, ruleSet2570, {});
+  assert.equal(noContract.autoVerified, false);
+  assert.match(noContract.explanation, /ยังไม่ได้กรอกระยะเวลาสัญญา/);
+  const noDate = RuleEngine.evaluate(Object.assign({ date: null }, base), ruleSet2570, {});
+  assert.notEqual(noDate.status, "ไม่เข้าเงื่อนไข");
+  assert.match(noDate.explanation, /อ่านวันที่ในใบเสร็จไม่ได้/);
+  // ไม่ส่ง contract มาเลย → ไม่มี finding ข้อนี้
+  const none = RuleEngine.evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 1000, date: "2026-01-01" }, ruleSet2570, {});
+  assert.ok(!none.findings.some((f) => f.group === "period"));
+});
+
+test("contract extensions: the latest extension's end date is the contract end (engine 1.8.0)", () => {
+  const base = { contractStartDate: "2025-10-01", contractEndDate: "2026-09-30" };
+  assert.deepEqual(RuleEngine.contractOf(base), { start: "2025-10-01", end: "2026-09-30", originalEnd: "2026-09-30", extensionCount: 0 });
+  const extended = Object.assign({ contractExtensions: [{ endDate: "2027-03-31", note: "หนังสือที่ 1" }, { endDate: "2027-09-30" }] }, base);
+  const c = RuleEngine.contractOf(extended);
+  assert.equal(c.end, "2027-09-30");
+  assert.equal(c.extensionCount, 2);
+  assert.deepEqual(RuleEngine.contractOf({}), { start: null, end: null, originalEnd: null, extensionCount: 0 });
+
+  const r = RuleEngine.evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 1000, date: "2027-05-01", contract: c }, ruleSet2570, {});
+  assert.ok(r.findings.some((f) => f.code === "WITHIN_CONTRACT_PERIOD"));
+  assert.match(r.explanation, /รวมการขยายเวลาถึง 30 ก\.ย\. 2570/);
+  const late = RuleEngine.evaluate({ category: "ค่าวัสดุสำนักงาน", amount: 1000, date: "2027-10-01", contract: c }, ruleSet2570, {});
+  assert.equal(late.status, "ไม่เข้าเงื่อนไข");
+  assert.match(late.explanation, /ขยายเวลาแล้ว 2 ครั้ง จากเดิมสิ้นสุด 30 ก\.ย\. 2569/);
+});

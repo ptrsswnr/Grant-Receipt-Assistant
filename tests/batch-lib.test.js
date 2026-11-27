@@ -111,5 +111,5 @@ test("resultsToCsv produces a header plus one row per result with dotted-path fi
   const lines = csv.split("\n");
   assert.equal(lines.length, 2);
   assert.match(lines[0], /^id,category,amount.*,ocrErrors,llmVerdict\.error$/);
-  assert.match(lines[1], /^case001,ค่าวัสดุสำนักงาน,3200,ผ่าน,ผ่าน,ผ่าน,WITHIN_CAP,,,,,,,,,2570\.4,1\.5\.0,12,0,$/);
+  assert.match(lines[1], /^case001,ค่าวัสดุสำนักงาน,3200,ผ่าน,ผ่าน,ผ่าน,WITHIN_CAP,,,,,,,,,,,2570\.4,1\.5\.0,12,0,$/);
 });

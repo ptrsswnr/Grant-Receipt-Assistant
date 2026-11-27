@@ -76,7 +76,7 @@ window.RECEIPT_DATA = {
   ],
 
   ruleVersions: [
-    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.7", isActive: true, importedByUserId: "user001" },
+    { id: "ruleversion002", fundSourceId: "fundsource002", versionLabel: "2570.8", isActive: true, importedByUserId: "user001" },
   ],
 
   // rateType: "เพดานตามจริง" (เบิกตามจริงไม่เกิน rateAmount) | "เหมาจ่าย" (จ่ายคงที่ rateAmount ต่อ unit)
@@ -239,9 +239,9 @@ window.RECEIPT_DATA = {
       id: "chain-purchase", chainName: "ซื้อวัสดุ",
       steps: [
         { order: 1, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "tax-invoice-abbreviated", "voucher-vj1"], note: "ใบกำกับสินค้า/ใบส่งของ/ใบแจ้งหนี้อย่างเดียวใช้เบิกไม่ได้ (คู่มือฉบับปรับปรุง หน้า 40)" },
-        { order: 2, timing: "with", required: true, documentTypeIds: ["inspection-photos"] },
       ],
       conditionalSteps: [
+        { when: { field: "date", op: ">=", value: "2026-04-22" }, addStep: { order: 2, documentTypeIds: ["inspection-photos"], note: "รูปถ่ายคู่กับพัสดุที่ซื้อ บังคับเฉพาะใบเสร็จที่ลงวันที่ตั้งแต่ 22 เม.ย. 2569 ใบก่อนหน้านั้นไม่ต้องแนบ (เจ้าของโครงการ 2026-11-27)" } },
         { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม แทนหัวหน้าโครงการคนเดียว (ไม่เกินแสนไม่ต้องใช้ — ฝ่ายการเงินยืนยัน 2026-11-17)" } },
       ],
       attestations: [
@@ -271,9 +271,9 @@ window.RECEIPT_DATA = {
       steps: [
         { order: 1, timing: "before", required: true, documentTypeIds: ["committee-pre-approval"], note: "ต้องได้รับความเห็นชอบก่อนจัดซื้อทุกรายการ ไม่ว่าราคาเท่าใด และรายการนอกข้อเสนอโครงการต้องขออนุมัติเพิ่ม (คู่มือฉบับปรับปรุง หน้า 47–48)" },
         { order: 2, timing: "with", required: true, documentTypeIds: ["tax-invoice-full", "tax-invoice-abbreviated"] },
-        { order: 3, timing: "with", required: true, documentTypeIds: ["inspection-photos"] },
       ],
       conditionalSteps: [
+        { when: { field: "date", op: ">=", value: "2026-04-22" }, addStep: { order: 3, documentTypeIds: ["inspection-photos"], note: "รูปถ่ายคู่กับพัสดุที่ซื้อ บังคับเฉพาะใบเสร็จที่ลงวันที่ตั้งแต่ 22 เม.ย. 2569 ใบก่อนหน้านั้นไม่ต้องแนบ (เจ้าของโครงการ 2026-11-27)" } },
         { when: { field: "amount", op: ">", value: 100000 }, addStep: { documentTypeIds: ["procurement-committee-cert"], note: "ซื้อเกิน 100,000 บาท ต้องมีกรรมการตรวจรับพัสดุอย่างน้อย 3 คนลงนาม (ไม่เกินแสนไม่ต้องใช้ — ฝ่ายการเงินยืนยัน 2026-11-17)" } },
       ],
       attestations: [

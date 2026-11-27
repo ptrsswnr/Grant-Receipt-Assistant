@@ -45,3 +45,14 @@ test("pagesOf numbers PDF pages from the server, and treats an image result as o
   assert.match(p[1].text, /OCR ไม่มั่นใจ 50%/);
   assert.deepEqual(pagesOf({ lines: [{ text: "รูป", confidence: 0.99 }] }, 5).map((x) => x.page), [5]);
 });
+
+test("extractFields takes the grand total incl. VAT, not the pre-VAT subtotal printed below it (2026-11-27)", () => {
+  // ลำดับบรรทัดตามที่ OpenThai OCR อ่านใบกำกับภาษีจริง (ยอดรวมอยู่บน Sub total อยู่ล่าง)
+  const tax = lines(["ใบเสร็จรับเงิน/ใบกำกับภาษี", "รวมเงินทั้งสิ้น / WEร TOTAL", "5,575,00", "รวมมูลค่าสินค้า / SUB TOTAL", "5,210.28",
+    "รานงนหังสั้น / NET TOTAL", "5,575.00", "รามมลค่าสินคา / Sน8 TOTAL", "5,210.28", "ภาษีมูลค่าเพิ่ม 7% 364.72"]);
+  assert.equal(extractFields(tax).amount, 5575);
+  const other = lines(["ใบเสร็จรับเงิน/ ใบกำกับภาษี", "รวมเงินทั้งสิ้น", "5,080.00", "รวมมูลก่าปิแก้า", "4,747.66"]);
+  assert.equal(extractFields(other).amount, 5080);
+  // ไม่มีคำว่ายอดรวมทั้งสิ้น: ข้ามบรรทัด Sub total / VAT
+  assert.equal(extractFields(lines(["Total 1,070.00", "Sub total 1,000.00", "VAT 70.00"])).amount, 1070);
+});

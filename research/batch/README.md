@@ -44,6 +44,10 @@ accuracy, kappa, missed (มีปัญหาจริงแต่ปล่อ�
   "fundSourceId": "fundsource002",
   "category": "ค่าวัสดุสำนักงาน",
   "amount": 3200,
+  "date": "2026-05-10",
+  "projectName": "ชื่อโครงการตามที่ลงทะเบียน",
+  "contractStart": "2025-10-01",
+  "contractEnd": "2026-09-30",
   "financeVerdict": "ผ่าน",
   "note": "หมายเหตุอิสระ ใช้วิเคราะห์เคสที่ไม่ตรงกัน",
   "estimate": [

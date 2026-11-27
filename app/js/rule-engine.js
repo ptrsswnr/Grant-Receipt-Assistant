@@ -11,7 +11,7 @@
   else root.RuleEngine = api;
 })(typeof self !== "undefined" ? self : this, function () {
   // เพิ่มเลขนี้ทุกครั้งที่ตรรกะการตัดสินเปลี่ยน — บันทึกลงใบเสร็จทุกใบ เพื่อให้รู้ว่าผลแต่ละใบมาจากตรรกะชุดไหน
-  var ENGINE_VERSION = "1.6.0";
+  var ENGINE_VERSION = "1.8.0";
 
   var STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", APPROVAL: "ต้องชี้แจง/ขออนุมัติ", REJECT: "ไม่เข้าเงื่อนไข" };
 
@@ -38,6 +38,11 @@
     WITHIN_RATE_ALLOWANCE: "WITHIN_RATE_ALLOWANCE",
     PER_PROPOSAL_VIA_ESTIMATE: "PER_PROPOSAL_VIA_ESTIMATE",
     FUND_SOURCE_INACTIVE: "FUND_SOURCE_INACTIVE",
+    PROJECT_NAME_MATCHES: "PROJECT_NAME_MATCHES",
+    PROJECT_NAME_MISMATCH: "PROJECT_NAME_MISMATCH",
+    WITHIN_CONTRACT_PERIOD: "WITHIN_CONTRACT_PERIOD",
+    OUTSIDE_CONTRACT_PERIOD: "OUTSIDE_CONTRACT_PERIOD",
+    CONTRACT_PERIOD_NOT_CHECKED: "CONTRACT_PERIOD_NOT_CHECKED",
   };
 
   var CAPPED_RATE_TYPES = ["เพดานตามจริง", "เหมาจ่าย"];
@@ -85,10 +90,48 @@
     "<=": function (a, b) { return a <= b; },
   };
 
+  var THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+  function thaiDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ""));
+    return m ? parseInt(m[3], 10) + " " + THAI_MONTHS[parseInt(m[2], 10) - 1] + " " + (parseInt(m[1], 10) + 543) : String(iso);
+  }
+  function isoDate(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ""));
+    return m ? m[0] : null;
+  }
+
+  // เงื่อนไขของ conditionalSteps: field "amount" (ยอดใบเสร็จ) หรือ "date" (วันที่ในใบเสร็จ, ISO YYYY-MM-DD)
+  // คืน { applies, assumed } — อ่านวันที่ไม่ได้ ถือว่าเข้าเงื่อนไข (assumed: true) เพื่อไม่ให้เอกสารที่อาจต้องมีหลุดไป
+  // ยอดอ่านไม่ได้ ไม่เข้าเงื่อนไข (เหมือนเดิม — ยอดที่ไม่ถูกต้องเป็น INVALID_AMOUNT อยู่แล้ว)
+  function conditionApplies(when, facts) {
+    var op = CONDITION_OPS[when && when.op];
+    if (!op) return { applies: false, assumed: false };
+    if (when.field === "date") {
+      var d = isoDate(facts.date);
+      if (!d) return { applies: true, assumed: true };
+      return { applies: op(d, String(when.value)), assumed: false };
+    }
+    var value = when.field === "amount" ? facts.amount : undefined;
+    return { applies: typeof value === "number" && op(value, when.value), assumed: false };
+  }
+
+  // ข้อความภาษาไทยของเงื่อนไข เช่น "ยอดเกิน ฿100,000.00", "ใบเสร็จลงวันที่ตั้งแต่ 22 เม.ย. 2569"
+  function describeCondition(when) {
+    if (!when) return "";
+    if (when.field === "date") {
+      var word = { ">=": "ตั้งแต่", ">": "หลัง", "<": "ก่อน", "<=": "ไม่หลัง" }[when.op] || when.op;
+      return "ใบเสร็จลงวันที่" + word + " " + thaiDate(when.value);
+    }
+    var aw = { ">": "เกิน", ">=": "ตั้งแต่", "<": "ต่ำกว่า", "<=": "ไม่เกิน" }[when.op] || when.op;
+    return "ยอด" + aw + " " + formatCurrency(when.value);
+  }
+
   // ชุดเอกสารที่หมวดนี้ต้องมี (รวม conditionalSteps ที่เข้าเงื่อนไขของใบเสร็จนี้แล้ว) — ใช้ทั้งตอนตรวจ
   // และตอนสร้าง checklist ในหน้าจอ เพื่อให้สองที่ใช้ตรรกะชุดเดียวกัน
+  // facts: { amount, date } หรือตัวเลขยอดอย่างเดียว (แบบเดิม — ไม่มีวันที่ ถือว่าเข้าเงื่อนไขวันที่)
   // คืน null ถ้าหมวดนี้ไม่มีกฎหรือไม่ได้ผูกชุดเอกสารไว้
-  function requiredEvidence(category, amount, ruleSet) {
+  function requiredEvidence(category, facts, ruleSet) {
+    if (typeof facts !== "object" || facts === null) facts = { amount: facts };
     var item = findRuleItem(category, ruleSet);
     var chain = item && item.evidenceChainId && ruleSet.evidenceChains ? ruleSet.evidenceChains[item.evidenceChainId] : null;
     if (!chain) return null;
@@ -97,12 +140,14 @@
       return { order: s.order, timing: s.timing || "with", required: !!s.required, documentTypeIds: s.documentTypeIds || [], note: s.note || null };
     });
     (chain.conditionalSteps || []).forEach(function (cs, i) {
-      var op = CONDITION_OPS[cs.when && cs.when.op];
-      var value = cs.when && cs.when.field === "amount" ? amount : undefined;
-      if (op && typeof value === "number" && op(value, cs.when.value)) {
-        steps.push({ order: 100 + i, timing: "with", required: true, documentTypeIds: cs.addStep.documentTypeIds || [], note: cs.addStep.note || null, conditional: true });
+      var c = conditionApplies(cs.when, facts);
+      if (c.applies) {
+        var note = cs.addStep.note || null;
+        if (c.assumed) note = (note ? note + " " : "") + "(อ่านวันที่ในใบเสร็จไม่ได้ จึงถือว่าต้องแนบ)";
+        steps.push({ order: cs.addStep.order || 100 + i, timing: cs.addStep.timing || "with", required: true, documentTypeIds: cs.addStep.documentTypeIds || [], note: note, conditional: true });
       }
     });
+    steps.sort(function (a, b) { return a.order - b.order; });
 
     return {
       evidenceChainId: item.evidenceChainId,
@@ -134,7 +179,8 @@
 
   // ประมาณการก่อน แล้วจึงระเบียบ แล้วจึงเอกสาร (ลำดับเดียวกับที่เจ้าหน้าที่การเงินตรวจจริง) — ถ้ารุนแรงเท่ากัน
   // finding ของกลุ่มที่มาก่อนเป็นเหตุผลหลัก
-  var GROUP_ORDER = ["budget", "regulation", "summary", "evidence"];
+  // ระยะเวลาสัญญามาก่อนสุด — ใบเสร็จนอกสัญญาเบิกไม่ได้ ไม่ว่าเรื่องอื่นจะถูกหรือไม่ (engine 1.8.0)
+  var GROUP_ORDER = ["period", "budget", "regulation", "summary", "project", "evidence"];
 
   // ยอดที่นักวิจัยลงไว้ใน "สรุปรายรับ-จ่ายเงินโครงการ" (บันทึกรายรับ-จ่าย, คู่มือฉบับปรับปรุง หน้า 2–4)
   // ต้องตรงกับยอดในใบเสร็จ — การเงินเจอตัวเลขไม่ตรงกันบ่อย ไม่กรอก = ไม่ตรวจข้อนี้
@@ -151,6 +197,117 @@
       }];
     }
     return [{ group: "summary", status: STATUS.PASS, code: REASON.SUMMARY_MATCHES, message: "ยอดในใบสรุปรายรับ-จ่ายตรงกับใบเสร็จ" }];
+  }
+
+  // ─── ชื่อโครงการบนหลักฐานการเงิน (engine 1.7.0, เจ้าของโครงการ 2026-11-27) ───
+  // หลักฐานการเงินที่มีช่องชื่อผู้ซื้อต้องออกในนาม "ชื่อโครงการ โดย ชื่อหัวหน้าโครงการ" (ย่อชื่อโครงการได้)
+  // ระบบหาบรรทัดที่น่าจะเป็นชื่อผู้ซื้อ/ชื่อโครงการจากข้อความ OCR แล้วเทียบกับชื่อโครงการที่อัปโหลด
+  // ไม่ตรง → ต้องแก้ไข; หาบรรทัดแบบนี้ไม่เจอเลย (เช่น ใบเสร็จไม่มีช่องผู้ซื้อ) → ไม่มี finding ข้อนี้
+  // เทียบด้วยโครงพยัญชนะไทย + อักษรละติน/ตัวเลข (OCR มักทำสระ/วรรณยุกต์หาย) และวัดว่าคู่ตัวอักษร (bigram)
+  // ของชื่อในเอกสารอยู่ในชื่อโครงการกี่ส่วน — ชื่อย่อเป็นส่วนหนึ่งของชื่อเต็ม จึงยังนับว่าตรง
+  function nameSkeleton(text) {
+    return String(text || "").toLowerCase()
+      .replace(/^[\s(]*(ชื่อ)?\s*โครงการ(วิจัย)?(เรื่อง)?\s*[:：]?/, "")
+      .replace(/[^ก-ฮa-z0-9]/g, "");
+  }
+  function bigrams(text) {
+    var out = [];
+    for (var i = 0; i + 1 < text.length; i++) out.push(text.slice(i, i + 2));
+    return out;
+  }
+  function containment(part, whole) {
+    var bs = bigrams(part);
+    if (!bs.length) return 0;
+    return bs.filter(function (b) { return whole.indexOf(b) !== -1; }).length / bs.length;
+  }
+  function projectNameMatches(candidate, projectName) {
+    var c = nameSkeleton(candidate), p = nameSkeleton(projectName);
+    if (!c || !p) return true;
+    return containment(c, p) >= 0.6 || containment(p, c) >= 0.8;
+  }
+  var NOT_BUYER_BEFORE_BY = /(ชำระ|จ่าย|โอน|ส่ง|ลงชื่อ|ลงนาม|อนุมัติ|รับรอง|ออก|จัดทำ)\s*$/;
+  // บรรทัดที่น่าจะเป็นชื่อโครงการ/ชื่อผู้ซื้อ: ขึ้นต้นด้วย "โครงการ..." หรือ "(โครงการ..." หรือมี "ชื่อโครงการ",
+  // หรือรูป "<ชื่อ> โดย <ชื่อคน>" — ตัดบรรทัดลายเซ็น (หัวหน้าโครงการ) และ "ชำระโดย/โอนโดย" ทิ้ง
+  function projectNameCandidates(ocrText) {
+    var out = [];
+    String(ocrText || "").split(/\r?\n/).forEach(function (raw) {
+      var line = raw.replace(/\(OCR ไม่มั่นใจ[^)]*\)/g, "").trim();
+      if (!line) return;
+      if (/^[\s(]*(ชื่อ)?\s*โครงการ/.test(line) || /ชื่อโครงการ/.test(line)) {
+        var text = line.slice(line.indexOf("โครงการ")).split(/\sโดย(\s|$)/)[0];
+        if (nameSkeleton(text).length >= 6) out.push({ quote: line, name: text });
+        return;
+      }
+      var by = /^(.*\S)\s+โดย(\s|$)/.exec(line);
+      if (by && !NOT_BUYER_BEFORE_BY.test(by[1]) && nameSkeleton(by[1]).length >= 6) out.push({ quote: line, name: by[1] });
+    });
+    return out;
+  }
+  // ─── วันที่ในใบเสร็จต้องอยู่ในระยะเวลาสัญญา (engine 1.8.0, เจ้าของโครงการ 2026-11-27) ───
+  // receipt.contract: { start, end } (ISO YYYY-MM-DD จากเอกสารโครงการ) — ไม่ส่งมา = ไม่ตรวจข้อนี้
+  // อยู่นอกสัญญา → ไม่เข้าเงื่อนไข (เบิกไม่ได้ แก้ด้วยการแนบเอกสารเพิ่มไม่ได้)
+  // ยังไม่ได้กรอกระยะเวลาสัญญา หรืออ่านวันที่ในใบเสร็จไม่ได้ → แจ้งว่ายังตรวจไม่ได้ (ไม่เปลี่ยนผล แต่ไม่นับว่าตรวจครบ)
+  function contractPeriodText(contract) {
+    var text = thaiDate(contract.start) + " – " + thaiDate(contract.end);
+    if (contract.extensionCount) {
+      text += " ขยายเวลาแล้ว " + contract.extensionCount + " ครั้ง จากเดิมสิ้นสุด " + thaiDate(contract.originalEnd);
+    }
+    return text;
+  }
+
+  // ระยะเวลาสัญญาที่ใช้ตรวจจากเอกสารโครงการ — โครงการขอขยายระยะเวลาได้ (contractExtensions: [{ endDate, note, addedAt }])
+  // ยึดวันสิ้นสุดของการขยายครั้งล่าสุด (เจ้าของโครงการ 2026-11-27) ไม่มีการขยาย = contractEndDate เดิม
+  // คืน { start, end, originalEnd, extensionCount } — ใช้ร่วมกันทุกหน้าที่ตรวจใบเสร็จ
+  function contractOf(project) {
+    project = project || {};
+    var extensions = (project.contractExtensions || []).filter(function (x) { return x && isoDate(x.endDate); });
+    var latest = extensions.length ? isoDate(extensions[extensions.length - 1].endDate) : null;
+    return {
+      start: project.contractStartDate || null,
+      end: latest || project.contractEndDate || null,
+      originalEnd: project.contractEndDate || null,
+      extensionCount: extensions.length,
+    };
+  }
+  function checkContractPeriod(receipt) {
+    var contract = receipt.contract;
+    if (!contract) return [];
+    var start = isoDate(contract.start), end = isoDate(contract.end);
+    if (!start || !end) {
+      return [{ group: "period", status: STATUS.PASS, code: REASON.CONTRACT_PERIOD_NOT_CHECKED, unverified: true,
+        message: "วันที่ในใบเสร็จต้องอยู่ในระยะเวลาสัญญา แต่โครงการนี้ยังไม่ได้กรอกระยะเวลาสัญญา กรุณากรอกที่ปุ่ม \"แก้ไข\" ในหน้าโครงการของฉัน" }];
+    }
+    var date = isoDate(receipt.date);
+    if (!date) {
+      return [{ group: "period", status: STATUS.PASS, code: REASON.CONTRACT_PERIOD_NOT_CHECKED, unverified: true,
+        message: "อ่านวันที่ในใบเสร็จไม่ได้ จึงยังตรวจไม่ได้ว่าอยู่ในระยะเวลาสัญญา (" + contractPeriodText({ start: start, end: end }) + ") หรือไม่" }];
+    }
+    var period = { start: start, end: end, originalEnd: contract.originalEnd, extensionCount: contract.extensionCount || 0 };
+    if (date < start || date > end) {
+      return [{ group: "period", status: STATUS.REJECT, code: REASON.OUTSIDE_CONTRACT_PERIOD,
+        message: "ใบเสร็จลงวันที่ " + thaiDate(date) + " อยู่นอกระยะเวลาสัญญาของโครงการ (" + contractPeriodText(period) +
+          ") — เบิกได้เฉพาะค่าใช้จ่ายที่เกิดในระยะเวลาสัญญา (ถ้าโครงการได้รับอนุมัติขยายเวลาแล้ว ให้เพิ่มข้อมูลการขยายที่หน้าโครงการของฉัน) กรุณาตรวจว่าวันที่ในใบเสร็จและระยะเวลาสัญญาถูกต้อง" }];
+    }
+    return [{ group: "period", status: STATUS.PASS, code: REASON.WITHIN_CONTRACT_PERIOD,
+      message: "ใบเสร็จลงวันที่ " + thaiDate(date) + " อยู่ในระยะเวลาสัญญา" + (period.extensionCount ? " (รวมการขยายเวลาถึง " + thaiDate(end) + ")" : "") }];
+  }
+
+  // receipt.project: { name, ocrText } — ไม่ส่งมา/ไม่มีชื่อ = ไม่ตรวจข้อนี้
+  function checkProjectName(receipt) {
+    var project = receipt.project;
+    if (!project || !project.name || !project.ocrText) return [];
+    var candidates = projectNameCandidates(project.ocrText);
+    if (!candidates.length) return [];
+    var bad = candidates.filter(function (c) { return !projectNameMatches(c.name, project.name); });
+    if (bad.length) {
+      return [{
+        group: "project", status: STATUS.FIX, code: REASON.PROJECT_NAME_MISMATCH,
+        message: "ชื่อโครงการในเอกสาร (\"" + bad[0].quote + "\") ไม่ตรงกับโครงการ \"" + project.name + "\" — หลักฐานการเงินต้องออกในนาม " +
+          "\"ชื่อโครงการ โดย ชื่อหัวหน้าโครงการ\" (ย่อชื่อโครงการได้) กรุณาตรวจว่าอัปโหลดเข้าโครงการถูกต้อง หรือขอให้ผู้ขายแก้ชื่อผู้ซื้อ",
+        quote: bad[0].quote,
+      }];
+    }
+    return [{ group: "project", status: STATUS.PASS, code: REASON.PROJECT_NAME_MATCHES, message: "ชื่อโครงการในเอกสารตรงกับโครงการ", quote: candidates[0].quote }];
   }
 
   // ถัวเฉลี่ยภายในหมวด (เจ้าของโครงการ/การเงิน 2026-11-25): หมวดค่าใช้สอย ค่าวัสดุ และหมวดอื่น ใช้เงินถัวกัน
@@ -257,7 +414,7 @@
   }
 
   function checkEvidenceFindings(receipt, ruleSet, documentNames) {
-    var required = requiredEvidence(receipt.category, receipt.amount, ruleSet);
+    var required = requiredEvidence(receipt.category, { amount: receipt.amount, date: receipt.date }, ruleSet);
     if (!required) return { findings: [], required: null };
     if (!receipt.evidence) {
       return { required: required, findings: [{ group: "evidence", status: STATUS.PASS, code: REASON.EVIDENCE_NOT_CHECKED, message: "ยังไม่ได้ตรวจความครบของเอกสารแนบ", unverified: true }] };
@@ -292,7 +449,9 @@
   }
 
   // receipt: {
-  //   category, amount,
+  //   category, amount, date?  — date (ISO) ใช้กับเงื่อนไขชุดเอกสารที่ขึ้นกับวันที่ (เช่น รูปถ่ายพัสดุตั้งแต่ 22 เม.ย. 2569)
+  //   project?: { name, ocrText }  — เทียบชื่อโครงการบนหลักฐานการเงิน (checkProjectName)
+  //   contract?: { start, end }  — ระยะเวลาสัญญา (ISO) วันที่ในใบเสร็จต้องอยู่ในช่วงนี้ (checkContractPeriod)
   //   evidence?: { documentTypeIds, attestationIds }   — ไม่ส่งมา = ยังไม่ได้ตรวจเอกสารแนบ
   //   budget?: { line: { id, itemName, total } | null, spentBefore, group?: { name, total, spentBefore } }
   //     — สร้างจากประมาณการด้วย budgetFromEstimate(); group ใช้ตรวจการถัวเฉลี่ยภายในหมวด
@@ -322,12 +481,19 @@
     var line = hasBudget ? receipt.budget.line : null;
     var result = evaluateAmount(receipt, ruleSet, { hasEstimate: hasBudget, line: line, spentBefore: hasBudget ? receipt.budget.spentBefore || 0 : 0 });
     var regulationFinding = { group: "regulation", status: result.status, code: result.reasonCode, message: result.explanation };
+    var periodFindings = checkContractPeriod(receipt);
+    var outside = periodFindings.filter(function (f) { return f.status === STATUS.REJECT; })[0];
     if (result.status === STATUS.REJECT || result.reasonCode === REASON.INVALID_AMOUNT) {
-      result.findings = [regulationFinding];
+      result.findings = (outside ? [outside] : []).concat([regulationFinding]);
+      if (outside) {
+        result.status = STATUS.REJECT;
+        result.reasonCode = outside.code;
+        result.explanation = outside.message + " — " + result.explanation;
+      }
       return result;
     }
 
-    var findings = [];
+    var findings = periodFindings.slice();
     if (hasBudget) findings = findings.concat(checkBudget(receipt, ruleSet));
     else {
       result.autoVerified = false;
@@ -335,6 +501,7 @@
     }
     findings.push(regulationFinding);
     findings = findings.concat(checkSummary(receipt));
+    findings = findings.concat(checkProjectName(receipt));
     var evidence = checkEvidenceFindings(receipt, ruleSet, documentNames);
     findings = findings.concat(evidence.findings);
     if (findings.some(function (f) { return f.unverified; })) result.autoVerified = false;
@@ -480,6 +647,12 @@
     REASON: REASON,
     normalizeRuleItem: normalizeRuleItem,
     requiredEvidence: requiredEvidence,
+    conditionApplies: conditionApplies,
+    describeCondition: describeCondition,
+    projectNameCandidates: projectNameCandidates,
+    projectNameMatches: projectNameMatches,
+    thaiDate: thaiDate,
+    contractOf: contractOf,
     evaluate: evaluate,
     groupAllowsAveraging: groupAllowsAveraging,
     budgetFromEstimate: budgetFromEstimate,

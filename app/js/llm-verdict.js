@@ -12,7 +12,7 @@
   else root.LlmVerdict = api;
 })(typeof self !== "undefined" ? self : this, function (root) {
   // เพิ่มเลขนี้ทุกครั้งที่แก้ข้อความ prompt — บันทึกไว้กับทุกผลตรวจ เพื่อย้อนดูว่าผลแต่ละใบมาจาก prompt เวอร์ชันไหน
-  var PROMPT_VERSION = "1.5.5";
+  var PROMPT_VERSION = "1.7.0";
 
   function ruleEngine() {
     if (root && root.RuleEngine) return root.RuleEngine;
@@ -30,6 +30,23 @@
     ">": function (a, b) { return a > b; }, ">=": function (a, b) { return a >= b; },
     "<": function (a, b) { return a < b; }, "<=": function (a, b) { return a <= b; },
   };
+
+  // เงื่อนไขของ conditionalSteps (ยอดเงิน หรือวันที่ในใบเสร็จ) — ใช้ตรรกะเดียวกับ rule engine ถ้าโหลดได้
+  function conditionFor(when, receipt) {
+    var RE = ruleEngine();
+    if (RE && RE.conditionApplies) return RE.conditionApplies(when, { amount: receipt.amount, date: receipt.date });
+    var op = CONDITION_OPS[when && when.op];
+    return { applies: !!(op && typeof receipt.amount === "number" && when.field === "amount" && op(receipt.amount, when.value)), assumed: false };
+  }
+  function conditionText(when) {
+    var RE = ruleEngine();
+    if (RE && RE.describeCondition) return RE.describeCondition(when);
+    return "ยอด " + (when && when.op) + " " + money(when && when.value);
+  }
+  function receiptFactText(when, receipt) {
+    if (when && when.field === "date") return receipt.date ? "ใบนี้ลงวันที่ " + receipt.date : "อ่านวันที่ในใบนี้ไม่ได้";
+    return "ใบนี้ยอด " + money(receipt.amount);
+  }
 
   function docList(ids, documentNames) {
     return (ids || []).map(function (did) { return documentNames[did] || did; }).join(" หรือ ");
@@ -52,15 +69,17 @@
     required.forEach(function (s, i) {
       lines.push("  " + (i + 1) + ") " + docList(s.documentTypeIds, documentNames) + (s.timing === "before" ? " (ต้องได้ก่อนดำเนินการ)" : ""));
     });
+    var n = required.length;
     (c.conditionalSteps || []).forEach(function (cs) {
-      var op = CONDITION_OPS[cs.when && cs.when.op];
-      var applies = !!(op && typeof receipt.amount === "number" && cs.when.field === "amount" && op(receipt.amount, cs.when.value));
+      var cond = conditionFor(cs.when, receipt);
       var names = docList(cs.addStep && cs.addStep.documentTypeIds, documentNames);
-      if (applies) {
-        lines.push("  " + (required.length + 1) + ") " + names + " (บังคับเพราะยอด " + money(receipt.amount) + " " + cs.when.op + " " + money(cs.when.value) + ")");
+      if (cond.applies) {
+        n += 1;
+        lines.push("  " + n + ") " + names + " (บังคับเฉพาะ" + conditionText(cs.when) + " — " + receiptFactText(cs.when, receipt) +
+          (cond.assumed ? " จึงถือว่าต้องมี" : " จึงต้องมี") + ")");
       } else {
-        lines.push("ไม่ต้องใช้กับใบนี้ (ห้ามใส่ใน required/missing): " + names + " — ใช้เฉพาะยอด " + cs.when.op + " " + money(cs.when.value) +
-          " แต่ใบนี้ " + money(receipt.amount));
+        lines.push("ไม่ต้องใช้กับใบนี้ (ห้ามใส่ใน required/missing): " + names + " — ใช้เฉพาะ" + conditionText(cs.when) +
+          " แต่" + receiptFactText(cs.when, receipt));
       }
     });
     if (optional.length) {
@@ -76,7 +95,7 @@
     return lines.join("\n");
   }
 
-  // receipt (ไม่บังคับ): { category, amount } — ถ้าให้มา จะแสดงเฉพาะชุดเอกสารของหมวดนั้น (prompt 1.5.0)
+  // receipt (ไม่บังคับ): { category, amount, date } — ถ้าให้มา จะแสดงเฉพาะชุดเอกสารของหมวดนั้น (prompt 1.5.0)
   function rulesAsText(ruleSet, documentNames, receipt) {
     documentNames = documentNames || {};
     var lines = [];
@@ -102,7 +121,7 @@
           (s.documentTypeIds || []).map(function (did) { return documentNames[did] || did; }).join(" หรือ "));
       });
       (c.conditionalSteps || []).forEach(function (cs) {
-        lines.push("  - บังคับเมื่อยอดเกิน " + money(cs.when && cs.when.value) + ": " +
+        lines.push("  - บังคับเมื่อ" + conditionText(cs.when) + ": " +
           ((cs.addStep && cs.addStep.documentTypeIds) || []).map(function (did) { return documentNames[did] || did; }).join(" หรือ "));
       });
       (c.attestations || []).forEach(function (a) { lines.push("  - ต้องยืนยัน: " + a.text); });
@@ -152,11 +171,11 @@
     return lines.join("\n");
   }
 
-  // เช็กลิสต์ 4 ข้อ (prompt 1.4.0) — ให้ LLM ตรวจและกรอกผลทีละข้อก่อนตัดสิน เพราะ prompt 1.3.0 ที่มีแค่ขั้นตอน
+  // เช็กลิสต์ (prompt 1.4.0 มี 4 ข้อ; 1.6.0 เพิ่มข้อ 5 ชื่อโครงการ; 1.7.0 เพิ่มข้อ 6 ระยะเวลาสัญญา) — ให้ LLM ตรวจและกรอกผลทีละข้อก่อนตัดสิน เพราะ prompt 1.3.0 ที่มีแค่ขั้นตอน
   // ประมาณการ ทำให้โมเดล (ทั้ง gemini และ qwen3) ตรวจแค่ประมาณการแล้วตอบ pass ข้ามเรื่องเพดานและเอกสาร
   function checklistText() {
     return [
-      "ตรวจตามเช็กลิสต์ 4 ข้อด้านล่างให้ครบทุกข้อ กรอกผลของแต่ละข้อใน JSON ก่อน แล้วจึงตัดสิน verdict",
+      "ตรวจตามเช็กลิสต์ 6 ข้อด้านล่างให้ครบทุกข้อ กรอกผลของแต่ละข้อใน JSON ก่อน แล้วจึงตัดสิน verdict",
       "ข้อ 1 ประมาณการ (budget_check):",
       "  1) เลือกรายการในประมาณการที่ใบเสร็จนี้ตรงที่สุด ถ้าไม่ตรงรายการใดเลย result = \"not_in_estimate\"",
       "  2) ใช้ตัวเลข \"ถ้าใบนี้อยู่ในรายการนี้\" ของรายการนั้นตามที่ให้ไว้ด้านบน ห้ามคำนวณเอง",
@@ -182,29 +201,54 @@
       "  สำหรับตราประทับ: แต่ละตรามี \"คำหลัก\" กำกับไว้ในรายการตราด้านบน quote ต้องมีคำหลักอย่างน้อยหนึ่งคำของตรานั้น (คำอื่นในบรรทัดเดียวกันจะเพี้ยนหรือขาดไปก็ได้)",
       "  ตรวจซ้ำก่อนใส่ใน found: ทุกพยางค์ของคำหลักที่ใช้ต้องอยู่ใน quote (สะกดเพี้ยนได้) เช่น \"จ่ายแล้ว\" ต้องมีทั้ง \"จ่าย\" (หรือ \"จาย\") และ \"แล้ว\" (หรือ \"แลว\")",
       "  บรรทัดที่มีแค่บางพยางค์หรือคำทั่วไปที่คล้าย เช่น \"เรียบร้อยแล้ว\" หรือ \"ชำระเงิน\" ไม่นับว่าพบตรานั้น ให้ใส่ใน missing",
-      "ตัดสิน: verdict = \"pass\" ก็ต่อเมื่อ ข้อ 1 เป็น within หรือ averaged, ข้อ 2 เป็น within หรือ not_applicable, ข้อ 3 และข้อ 4 เป็น complete",
+      "ข้อ 5 ชื่อโครงการบนหลักฐานการเงิน (project_check):",
+      "  - หลักฐานการเงินที่มีช่องชื่อผู้ซื้อ/ลูกค้า ต้องออกในนาม \"ชื่อโครงการ โดย ชื่อหัวหน้าโครงการ\" ใช้ชื่อโครงการแบบย่อได้",
+      "  - หาบรรทัด OCR ที่เป็นชื่อผู้ซื้อหรือชื่อโครงการบนเอกสาร ใส่ใน quote (คัดลอกมาตรงๆ) แล้วเทียบกับ \"ชื่อโครงการ\" ด้านบน",
+      "  - เป็นโครงการเดียวกัน (ชื่อเต็ม ชื่อย่อ หรือส่วนหนึ่งของชื่อ) → \"match\"; เป็นชื่อโครงการอื่น → \"mismatch\"",
+      "  - ชื่อย่อต้องประกอบด้วยคำที่อยู่ในชื่อโครงการด้านบน ถ้าคำในเอกสารแทบไม่มีอยู่ในชื่อโครงการด้านบนเลย → \"mismatch\" (ห้ามเดาว่าเป็นโครงการเดียวกันเพราะเป็นงานวิจัยเหมือนกัน)",
+      "  - ไม่มีบรรทัดชื่อผู้ซื้อ/ชื่อโครงการในเอกสารเลย → \"not_found\" (ไม่ถือว่าผิด)",
+      "ข้อ 6 ระยะเวลาสัญญา (period_check):",
+      "  - วันที่ในใบเสร็จต้องอยู่ในระยะเวลาสัญญาของโครงการด้านบน (นับวันเริ่มและวันสิ้นสุดด้วย)",
+      "  - receipt_date = วันที่ในใบเสร็จแบบ ค.ศ. YYYY-MM-DD (ใช้ \"วันที่ในใบเสร็จ\" ด้านบน ถ้าอ่านไม่ได้ให้หาจากข้อความ OCR; ปี พ.ศ. ให้ลบ 543)",
+      "  - อยู่ในช่วง → \"within\"; ก่อนวันเริ่มหรือหลังวันสิ้นสุด → \"outside\"; ไม่มีวันที่หรือไม่มีระยะเวลาสัญญา → \"unknown\" (ไม่ถือว่าผิด)",
+      "ตัดสิน: verdict = \"pass\" ก็ต่อเมื่อ ข้อ 1 เป็น within หรือ averaged, ข้อ 2 เป็น within หรือ not_applicable, ข้อ 3 และข้อ 4 เป็น complete, ข้อ 5 ไม่ใช่ mismatch และข้อ 6 ไม่ใช่ outside",
       "ข้อใดไม่ผ่าน → verdict = \"fail\" และเขียน issues ข้อละหนึ่งรายการต่อทุกข้อที่ไม่ผ่าน (ห้ามเขียนว่าเกินประมาณการเมื่อข้อ 1 เป็น averaged)",
-      "issues: type ใช้ชื่อข้อที่ไม่ผ่าน (budget_check, cap_check, documents_check, attestations_check)",
-      "recommendation: บอกวิธีแก้ตามระเบียบเท่านั้น (แนบเอกสาร/ขอประทับตราที่ขาด, ยอดเกินเพดานให้เบิกไม่เกินเพดานหรือชี้แจงขออนุมัติ)",
+      "issues: type ใช้ชื่อข้อที่ไม่ผ่าน (budget_check, cap_check, documents_check, attestations_check, project_check, period_check)",
+      "recommendation: บอกวิธีแก้ตามระเบียบเท่านั้น (แนบเอกสาร/ขอประทับตราที่ขาด, ยอดเกินเพดานให้เบิกไม่เกินเพดานหรือชี้แจงขออนุมัติ, ชื่อโครงการไม่ตรงให้ตรวจว่าอัปโหลดถูกโครงการหรือขอให้ผู้ขายแก้ชื่อผู้ซื้อ, นอกระยะเวลาสัญญาให้ตรวจวันที่ในใบเสร็จ เพราะเบิกได้เฉพาะค่าใช้จ่ายในระยะเวลาสัญญา)",
       "  ห้ามแนะนำให้เปลี่ยนหมวดค่าใช้จ่ายเพื่อเลี่ยงเพดาน — หมวดต้องตรงกับสิ่งที่ซื้อจริง",
     ].join("\n");
   }
 
-  // extra: { category, amount, estimate } — ข้อมูลที่ระบบอ่านได้จากใบเสร็จ (ไม่ใช่ที่ผู้ใช้แก้ไขเอง ตามข้อ 1)
+  // extra: { category, amount, date, projectName, contract: { start, end } (ISO), estimate } — ข้อมูลที่ระบบอ่านได้จากใบเสร็จ (ไม่ใช่ที่ผู้ใช้แก้ไขเอง ตามข้อ 1)
   // และประมาณการของโครงการ (ต้องมีก่อนอัปโหลดใบเสร็จได้ — ดู js/new-receipt.js)
+  function isoDay(v) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v || ""));
+    return m ? m[0] : null;
+  }
+  function contractText(contract) {
+    var start = isoDay(contract && contract.start), end = isoDay(contract && contract.end);
+    if (!start || !end) return "(โครงการยังไม่ได้กรอก)";
+    return start + " ถึง " + end + (contract.extensionCount ? " (ขยายเวลาแล้ว " + contract.extensionCount + " ครั้ง จากเดิมสิ้นสุด " + contract.originalEnd + ")" : "");
+  }
+
   function buildPrompt(ocrText, ruleSet, documentNames, extra) {
     extra = extra || {};
     var parts = [
       "คุณคือผู้ช่วยตรวจใบเสร็จค่าใช้จ่ายโครงการวิจัยของมหาวิทยาลัย ตัดสินผลจากระเบียบและประมาณการที่ให้ไว้ด้านล่างเท่านั้น",
       "ห้ามใช้ความรู้อื่นนอกเหนือจากนี้ และห้ามอ้างอิงระเบียบข้อที่ไม่อยู่ในรายการ",
       "",
-      rulesAsText(ruleSet, documentNames, { category: extra.category, amount: extra.amount }),
+      rulesAsText(ruleSet, documentNames, { category: extra.category, amount: extra.amount, date: extra.date }),
       "",
       estimateAsText(extra.estimate, ruleSet, extra.amount),
       "",
       "ข้อมูลที่ระบบอ่านได้จากใบเสร็จ/เอกสารแนบ:",
       "- หมวดค่าใช้จ่าย: " + (extra.category || "(อ่านไม่ได้)"),
       "- ยอดเงิน: " + money(extra.amount),
+      "- วันที่ในใบเสร็จ: " + (extra.date || "(อ่านไม่ได้)"),
+      "",
+      "โครงการที่อัปโหลดใบเสร็จนี้:",
+      "- ชื่อโครงการ: " + (extra.projectName || "(ไม่ทราบ)"),
+      "- ระยะเวลาสัญญา: " + contractText(extra.contract),
       "",
       "ข้อความที่อ่านได้ด้วย OCR จากไฟล์ที่แนบทั้งหมด (อาจมีจุดที่ OCR ไม่มั่นใจ ใช้วิจารณญาณ):",
       ocrText || "(ไม่มีข้อความ OCR — ไม่ได้แนบไฟล์หรือ OCR อ่านไม่สำเร็จ)",
@@ -219,6 +263,8 @@
         '"result": "within" หรือ "over" หรือ "not_applicable" หรือ "not_in_rules"}, ' +
         '"documents_check": {"required": ["<ชื่อเอกสาร>"], "found": [{"name": "<ชื่อเอกสาร>", "quote": "<ข้อความ OCR>"}], "missing": ["<ชื่อเอกสาร>"], "result": "complete" หรือ "missing"}, ' +
         '"attestations_check": {"required": ["<ตรา>"], "found": [{"name": "<ตรา>", "quote": "<บรรทัด OCR>"}], "missing": ["<ตรา>"], "result": "complete" หรือ "missing"}, ' +
+        '"project_check": {"quote": "<บรรทัด OCR ชื่อผู้ซื้อ/ชื่อโครงการ หรือ null>", "result": "match" หรือ "mismatch" หรือ "not_found"}, ' +
+        '"period_check": {"receipt_date": "<YYYY-MM-DD หรือ null>", "result": "within" หรือ "outside" หรือ "unknown"}, ' +
         '"verdict": "pass" หรือ "fail", "issues": [{"type": "...", "description": "..."}], ' +
         '"rule_refs": ["<รหัสอ้างอิงในวงเล็บเหลี่ยมด้านบนเท่านั้น>"], "recommendation": "คำแนะนำวิธีแก้เป็นภาษาไทย"}',
     ];
@@ -236,6 +282,18 @@
       averaging_allowed: b.averaging_allowed === true,
       result: BUDGET_RESULTS.indexOf(b.result) !== -1 ? b.result : null,
     };
+  }
+
+  var PROJECT_RESULTS = ["match", "mismatch", "not_found"];
+  function cleanProjectCheck(c) {
+    if (!c || typeof c !== "object") return null;
+    return { quote: c.quote != null && c.quote !== "" ? String(c.quote) : null, result: PROJECT_RESULTS.indexOf(c.result) !== -1 ? c.result : null };
+  }
+
+  var PERIOD_RESULTS = ["within", "outside", "unknown"];
+  function cleanPeriodCheck(c) {
+    if (!c || typeof c !== "object") return null;
+    return { receipt_date: isoDay(c.receipt_date), result: PERIOD_RESULTS.indexOf(c.result) !== -1 ? c.result : null };
   }
 
   var CAP_RESULTS = ["within", "over", "not_applicable", "not_in_rules"];
@@ -278,6 +336,8 @@
     if (checks.cap_check && (checks.cap_check.result === "over" || checks.cap_check.result === "not_in_rules")) failed.push("cap_check");
     if (checks.documents_check && checks.documents_check.result === "missing") failed.push("documents_check");
     if (checks.attestations_check && checks.attestations_check.result === "missing") failed.push("attestations_check");
+    if (checks.project_check && checks.project_check.result === "mismatch") failed.push("project_check");
+    if (checks.period_check && checks.period_check.result === "outside") failed.push("period_check");
     return failed;
   }
 
@@ -326,6 +386,29 @@
     return { check: { required: check.required, found: kept, missing: missing, result: "missing" }, rejected: rejected };
   }
 
+  // ─── ตรวจหลักฐานชื่อโครงการ (1.6.1) ───
+  // 1.6.0 โมเดลตอบ "match" ทั้งที่ quote ของมันเองเป็นชื่อโครงการอื่นทั้งเรื่อง จึงเทียบ quote ที่โมเดลยกมา
+  // กับชื่อโครงการด้วยฟังก์ชันเทียบชื่อของ rule-engine (โครงพยัญชนะ + สัดส่วน bigram — ใช้แค่เทียบข้อความ ไม่ได้
+  // ใช้ผลตัดสินของ rule engine) — ทำได้แค่เปลี่ยน match → mismatch จาก quote ที่โมเดลอ้างเอง ผลเดิมเก็บใน project_rejected
+  function guardProjectEvidence(check, projectName) {
+    if (!check || check.result !== "match" || !check.quote || !projectName) return { check: check, rejected: null };
+    var RE = ruleEngine();
+    if (!RE || !RE.projectNameMatches) return { check: check, rejected: null };
+    var named = String(check.quote).replace(/\(OCR ไม่มั่นใจ[^)]*\)/g, "").split(/\sโดย(\s|$)/)[0];
+    if (RE.projectNameMatches(named, projectName)) return { check: check, rejected: null };
+    return { check: { quote: check.quote, result: "mismatch" }, rejected: { quote: check.quote, result: "match" } };
+  }
+
+  // ─── ตรวจวันที่กับระยะเวลาสัญญา (1.7.0) ───
+  // เทียบวันที่ที่โมเดลกรอกเองใน receipt_date กับระยะเวลาสัญญาที่ให้ไว้ใน prompt — โมเดลตอบ "within" ทั้งที่วันที่
+  // ของมันเองอยู่นอกช่วง → "outside" (ผลเดิมเก็บใน period_rejected) ทำได้ทางเดียวเหมือน guard อื่น ไม่ใช้ผล rule engine
+  function guardPeriodEvidence(check, contract) {
+    var start = isoDay(contract && contract.start), end = isoDay(contract && contract.end);
+    if (!check || check.result !== "within" || !check.receipt_date || !start || !end) return { check: check, rejected: null };
+    if (check.receipt_date >= start && check.receipt_date <= end) return { check: check, rejected: null };
+    return { check: { receipt_date: check.receipt_date, result: "outside" }, rejected: { receipt_date: check.receipt_date, result: "within" } };
+  }
+
   // คืน { verdict, verdict_reported, failed_checks, issues, rule_refs, recommendation, budget_check, cap_check,
   //       documents_check, attestations_check, raw, model, promptVersion, durationMs, error }
   // verdict: ถ้า LLM ตอบ pass แต่เช็กลิสต์ของมันเองมีข้อไม่ผ่าน จะเปลี่ยนเป็น fail (ยึดผลรายข้อของ LLM เอง
@@ -349,10 +432,24 @@
         cap_check: cleanCapCheck(parsed.cap_check),
         documents_check: cleanCompleteness(parsed.documents_check),
         attestations_check: cleanCompleteness(parsed.attestations_check),
+        project_check: cleanProjectCheck(parsed.project_check),
+        period_check: cleanPeriodCheck(parsed.period_check),
       };
       var guarded = guardAttestationEvidence(checks.attestations_check, chainAttestations(ruleSet || {}, extra && extra.category));
       checks.attestations_check = guarded.check;
+      var projectGuard = guardProjectEvidence(checks.project_check, extra && extra.projectName);
+      checks.project_check = projectGuard.check;
+      var periodGuard = guardPeriodEvidence(checks.period_check, extra && extra.contract);
+      checks.period_check = periodGuard.check;
       var issues = Array.isArray(parsed.issues) ? parsed.issues.slice() : [];
+      if (projectGuard.rejected) {
+        issues.push({ type: "project_check", description: "ชื่อโครงการในเอกสาร (\"" + projectGuard.rejected.quote + "\") ไม่ตรงกับโครงการ \"" + extra.projectName +
+          "\" กรุณาตรวจว่าอัปโหลดเข้าโครงการถูกต้อง หรือขอให้ผู้ขายแก้ชื่อผู้ซื้อเป็นชื่อโครงการ โดย ชื่อหัวหน้าโครงการ" });
+      }
+      if (periodGuard.rejected) {
+        issues.push({ type: "period_check", description: "ใบเสร็จลงวันที่ " + periodGuard.rejected.receipt_date + " อยู่นอกระยะเวลาสัญญา (" +
+          contractText(extra.contract) + ") เบิกได้เฉพาะค่าใช้จ่ายในระยะเวลาสัญญา" });
+      }
       guarded.rejected.forEach(function (f) {
         // ข้อความถึงผู้ใช้บอกแค่ว่าขาดตรา — หลักฐานที่ AI อ้างผิดเก็บไว้ใน attestations_rejected สำหรับงานวิจัย
         issues.push({ type: "missing_stamp", description: "ไม่พบตรา \"" + f.name + "\" บนเอกสาร กรุณาขอประทับตราให้ครบ" });
@@ -371,6 +468,10 @@
         cap_check: checks.cap_check,
         documents_check: checks.documents_check,
         attestations_check: checks.attestations_check,
+        project_check: checks.project_check,
+        project_rejected: projectGuard.rejected,
+        period_check: checks.period_check,
+        period_rejected: periodGuard.rejected,
         raw: text,
         model: AiClient.modelName(opts.config, false),
         promptVersion: PROMPT_VERSION,
@@ -391,6 +492,8 @@
       issues: llm.issues, rule_refs: llm.rule_refs, recommendation: llm.recommendation,
       budget_check: llm.budget_check || null, cap_check: llm.cap_check || null,
       documents_check: llm.documents_check || null, attestations_check: llm.attestations_check || null,
+      project_check: llm.project_check || null, project_rejected: llm.project_rejected || null,
+      period_check: llm.period_check || null, period_rejected: llm.period_rejected || null,
       raw: llm.raw, model: llm.model, promptVersion: llm.promptVersion, durationMs: llm.durationMs, error: llm.error,
     };
   }

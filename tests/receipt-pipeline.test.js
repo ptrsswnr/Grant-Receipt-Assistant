@@ -130,3 +130,19 @@ test("revisionSnapshot: keeps the old verdict and fields, drops OCR line detail"
   assert.equal(snap.checkedAt, "t0");
   assert.equal(snap.llmVerdict, null);
 });
+
+test("decideVerdict in 'llm' mode: a fail because the receipt is outside the contract period is ไม่เข้าเงื่อนไข", () => {
+  const ruleCheck = { status: STATUS.REJECT, explanation: "x" };
+  const outside = decideVerdict("llm", ruleCheck, { verdict: "fail", issues: [], recommendation: "", period_check: { receipt_date: "2026-11-01", result: "outside" } }, STATUS);
+  assert.equal(outside.status, STATUS.REJECT);
+  const otherFail = decideVerdict("llm", ruleCheck, { verdict: "fail", issues: [], recommendation: "", period_check: { receipt_date: "2026-01-01", result: "within" } }, STATUS);
+  assert.equal(otherFail.status, STATUS.FIX);
+});
+
+test("decideVerdict drops the model's 'all passed' advice when a guard flipped its pass to fail", () => {
+  const decided = decideVerdict("llm", { status: STATUS.FIX }, { verdict: "fail", verdict_reported: "pass", recommendation: "ไม่มีปัญหา ผ่านการตรวจสอบทุกข้อ",
+    issues: [{ type: "missing_stamp", description: "ไม่พบตรา \"จ่ายแล้ว\"" }] }, STATUS);
+  assert.equal(decided.status, STATUS.FIX);
+  assert.doesNotMatch(decided.explanation, /ไม่มีปัญหา/);
+  assert.match(decided.explanation, /^ต้องแก้ไขตามรายการด้านล่าง\n• /);
+});

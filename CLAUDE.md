@@ -524,6 +524,41 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - Both stay ต้องแก้ไข for real reasons: inspection photos missing, the "จ่ายแล้ว"/"ตรวจรับพัสดุ" stamps not found in the OCR text, and receipt001's ฿5,210.28 over the ฿5,000-per-purchase cap for computer materials.
   - The LLM (prompt 1.2.0) still said "ยอดเกินประมาณการ" despite the averaging rule. For receipt002 it also quoted receipt001's amount. Keep both as LLM error examples for the thesis.
 
+## Project name on receipts, date-dependent inspection photos — 2026-11-27 (engine 1.7.0, rule set 2570.8, prompt 1.6.1)
+
+- **Why:** the owner noticed receipt003 passed although the buyer on the receipt was a different project. Nothing checked the project name. The owner's rule: financial evidence that has a buyer field must be in the name "ชื่อโครงการ โดย ชื่อหัวหน้าโครงการ"; the project name may be abbreviated. Mismatch → ต้องแก้ไข. Both the rule engine and the LLM check it.
+- **Rule engine (`checkProjectName`, finding group `project`, between summary and evidence):** `receipt.project = { name, ocrText }`.
+  - Candidate lines in the OCR text: lines starting with "โครงการ…"/"(โครงการ…", lines with "ชื่อโครงการ", and "<name> โดย <person>" lines (not ชำระ/โอน/จ่าย/ลงชื่อ… โดย). Signature lines like "…หัวหน้าโครงการ" are not candidates.
+  - `projectNameMatches()`: Thai consonant skeleton + Latin/digits, with the "โครงการ(วิจัย)" prefix removed; match when ≥60% of the document name's bigrams are in the project name (abbreviations are a subset) or ≥80% the other way.
+  - Any mismatching candidate → `PROJECT_NAME_MISMATCH` (ต้องแก้ไข); all match → `PROJECT_NAME_MATCHES`; no candidate → no finding.
+  - The project name comes from the project doc (`projectName`). Callers pass it: `new-receipt.js` (from the dropdown), `receipt-recheck.js`, `document-pipeline.js` (`ctx.projectName`, set by `batch-import.js`), and the batch runners (optional `projectName` in `meta.json`).
+- **LLM prompt 1.6.x:** the prompt now states the project name and the receipt date. Checklist item 5 `project_check` { quote, result: match/mismatch/not_found }; mismatch fails the verdict (contradiction guard). **1.6.1 guard (`guardProjectEvidence`):** 1.6.0 answered "match" for receipt002/003 although its own quote named another project, so a "match" whose quote (text before " โดย") fails `RuleEngine.projectNameMatches` becomes mismatch; the original is kept in `llmVerdict.project_rejected`. Like the stamp guard, it only uses the model's own quote. Batch CSV has `llmVerdict.project_check.result`.
+- **Inspection photos only from 22 Apr 2569 (owner, 2026-11-27):** `inspection-photos` moved from a required step to a `conditionalSteps` entry `{ field: "date", op: ">=", value: "2026-04-22" }` in `chain-purchase` and `chain-equipment` (still optional in `chain-service-hire`).
+  - Conditions now support `field: "date"` (ISO string compare). `RuleEngine.conditionApplies(when, { amount, date })` and `describeCondition(when)` are shared by the engine, the LLM prompt, the eval baseline and the Level 2 agent. An unreadable date counts as "applies" (photos required) and the step note says so.
+  - `requiredEvidence(category, facts, ruleSet)` takes `{ amount, date }` (a bare number still works). `addStep.order` keeps the step in its old position. `evaluate()` takes `receipt.date` (`confirmedDate`).
+  - **Live Firestore keeps 2570.7 (photos always required) until an admin presses "อัปเดตเฉพาะระเบียบ/กฎ" on `seed.html`.**
+
+## Edit project, contract period — 2026-11-27 (engine 1.8.0, prompt 1.7.0)
+
+- **Why:** the owner asked for a way to rename a project, and said a receipt's date must fall within the project's contract period.
+- **Project doc fields:** `contractStartDate`, `contractEndDate` (ISO `YYYY-MM-DD` strings), plus `updatedAt` after an edit. Required when creating a project on `projects.html` (end may not be before start). Projects created earlier have none until edited.
+- **Edit button (pencil, `.project-card__edit`) on each project card** opens an inline panel to change the name and the contract period, saved with `update()`. No rule change was needed (owner write). Receipts already checked keep their result; new checks use the new name/period. Each card shows the period, or "ยังไม่ได้กรอก" in the fix colour.
+- **Contract extensions (owner, same day):** a project can be extended. A "ขยายระยะเวลาโครงการ" button (shown once the period is filled in) adds `{ endDate, note, addedAt }` to the project's `contractExtensions` array; the new end must be after the current end, and "ลบการขยายครั้งล่าสุด" removes the last one. **The latest extension's end date is the contract end.** `RuleEngine.contractOf(projectDoc)` → `{ start, end, originalEnd, extensionCount }` is the one place this is computed; every caller (new-receipt, batch-import, recheck, batch runner with `contractExtensions` in `meta.json`) uses it. Messages and the LLM prompt mention the extension and the original end. The card lists each extension.
+- **Rule engine 1.8.0 (`checkContractPeriod`, finding group `period`, first in `GROUP_ORDER`):** `receipt.contract = { start, end }`.
+  - Date outside (inclusive bounds) → `OUTSIDE_CONTRACT_PERIOD`, status **ไม่เข้าเงื่อนไข** (can't be fixed by adding documents). It is reported even when the category check rejects early.
+  - Inside → `WITHIN_CONTRACT_PERIOD`.
+  - No period on the project, or no readable receipt date → `CONTRACT_PERIOD_NOT_CHECKED` (pass, unverified, message tells the user what to do).
+  - `contract` not passed at all → no finding.
+- **LLM prompt 1.7.0:** the prompt states the contract period; checklist item 6 `period_check` { receipt_date, result: within/outside/unknown }; outside fails the verdict, and `ReceiptPipeline.decideVerdict` turns a fail whose own `period_check` is outside into **ไม่เข้าเงื่อนไข** (owner confirmed 2026-11-27), so both modes give the same status; other LLM fails stay ต้องแก้ไข. `guardPeriodEvidence` turns a "within" into "outside" when the model's own `receipt_date` is outside the given period (original in `period_rejected`). Batch CSV has `llmVerdict.period_check.result`.
+- **Callers:** `new-receipt.js` and `batch-import.js` (per-project map from the project docs), `receipt-recheck.js` (project doc), `document-pipeline.js` (`ctx.contract`), batch runners (`contractStart`/`contractEnd` in `meta.json`).
+
+## Receipt amount = grand total incl. VAT — 2026-11-27
+
+- **Bug found on the owner's computer-materials receipts:** tax invoices print both "รวมมูลค่าสินค้า / SUB TOTAL" (pre-VAT) and "รวมเงินทั้งสิ้น" (paid). receipt002 was stored as ฿4,747.66 (subtotal) instead of ฿5,080.00, and receipt001 was ฿5,210.28 until a revision re-read it as ฿5,575.00.
+- **`OcrClient.extractFields` / `findAmount`:** grand-total keywords (รวมเงินทั้งสิ้น, รวมทั้งสิ้น, ยอดสุทธิ, grand/net total) come first, taking the largest; lines with มูลค่าสินค้า/ก่อนภาษี/sub total/VAT/ส่วนลด/ทอน are skipped. Previously it scanned bottom-up and took the first "รวม/total" line, which OpenThai places on the subtotal.
+- **AI prompts** (`receipt-ai.js`, `document-pipeline.js` field extraction) now say the amount is the grand total including VAT, never the subtotal. The scanned-import amounts had come from the LLM, not the fallback.
+- **Saved receipts are not changed by this fix.**
+
 ## Revised receipts (ส่งฉบับแก้ไข) — 2026-11-26
 
 - **Why:** the owner asked that a researcher can upload a corrected version of a receipt that didn't pass. They wanted both kinds of correction: adding missing documents to the same receipt, and a new receipt replacing the old one.

@@ -8,8 +8,30 @@
 (async function () {
   var projectNameInput = document.getElementById("projectName");
   var fundSourceSelect = document.getElementById("fundSourceId");
+  var contractStartInput = document.getElementById("contractStartDate");
+  var contractEndInput = document.getElementById("contractEndDate");
   var warningBox = document.getElementById("warningBox");
   var addProjectButton = document.getElementById("addProjectButton");
+  var showAddProjectButton = document.getElementById("showAddProjectButton");
+  var cancelAddProjectButton = document.getElementById("cancelAddProjectButton");
+  var addProjectSection = document.getElementById("addProjectSection");
+
+  // แบบฟอร์มเพิ่มโครงการซ่อนไว้ — หน้านี้แสดงเฉพาะรายการโครงการที่ดูแลอยู่ จนกว่าจะกดปุ่ม "เพิ่มโครงการ"
+  function setAddFormOpen(open) {
+    addProjectSection.hidden = !open;
+    showAddProjectButton.hidden = open;
+    showAddProjectButton.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) {
+      projectNameInput.focus();
+    } else {
+      warningBox.style.display = "none";
+      projectNameInput.value = "";
+      contractStartInput.value = "";
+      contractEndInput.value = "";
+    }
+  }
+  showAddProjectButton.addEventListener("click", function () { setAddFormOpen(true); });
+  cancelAddProjectButton.addEventListener("click", function () { setAddFormOpen(false); showAddProjectButton.focus(); });
   var loadState = document.getElementById("load-state");
   var projectList = document.getElementById("project-list");
 
@@ -66,20 +88,113 @@
     return "project" + String(maxNumber + 1).padStart(3, "0");
   }
 
+  // ─── ระยะเวลาสัญญา (2026-11-27) ───
+  // วันที่ในใบเสร็จต้องอยู่ในช่วงนี้ (rule-engine checkContractPeriod + LLM ข้อ 6) เก็บเป็น ISO YYYY-MM-DD
+  // ในเอกสารโครงการ: contractStartDate, contractEndDate — โครงการเก่าที่ยังไม่ได้กรอก แก้ได้ที่ปุ่มแก้ไข (รูปดินสอ)
+  var THAI_MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
+  function thaiDate(iso) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ""));
+    return m ? parseInt(m[3], 10) + " " + THAI_MONTHS[parseInt(m[2], 10) - 1] + " " + (parseInt(m[1], 10) + 543) : "";
+  }
+  function contractProblem(start, end) {
+    if (!start || !end) return "กรุณากรอกวันเริ่มและวันสิ้นสุดสัญญา";
+    if (end < start) return "วันสิ้นสุดสัญญาต้องไม่ก่อนวันเริ่มสัญญา";
+    return null;
+  }
+  // ขยายระยะเวลาโครงการ: contractExtensions = [{ endDate, note, addedAt }] เรียงตามลำดับที่เพิ่ม
+  // วันสิ้นสุดที่ใช้ตรวจใบเสร็จ = endDate ของการขยายครั้งล่าสุด (ตรรกะเดียวกับ RuleEngine.contractOf)
+  function extensionsOf(project) {
+    return (project.contractExtensions || []).filter(function (x) { return x && x.endDate; });
+  }
+  function effectiveEnd(project) {
+    var ext = extensionsOf(project);
+    return ext.length ? ext[ext.length - 1].endDate : project.contractEndDate;
+  }
+  function periodHtml(project) {
+    if (!project.contractStartDate || !project.contractEndDate) {
+      return '<p class="text-small project-card__period project-card__period--missing">ระยะเวลาสัญญา: ยังไม่ได้กรอก — กดปุ่มแก้ไข (รูปดินสอ) เพื่อกรอก</p>';
+    }
+    var ext = extensionsOf(project);
+    var html = '<p class="text-small project-card__period">ระยะเวลาสัญญา: ' + esc(thaiDate(project.contractStartDate)) + ' – ' + esc(thaiDate(effectiveEnd(project)));
+    if (ext.length) html += ' (ขยายเวลาแล้ว ' + ext.length + ' ครั้ง)';
+    html += '</p>';
+    if (ext.length) {
+      html += '<ul class="text-small project-card__extensions">' +
+        '<li>สัญญาเดิมสิ้นสุด ' + esc(thaiDate(project.contractEndDate)) + '</li>' +
+        ext.map(function (x, i) {
+          return '<li>ขยายครั้งที่ ' + (i + 1) + ' ถึง ' + esc(thaiDate(x.endDate)) + (x.note ? ' — ' + esc(x.note) : '') + '</li>';
+        }).join("") +
+      '</ul>';
+    }
+    return html;
+  }
+  function extensionPanelHtml(projectId, project) {
+    var id = esc(projectId);
+    var ext = extensionsOf(project);
+    return (
+      '<div class="card project-edit" style="margin-top:12px;">' +
+        '<h3>ขยายระยะเวลาโครงการ</h3>' +
+        '<p class="help-text">ปัจจุบันสิ้นสุด ' + esc(thaiDate(effectiveEnd(project))) + ' — ระบบตรวจวันที่ในใบเสร็จถึงวันสิ้นสุดของการขยายครั้งล่าสุด</p>' +
+        '<div class="field"><label for="extEnd-' + id + '">ขยายถึงวันที่</label>' +
+          '<input type="date" id="extEnd-' + id + '" data-field="extensionEndDate"></div>' +
+        '<div class="field"><label for="extNote-' + id + '">หมายเหตุ (ไม่บังคับ)</label>' +
+          '<input type="text" id="extNote-' + id + '" data-field="extensionNote" placeholder="เช่น เลขที่หนังสืออนุมัติขยายเวลา"></div>' +
+        '<div class="edit-warning banner banner--error" style="display:none;"></div>' +
+        '<div class="row" style="justify-content:flex-end; margin-top:8px;">' +
+          (ext.length ? '<button type="button" class="btn btn-secondary btn-sm" data-action="remove-last-extension">ลบการขยายครั้งล่าสุด</button>' : '') +
+          '<button type="button" class="btn btn-secondary btn-sm" data-action="cancel-edit-project">ยกเลิก</button>' +
+          '<button type="button" class="btn btn-primary btn-sm" data-action="save-extension">บันทึกการขยายเวลา</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+  function editPanelHtml(projectId, project) {
+    var id = esc(projectId);
+    return (
+      '<div class="card project-edit" style="margin-top:12px;">' +
+        '<div class="field"><label for="editName-' + id + '">ชื่อโครงการวิจัย</label>' +
+          '<input type="text" id="editName-' + id + '" data-field="projectName" value="' + esc(project.projectName) + '"></div>' +
+        '<fieldset class="field contract-fields"><legend>ระยะเวลาสัญญา</legend>' +
+          '<div class="contract-fields__row">' +
+            '<div class="field"><label for="editStart-' + id + '">วันเริ่มสัญญา</label>' +
+              '<input type="date" id="editStart-' + id + '" data-field="contractStartDate" value="' + esc(project.contractStartDate || "") + '"></div>' +
+            '<div class="field"><label for="editEnd-' + id + '">วันสิ้นสุดสัญญา</label>' +
+              '<input type="date" id="editEnd-' + id + '" data-field="contractEndDate" value="' + esc(project.contractEndDate || "") + '"></div>' +
+          '</div>' +
+        '</fieldset>' +
+        '<p class="help-text">ใบเสร็จที่ตรวจไปแล้วยังคงผลเดิม ใบเสร็จที่อัปโหลดหลังจากนี้จะตรวจกับชื่อและระยะเวลาสัญญาใหม่</p>' +
+        '<div class="edit-warning banner banner--error" style="display:none;"></div>' +
+        '<div class="row" style="justify-content:flex-end; margin-top:8px;">' +
+          '<button type="button" class="btn btn-secondary btn-sm" data-action="cancel-edit-project">ยกเลิก</button>' +
+          '<button type="button" class="btn btn-primary btn-sm" data-action="save-project">บันทึก</button>' +
+        '</div>' +
+      '</div>'
+    );
+  }
+
+  var projectsById = {};
+
   function projectCardHtml(projectId, project) {
     var fundSourceName = fundSourceNameById[project.fundSourceId] || "(ไม่พบแหล่งทุน)";
     return (
       '<div class="card project-card" data-project-id="' + esc(projectId) + '" data-project-name="' + esc(project.projectName) + '">' +
+        '<button type="button" class="icon-button project-card__edit" data-action="edit-project" aria-label="แก้ไขโครงการ ' + esc(project.projectName) + '" title="แก้ไขชื่อและระยะเวลาสัญญา">' +
+          '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>' +
+        '</button>' +
         '<button type="button" class="icon-button project-card__delete" data-action="delete-project" aria-label="ลบโครงการ ' + esc(project.projectName) + '" title="ลบโครงการ">' +
           '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M10 11v6M14 11v6"/></svg>' +
         '</button>' +
         '<h3>' + esc(project.projectName) + '</h3>' +
         '<p class="text-small">แหล่งทุน: ' + esc(fundSourceName) + '</p>' +
+        periodHtml(project) +
         '<div class="row" style="margin-top:8px;">' +
           '<a class="btn btn-primary btn-sm" href="new-receipt.html?projectId=' + esc(projectId) + '">อัปโหลดใบเสร็จ</a>' +
           '<a class="btn btn-secondary btn-sm" href="budget.html?projectId=' + esc(projectId) + '">ประมาณการและใบเสร็จ</a>' +
           '<a class="btn btn-secondary btn-sm" href="batch-import.html?projectId=' + esc(projectId) + '">นำเข้าไฟล์สแกนทั้งโครงการ</a>' +
+          (project.contractStartDate && project.contractEndDate
+            ? '<button type="button" class="btn btn-secondary btn-sm" data-action="extend-project">ขยายระยะเวลาโครงการ</button>' : '') +
         '</div>' +
+        '<div class="project-edit-panel"></div>' +
         '<div class="project-delete-panel"></div>' +
       '</div>'
     );
@@ -89,11 +204,13 @@
     var snapshot = await db.collection("users").doc(user.uid).collection("projects").get();
 
     if (snapshot.empty) {
-      loadState.innerHTML = '<div class="banner banner--info"><p class="text-body">ยังไม่มีโครงการวิจัย — เพิ่มโครงการแรกของคุณด้านบนได้เลย</p></div>';
+      loadState.innerHTML = '<div class="banner banner--info"><p class="text-body">ยังไม่มีโครงการวิจัย — กดปุ่ม "เพิ่มโครงการ" ด้านบนเพื่อเพิ่มโครงการแรกของคุณ</p></div>';
       projectList.style.display = "none";
       return snapshot.docs;
     }
 
+    projectsById = {};
+    snapshot.docs.forEach(function (doc) { projectsById[doc.id] = doc.data(); });
     projectList.innerHTML = snapshot.docs.map(function (doc) { return projectCardHtml(doc.id, doc.data()); }).join("");
     projectList.style.display = "block";
     loadState.style.display = "none";
@@ -214,6 +331,81 @@
     var projectId = card.dataset.projectId;
     var panel = card.querySelector(".project-delete-panel");
     var action = button.dataset.action;
+    var editPanel = card.querySelector(".project-edit-panel");
+
+    // ─── แก้ไขชื่อโครงการและระยะเวลาสัญญา ───
+    if (action === "edit-project") {
+      editPanel.innerHTML = editPanel.querySelector("[data-field=projectName]") ? "" : editPanelHtml(projectId, projectsById[projectId] || {});
+      var first = editPanel.querySelector("input");
+      if (first) first.focus();
+      return;
+    }
+    if (action === "extend-project") {
+      editPanel.innerHTML = editPanel.querySelector("[data-field=extensionEndDate]") ? "" : extensionPanelHtml(projectId, projectsById[projectId] || {});
+      var dateInput = editPanel.querySelector("input");
+      if (dateInput) dateInput.focus();
+      return;
+    }
+    if (action === "save-extension" || action === "remove-last-extension") {
+      var project = projectsById[projectId] || {};
+      var extWarning = editPanel.querySelector(".edit-warning");
+      var extensions = extensionsOf(project).slice();
+      if (action === "save-extension") {
+        var newEnd = editPanel.querySelector("[data-field=extensionEndDate]").value;
+        var note = editPanel.querySelector("[data-field=extensionNote]").value.trim();
+        var problemExt = !newEnd ? "กรุณาเลือกวันที่ขยายถึง"
+          : newEnd <= effectiveEnd(project) ? "วันที่ขยายถึงต้องอยู่หลังวันสิ้นสุดปัจจุบัน (" + thaiDate(effectiveEnd(project)) + ")" : null;
+        if (problemExt) {
+          extWarning.textContent = problemExt;
+          extWarning.style.display = "block";
+          return;
+        }
+        extensions.push({ endDate: newEnd, note: note || null, addedAt: firebase.firestore.Timestamp.now() });
+      } else {
+        if (!confirm("ลบการขยายเวลาครั้งล่าสุด (ถึง " + thaiDate(effectiveEnd(project)) + ") ใช่ไหม?")) return;
+        extensions.pop();
+      }
+      button.disabled = true;
+      try {
+        await projectRefOf(projectId).update({ contractExtensions: extensions, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        existingDocs = await loadProjectList();
+      } catch (err) {
+        extWarning.textContent = "บันทึกไม่สำเร็จ: " + err.message;
+        extWarning.style.display = "block";
+        button.disabled = false;
+      }
+      return;
+    }
+    if (action === "cancel-edit-project") {
+      editPanel.innerHTML = "";
+      return;
+    }
+    if (action === "save-project") {
+      var val = function (f) { return editPanel.querySelector('[data-field="' + f + '"]').value.trim(); };
+      var editWarning = editPanel.querySelector(".edit-warning");
+      var name = val("projectName"), start = val("contractStartDate"), end = val("contractEndDate");
+      var problem = !name ? "กรุณากรอกชื่อโครงการวิจัย" : contractProblem(start, end);
+      if (problem) {
+        editWarning.textContent = problem;
+        editWarning.style.display = "block";
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "กำลังบันทึก...";
+      try {
+        await projectRefOf(projectId).update({
+          projectName: name, contractStartDate: start, contractEndDate: end,
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        });
+        existingDocs = await loadProjectList();
+      } catch (err) {
+        editWarning.textContent = "บันทึกไม่สำเร็จ: " + err.message;
+        editWarning.style.display = "block";
+        button.disabled = false;
+        button.textContent = "บันทึก";
+      }
+      return;
+    }
 
     if (action === "cancel-delete-project") {
       delete deletePlans[projectId];
@@ -274,6 +466,13 @@
       warn("กรุณาเลือกแหล่งทุน");
       return;
     }
+    var contractStartDate = contractStartInput.value;
+    var contractEndDate = contractEndInput.value;
+    var contractError = contractProblem(contractStartDate, contractEndDate);
+    if (contractError) {
+      warn(contractError);
+      return;
+    }
 
     addProjectButton.disabled = true;
     addProjectButton.textContent = "กำลังเพิ่มโครงการ...";
@@ -282,17 +481,19 @@
       await db.collection("users").doc(user.uid).collection("projects").doc(newProjectId).set({
         projectName: projectName,
         fundSourceId: fundSourceId,
+        contractStartDate: contractStartDate,
+        contractEndDate: contractEndDate,
         ownerUserId: user.uid,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
 
-      projectNameInput.value = "";
+      setAddFormOpen(false);
       existingDocs = await loadProjectList();
     } catch (err) {
       warn("เพิ่มโครงการไม่สำเร็จ: " + err.message);
     } finally {
       addProjectButton.disabled = false;
-      addProjectButton.textContent = "เพิ่มโครงการ";
+      addProjectButton.textContent = "บันทึกโครงการ";
     }
   });
 })();

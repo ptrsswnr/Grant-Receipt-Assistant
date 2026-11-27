@@ -43,13 +43,31 @@
     return isFinite(n) ? n : null;
   }
 
-  // ยอดเงิน: ตัวเลขท้ายสุดในบรรทัดที่มีคำว่า "รวม/ยอดสุทธิ/total" (ไล่จากบรรทัดล่างขึ้นบน เพราะยอดรวมสุดท้ายมักอยู่ล่างสุด)
-  // ถ้าไม่เจอ ใช้ตัวเลขที่มีทศนิยมที่มากที่สุดในใบ
+  // ยอดรวมทั้งสิ้นที่จ่ายจริง (รวมภาษีมูลค่าเพิ่มแล้ว) — มาก่อนคำว่า "รวม/total" ทั่วไป
+  var GRAND_TOTAL_KEYWORDS = /(รวมเงินทั้งสิ้น|รวมทั้งสิ้น|ยอดเงินสุทธิ|ยอดสุทธิ|รวมสุทธิ|จำนวนเงินรวมทั้งสิ้น|grand\s*total|net\s*total)/i;
+  // บรรทัดที่ไม่ใช่ยอดที่จ่ายจริง: มูลค่าก่อนภาษี (Sub total) ภาษีมูลค่าเพิ่ม ส่วนลด เงินทอน
+  var NOT_PAID_TOTAL = /(มูลค่าสินค้า|มูลค่า.{0,4}ก่อน|ก่อนภาษี|sub\s*total|ภาษีมูลค่าเพิ่ม|\bvat\b|ส่วนลด|discount|เงินทอน|ทอน)/i;
+
+  function amountsOnLine(lines, i) {
+    var nums = (lines[i].match(NUMBER) || []).map(toAmount).filter(function (n) { return n !== null && n > 0; });
+    if (!nums.length && lines[i + 1]) nums = (lines[i + 1].match(NUMBER) || []).map(toAmount).filter(function (n) { return n !== null && n > 0; });
+    return nums;
+  }
+
+  // ยอดเงิน (2026-11-27): ใบกำกับภาษีมีทั้ง "รวมมูลค่าสินค้า / SUB TOTAL" (ก่อนภาษี) และ "รวมเงินทั้งสิ้น" (ที่จ่ายจริง)
+  // และ OCR มักวางบรรทัด Sub total ไว้ใต้ยอดรวม เดิมไล่จากล่างขึ้นบนแล้วหยิบบรรทัด "รวม/total" แรกที่เจอ จึงได้ยอดก่อนภาษี
+  // ตอนนี้: 1) บรรทัดยอดรวมทั้งสิ้น เลือกค่ามากสุด (ยอดรวมทั้งสิ้น ≥ ยอดอื่นในใบเดียวกัน)
+  //         2) บรรทัด "รวม/total" ทั่วไปที่ไม่ใช่ก่อนภาษี/ภาษี/ส่วนลด ไล่จากล่างขึ้นบนเหมือนเดิม
+  //         3) ตัวเลขที่มีทศนิยมที่มากที่สุดในใบ
   function findAmount(lines) {
+    var grand = [];
+    lines.forEach(function (l, i) {
+      if (GRAND_TOTAL_KEYWORDS.test(l) && !NOT_PAID_TOTAL.test(l)) grand = grand.concat(amountsOnLine(lines, i).slice(-1));
+    });
+    if (grand.length) return Math.max.apply(null, grand);
     for (var i = lines.length - 1; i >= 0; i--) {
-      if (!AMOUNT_KEYWORDS.test(lines[i])) continue;
-      var nums = (lines[i].match(NUMBER) || []).map(toAmount).filter(function (n) { return n !== null && n > 0; });
-      if (!nums.length && lines[i + 1]) nums = (lines[i + 1].match(NUMBER) || []).map(toAmount).filter(function (n) { return n !== null && n > 0; });
+      if (!AMOUNT_KEYWORDS.test(lines[i]) || NOT_PAID_TOTAL.test(lines[i])) continue;
+      var nums = amountsOnLine(lines, i);
       if (nums.length) return nums[nums.length - 1];
     }
     var decimals = [];

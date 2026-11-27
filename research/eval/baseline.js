@@ -7,6 +7,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const AiClient = require("../../app/js/ai-client.js");
+const RuleEngine = require("../../app/js/rule-engine.js");
 const { LABELS } = require("./lib.js");
 
 const CONFIG_PATH = path.join(__dirname, "ai-config.local.json");
@@ -44,7 +45,7 @@ function rulesAsText(data, ruleSet) {
   Object.values(ruleSet.evidenceChains).forEach((c) => {
     lines.push(`- ${c.id} (${c.chainName}):`);
     c.steps.forEach((s) => lines.push(`  - ${s.required ? "บังคับ" : "ไม่บังคับ"}: ${s.documentTypeIds.map((id) => docName[id] || id).join(" หรือ ")}`));
-    (c.conditionalSteps || []).forEach((cs) => lines.push(`  - บังคับเมื่อยอดเกิน ${money(cs.when.value)}: ${cs.addStep.documentTypeIds.map((id) => docName[id] || id).join(" หรือ ")}`));
+    (c.conditionalSteps || []).forEach((cs) => lines.push(`  - บังคับเมื่อ${RuleEngine.describeCondition(cs.when)}: ${cs.addStep.documentTypeIds.map((id) => docName[id] || id).join(" หรือ ")}`));
     (c.attestations || []).forEach((a) => lines.push(`  - ต้องยืนยัน: ${a.text}`));
   });
   return lines.join("\n");
