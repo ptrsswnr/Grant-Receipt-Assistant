@@ -41,17 +41,24 @@
 
 > **อัปเดต 2026-11-17 (รอบ 2):** เพิ่ม **FR-35–FR-37** และ **NFR-15** ใน [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy]] (ยังไม่สร้าง สถานะ Backlog)
 
+> **อัปเดต 2026-11-27:** FR-07 สร้างเสร็จแล้ว (2026-11-26) รายละเอียดที่ปรับตามการตัดสินใจของเจ้าของอยู่ใน [[20261127-01-revised-receipt-submission]] (ไม่เพิ่มรหัส FR ใหม่)
+
+> **อัปเดต 2026-11-27 (รอบ 2):** บันทึกการปรับทิศทางงานวิจัย 2026-11-24 เป็น **FR-38–FR-41** ใน [[20261127-02-llm-verdict-research-direction]]
+> (LLM ตัดสินผล, ตรวจหาเอกสาร/ตราจาก OCR อัตโนมัติ, นำเข้าไฟล์สแกนทั้งโครงการ, ตัวรันชุดเคส — สร้างแล้วทั้งหมด) **แผนแรกไม่ได้ลบ:**
+> FR-03 และขั้นติ๊กเอกสารของ FR-27 คงไว้ในตารางพร้อมหมายเหตุว่าเป็นแผนแรกที่ถูกแทนที่ เหตุผลที่เปลี่ยน: งานวิจัยต้องวัดความถูกต้องของ LLM
+> ที่ตัดสินเองเทียบกับแบบที่ใช้เทคนิคอื่น
+
 ## ระดับความสำคัญ: สูง (ต้องมีใน MVP)
 
 | รหัส | หัวข้อ | เอกสารอ้างอิง | สถานะ |
 |------|--------|----------------|--------|
 | FR-01 | อัปโหลดใบเสร็จ (ผูกกับโครงการวิจัย ไม่ใช่แหล่งทุนโดยตรง) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | เสร็จบางส่วน (แนบไฟล์ผ่าน Google Drive — ดู FR-32) |
 | FR-02 | OCR อ่านข้อมูลใบเสร็จอัตโนมัติ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | เสร็จบางส่วน (ดู FR-30) |
-| FR-03 | ตรวจสอบ/แก้ไขข้อมูลจาก OCR ก่อนส่งตรวจ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | เสร็จแล้ว |
+| FR-03 | ตรวจสอบ/แก้ไขข้อมูลจาก OCR ก่อนส่งตรวจ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | แผนแรก — เคยสร้างเสร็จ ถูกแทนที่ 2026-11-24 ด้วย FR-39 (ไม่มีขั้นแก้ค่าในแอปแล้ว) |
 | FR-04 | ตรวจใบเสร็จด้วย Rule-based Engine (อ้างอิงระเบียบของแหล่งทุนที่โครงการสังกัด) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | เสร็จบางส่วน (ดู FR-24–FR-29) |
 | FR-05 | LLM สรุปผลตรวจเป็นภาษาที่เข้าใจง่าย | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | เสร็จบางส่วน (ดู FR-31) |
 | FR-06 | แสดงสถานะใบเสร็จรายใบพร้อมเหตุผลอ้างอิงระเบียบ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | เสร็จแล้ว (ขยายเป็น 4 ระดับ — ดู FR-25) |
-| FR-07 | แก้ไขและอัปโหลดใบเสร็จซ้ำ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
+| FR-07 | แก้ไขและอัปโหลดใบเสร็จซ้ำ (ส่งฉบับแก้ไข) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]], [[20261127-01-revised-receipt-submission#2. Functional Requirements (ปรับรายละเอียด FR-07)]] | เสร็จแล้ว (2026-11-26: ปุ่ม "ส่งฉบับแก้ไข" บนใบเสร็จที่ไม่ผ่าน เลือกได้ 2 แบบ คือเพิ่มเอกสารที่ขาด/แทนที่ทั้งชุด แก้ใบเดิมรหัสเดิม เก็บผลเดิมใน verdictHistory ไฟล์เดิมทำเครื่องหมาย superseded ไม่ลบ; ข้อจำกัด: ตรวจรูปถ่ายพัสดุไม่ได้ — ประเด็นเปิด รอเจ้าของตัดสินใจ) |
 | FR-10 | Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | Backlog |
 | FR-11 | นำเข้า/อัปเดตระเบียบทุนวิจัยเข้าสู่ Rule Engine (ต่อแหล่งทุนแต่ละแหล่ง) | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | เสร็จบางส่วน (ดู FR-29, FR-33) |
 | FR-12 | จำกัดสิทธิ์การเข้าถึงข้อมูลใบเสร็จตามเจ้าของโครงการ | [[20260816-01-grant-receipt-verification#4. Functional Requirements]] | เสร็จแล้ว (แก้ตามการกลับคำตัดสินใจ 2026-09-10 — ดู FR-33) |
@@ -68,7 +75,7 @@
 | FR-24 | Rule Engine เป็นโมดูลบริสุทธิ์ มีเวอร์ชัน ตรวจย้อนได้ | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
 | FR-25 | ผลตรวจ 4 ระดับ และลำดับการตรวจ (ประมาณการ→ระเบียบ→ใบสรุป→เอกสารแนบ) | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
 | FR-26 | ตรวจกับประมาณการที่อนุมัติ (นำเข้าตาราง 17.2, อัตรา×จำนวน, ยอดใช้ไป/คงเหลือ) | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
-| FR-27 | ตรวจความครบของเอกสารแนบตามชุดเอกสาร (Evidence Chain) | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จบางส่วน (นักวิจัยติ๊กยืนยันเอง ยังไม่ตรวจจากไฟล์จริง) |
+| FR-27 | ตรวจความครบของเอกสารแนบตามชุดเอกสาร (Evidence Chain) | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว (แผนแรก: นักวิจัยติ๊กเอง; ตั้งแต่ 2026-11-24 ระบบหาจาก OCR — FR-39 ยังตรวจรูปถ่ายพัสดุไม่ได้) |
 | FR-29 | ชุดกฎตามคู่มือจริง 28 หมวด (rule set 2570.4) | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
 | FR-30 | อ่านใบเสร็จด้วย AI (สลับผู้ให้บริการได้) และ OCR ภาษาไทยในเครื่อง | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
 | FR-31 | AI agent อธิบายผลจากกฎในระบบเท่านั้น + บันทึก agentLogs | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
@@ -76,6 +83,9 @@
 | FR-35 | ปิดใช้งานแหล่งทุนแทนการลบจริง (เก็บกฎไว้ย้อนตรวจ ซ่อนจากรายการเลือกโครงการใหม่) | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#2. Functional Requirements]] | เสร็จแล้ว (2026-11-17: ปุ่มปิด/เปิดใช้งานแหล่งทุนและกฎแต่ละข้อแทนการลบ; ใบเสร็จใหม่ตรวจต่อพร้อมคำเตือน) |
 | FR-36 | นำเข้าประมาณการ 17.2 ซ้ำแบบเก็บเวอร์ชันเก่า และย้ายใบเสร็จไปจับคู่รายการล่าสุด | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#2. Functional Requirements]] | Backlog |
 | FR-37 | จำกัดผู้ดูไฟล์ Drive (เจ้าของ+Admin) และลบไฟล์ตามเมื่อลบใบเสร็จ/ถอนความยินยอม | [[20261117-02-fund-source-deactivation-estimate-versioning-drive-privacy#2. Functional Requirements]] | เสร็จบางส่วน (2026-11-17: แชร์เฉพาะเจ้าของ+แอดมินใน appConfig/driveSharing, ถอนลิงก์สาธารณะของไฟล์เก่าตอนเชื่อมต่อ, ลบไฟล์ก่อนลบใบเสร็จ; การถอนความยินยอม (FR-20) ยังไม่มี) |
+| FR-38 | LLM ตัดสินผลใบเสร็จ โดยยังรัน Rule Engine เก็บผลไว้เทียบ | [[20261127-02-llm-verdict-research-direction#2. Functional Requirements]] | เสร็จแล้ว (2026-11-24) |
+| FR-39 | ตรวจหาประเภทเอกสารและตราจากข้อความ OCR อัตโนมัติ แทนการติ๊กเอง | [[20261127-02-llm-verdict-research-direction#2. Functional Requirements]] | เสร็จแล้ว (2026-11-24 — จับคำสำคัญ ไม่ใช่โมเดลจำแนก) |
+| FR-41 | ตัวรันชุดเคสสำหรับวัดผลงานวิจัย (Stage B/C) | [[20261127-02-llm-verdict-research-direction#2. Functional Requirements]] | เสร็จแล้ว (2026-11-24 — ยังไม่มีข้อมูลจริง) |
 
 
 ## ระดับความสำคัญ: กลาง
@@ -88,6 +98,7 @@
 | FR-28 | เทียบยอดกับใบสรุปรายรับ-จ่าย | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จบางส่วน (ตรวจรายใบ ยังไม่ตรวจยอดรวมรายหมวด) |
 | FR-32 | แนบไฟล์จริงผ่าน Google Drive ของผู้ใช้ | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จแล้ว |
 | FR-34 | ชุดประเมินผลสำหรับวิทยานิพนธ์ | [[20261117-01-implemented-rule-engine-ai-and-admin#2. Functional Requirements]] | เสร็จบางส่วน (ยังไม่มีข้อมูลจริง รอ EC) |
+| FR-40 | นำเข้าไฟล์สแกนทั้งโครงการ | [[20261127-02-llm-verdict-research-direction#2. Functional Requirements]] | เสร็จแล้ว (2026-11-24 — ยังลบ/รันซ้ำทีละขั้นไม่ได้) |
 
 ## ระดับความสำคัญ: ต่ำ
 

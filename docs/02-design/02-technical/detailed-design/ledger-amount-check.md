@@ -51,7 +51,7 @@ sequenceDiagram
 | [[api-spec#OP-04 ยืนยันข้อมูลใบเสร็จ ส่งตรวจ และบันทึกใบเสร็จ\|OP-04]] | Receipt (E-04) | สร้างพร้อม `summaryAmount` (ว่างได้) | เทียบกับ `confirmedAmount` ในใบเดียวกัน |
 | OP-04 | VerificationFinding (E-23) | สร้างข้อค้นพบกลุ่ม "ใบสรุป" เฉพาะเมื่อ `summaryAmount` มีค่า | ลำดับกลุ่ม ที่ 3 |
 | OP-04 | VerificationResult (E-08) | สร้าง; `reasonCode` หลักตามลำดับกลุ่มและระดับที่รุนแรงสุด | |
-| [[api-spec#OP-06 แก้ไขข้อมูลใบเสร็จแล้วส่งตรวจซ้ำ\|OP-06]] | Receipt, VerificationResult | แก้ `summaryAmount` แล้วสร้างผลใหม่ | Backlog |
+| [[api-spec#OP-06 ส่งฉบับแก้ไขและตรวจใบเสร็จซ้ำ\|OP-06]] | Receipt (ผลเดิมเก็บใน `verdictHistory`) | ส่งฉบับแก้ไขพร้อม `summaryAmount` ใหม่ (เติมค่าเดิมให้) แล้วตรวจซ้ำ — ต้องแนบไฟล์อย่างน้อย 1 ไฟล์ | สร้างแล้ว (2026-11-26) |
 
 ## 4. State Diagram — ผลของการเทียบยอด
 

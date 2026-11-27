@@ -82,7 +82,9 @@
 - การรัน baseline กับ API ที่เสียเงิน และข้อมูลจริงของชุดประเมินผล (FR-34 รอ EC)
 - ข้อสังเกตเปิด: กฎกรรมการตรวจรับ 3 คนที่ยอด 100,000 บาท (หน้า 37) ต่างจากตัวอย่างหน้า 50 ของคู่มือฟอร์ม — เก็บเกณฑ์ 100,000 ไว้จนกว่าการเงินยืนยัน test case อ้างตามเกณฑ์ที่การเงินยืนยันแล้ว
 
-**ฟีเจอร์ที่ยังเป็น Backlog (ยังไม่ได้สร้าง) — test case เขียนไว้เป็นเกณฑ์รับมอบ รันไม่ได้จนกว่าจะสร้าง:** FR-07 (ฟีเจอร์ 4),
+**FR-07 (ฟีเจอร์ 4) สร้างแล้ว 2026-11-26 ("ส่งฉบับแก้ไข")** — ตรรกะล้วนผ่าน unit test (146/146) ตรวจในเบราว์เซอร์ถึงหน้าฉบับแก้ไขแล้ว การส่งจริงจบกระบวนการเจ้าของโครงการทดสอบเองในเครื่อง ยังไม่มีผลรันเป็นทางการ; ข้อจำกัดที่ทราบ: ตรวจภาพถ่ายตรวจรับพัสดุไม่ได้ (TC-04-10 expected fail)
+
+**ฟีเจอร์ที่ยังเป็น Backlog (ยังไม่ได้สร้าง) — test case เขียนไว้เป็นเกณฑ์รับมอบ รันไม่ได้จนกว่าจะสร้าง:**
 FR-09 (6), FR-10/FR-21 (7), FR-15/FR-16/FR-20 และ Privacy Notice แยก (10), FR-17 (11), FR-19/FR-22 (1), **FR-36 (14), FR-37/NFR-15 (21, เกี่ยวข้อง 10/12), FR-35 (22) — เพิ่ม 2026-11-17 ระดับสูง**
 
 > **อัปเดต 2026-08-16:** ประเด็นที่เคยเป็น Open Point/`NEEDS_NEW_REQUIREMENT` และปิดแล้วด้วยรหัส FR ใหม่:
@@ -193,7 +195,7 @@ FR-09 (6), FR-10/FR-21 (7), FR-15/FR-16/FR-20 และ Privacy Notice แยก
 | 1   | อัปโหลดใบเสร็จและอ่านข้อมูลอัตโนมัติด้วย OCR                            | [[test-cases/receipt-upload-ocr\|receipt-upload-ocr.md]]                   | FR-01, FR-02, FR-19, FR-22, NFR-01, NFR-06, NFR-07, NFR-08, NFR-09            | 17                     |
 | 2   | ตรวจสอบและแก้ไขข้อมูลก่อนส่งตรวจ                                        | [[test-cases/review-edit-ocr-data\|review-edit-ocr-data.md]]               | FR-03                                                                          | 2                      |
 | 3   | ตรวจสอบใบเสร็จด้วย Rule Engine พร้อมคำอธิบายจาก LLM                     | [[test-cases/rule-engine-verification\|rule-engine-verification.md]]       | FR-04, FR-05, FR-06, NFR-01, NFR-02, NFR-03, NFR-04, NFR-06, NFR-08, NFR-09, NFR-13 | 23              |
-| 4   | แก้ไขและส่งใบเสร็จที่ไม่ผ่านตรวจซ้ำ                                     | [[test-cases/resubmit-failed-receipt\|resubmit-failed-receipt.md]]         | FR-07                                                                          | 2                      |
+| 4   | แก้ไขและส่งใบเสร็จที่ไม่ผ่านตรวจซ้ำ                                     | [[test-cases/resubmit-failed-receipt\|resubmit-failed-receipt.md]]         | FR-07 (สร้างแล้ว 2026-11-26)                                                   | 7                      |
 | 5   | Dashboard สรุปภาพรวมใบเสร็จของโครงการ                                   | [[test-cases/fund-dashboard\|fund-dashboard.md]]                           | FR-08                                                                          | 2                      |
 | 6   | แจ้งเตือนใบเสร็จที่มีปัญหาค้างอยู่                                      | [[test-cases/pending-issue-notification\|pending-issue-notification.md]]   | FR-09                                                                          | 2                      |
 | 7   | Export รายงานสรุปใบเสร็จที่ผ่านตรวจแล้ว                                 | [[test-cases/export-verified-report\|export-verified-report.md]]          | FR-10, FR-21                                                                   | 4                      |
@@ -256,7 +258,7 @@ TC-21-05–TC-21-08 (FR-37 AC-1/AC-2/AC-7, NFR-15 AC-1), TC-12-05, TC-12-06 (ฟ
 
 ### 8.3 ยังรันไม่ได้ (Backlog / blocked)
 
-- ฟีเจอร์ที่ยังไม่ได้สร้าง: FR-07, FR-09, FR-10, FR-15, FR-16, FR-17, FR-19, FR-20, FR-21, FR-22, **FR-35, FR-36, FR-37, NFR-15** (test case เป็นเกณฑ์รับมอบ — FR-35–FR-37/NFR-15 ระดับสูง)
+- ฟีเจอร์ที่ยังไม่ได้สร้าง: FR-09, FR-10, FR-15, FR-16, FR-17, FR-19, FR-20, FR-21, FR-22, **FR-35, FR-36, FR-37, NFR-15** (test case เป็นเกณฑ์รับมอบ — FR-35–FR-37/NFR-15 ระดับสูง)
 - Blocked: NFR-12 บนเว็บจริง (proxy ยังไม่ deploy), Google Drive (ถ้ายังไม่ตั้ง OAuth Client ID), NFR-08/NFR-09 (ยังไม่ตัดสินใจ vendor)
 
 ## เอกสารที่เกี่ยวข้อง
