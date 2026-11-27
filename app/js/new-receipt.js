@@ -35,6 +35,8 @@ var SAMPLE_VENDORS = [
 
 (async function () {
   var VERDICT_MODE = (window.VERDICT_CONFIG && window.VERDICT_CONFIG.mode) || "llm";
+  var STATUS_CHIP_CLASS = { "ผ่าน": "chip-status--pass", "ต้องแก้ไข": "chip-status--fix", "ต้องชี้แจง/ขออนุมัติ": "chip-status--approval", "ไม่เข้าเงื่อนไข": "chip-status--reject" };
+  var STATUS_CALLOUT_KIND = { "ผ่าน": "pass", "ต้องแก้ไข": "fix", "ต้องชี้แจง/ขออนุมัติ": "approval", "ไม่เข้าเงื่อนไข": "reject" };
 
   var projectSelect = document.getElementById("projectId");
   var fileInput = document.getElementById("receiptFiles");
@@ -87,6 +89,54 @@ var SAMPLE_VENDORS = [
   var preselectProjectId = new URLSearchParams(location.search).get("projectId");
   if (preselectProjectId && projectFundSourceId.hasOwnProperty(preselectProjectId)) {
     projectSelect.value = preselectProjectId;
+  }
+
+  // ─── ฉบับแก้ไขของใบเสร็จเดิม (?projectId=...&revise=receiptNNN) ───
+  // ใช้ใบเดิม (รหัสเดิม) ไม่สร้างใบใหม่ ยอดในประมาณการจึงไม่ถูกนับซ้ำ ผลตรวจเดิมต่อท้ายไว้ใน verdictHistory
+  //   'append'  — เพิ่มเอกสารที่ขาด: ไฟล์เดิมยังใช้ ตรวจรวมกับไฟล์ใหม่ ใช้ยอด/วันที่/หมวด/ร้านเดิม
+  //   'replace' — แทนที่ทั้งชุด: อ่านทุกอย่างจากไฟล์ใหม่ ไฟล์เดิมถูกทำเครื่องหมาย supersededAt (ไม่ลบ)
+  var revision = null;
+  var reviseId = new URLSearchParams(location.search).get("revise");
+  if (reviseId) {
+    var reviseRef = preselectProjectId && projectFundSourceId.hasOwnProperty(preselectProjectId)
+      ? db.collection("users").doc(user.uid).collection("projects").doc(preselectProjectId).collection("receipts").doc(reviseId)
+      : null;
+    var reviseSnap = reviseRef ? await reviseRef.get() : null;
+    if (!reviseSnap || !reviseSnap.exists) {
+      warn("ไม่พบใบเสร็จ " + reviseId + " ในโครงการนี้ — อัปโหลดเป็นใบเสร็จใหม่แทน");
+    } else if (!window.ReceiptPipeline.isRevisable(reviseSnap.data().status)) {
+      warn("ใบเสร็จ " + reviseId + " ผ่านแล้ว ไม่ต้องส่งฉบับแก้ไข");
+      document.getElementById("step1Button").disabled = true;
+    } else {
+      revision = { ref: reviseRef, id: reviseId, data: reviseSnap.data() };
+      showRevisionCard(revision);
+    }
+  }
+
+  function revisionMode() {
+    var checked = document.querySelector('input[name="revisionMode"]:checked');
+    return checked ? checked.value : "append";
+  }
+
+  function showRevisionCard(rev) {
+    var r = rev.data;
+    projectSelect.disabled = true;
+    document.title = "ส่งฉบับแก้ไข — Grant Receipt Assistant";
+    document.getElementById("step1Title").textContent = "ส่งฉบับแก้ไขของใบเสร็จ " + rev.id;
+    document.getElementById("step1Intro").textContent =
+      "แนบเอกสารที่แก้ไขแล้ว เช่น ใบเสร็จที่ประทับตราครบ หรือรูปถ่ายพัสดุ ระบบจะตรวจใบนี้ใหม่ทั้งใบ ผลตรวจเดิมเก็บไว้ในประวัติ";
+    document.getElementById("step1Button").textContent = "ส่งฉบับแก้ไขและตรวจใหม่";
+    if (typeof r.summaryAmount === "number") document.getElementById("summaryAmount").value = r.summaryAmount;
+    var chip = STATUS_CHIP_CLASS[r.status] || "chip-status--pending";
+    var advice = r.aiExplanation
+      ? window.ReceiptPipeline.humanizeAdvice(r.aiExplanation, window.ReceiptPipeline.referenceNames(window.RECEIPT_DATA))
+      : "";
+    document.getElementById("revisionSummary").innerHTML =
+      '<p class="text-body" style="margin:0 0 8px;"><span class="chip-status ' + chip + '">' + esc(r.status) + '</span> ' +
+        esc(formatCurrency(r.confirmedAmount)) + ' · ' + esc([r.confirmedDate, r.confirmedCategory, r.confirmedVendorName].filter(Boolean).join(" · ")) +
+        (r.revisionCount ? ' · แก้ไขมาแล้ว ' + r.revisionCount + ' ครั้ง' : '') + '</p>' +
+      (advice ? '<div class="rule-callout rule-callout--' + (STATUS_CALLOUT_KIND[r.status] || "fix") + '"><p class="rule-callout__explain">' + esc(advice) + '</p></div>' : '');
+    document.getElementById("revisionCard").hidden = false;
   }
 
   function fileExtension(fileName) {
@@ -144,8 +194,12 @@ var SAMPLE_VENDORS = [
 
   // ประมาณการทั้งโครงการพร้อมยอดที่เบิกไปแล้วต่อรายการ (ไม่รวมใบนี้) เป็นข้อมูลดิบให้ LLM (js/llm-verdict.js)
   // ยอดเบิกสะสมนับจาก budgetLineId ที่บันทึกไว้บนใบเสร็จเดิม ซึ่งมาจากการจับคู่ด้วยหมวดของ rule engine
+  // ฉบับแก้ไข: หักยอดของใบเดิมออกจากรายการของมัน (ใบนี้กำลังถูกตรวจใหม่ ไม่ใช่ยอดที่เบิกไปแล้ว)
   async function estimateWithSpent(projectId) {
-    return window.ReceiptStore.estimateWithSpent(user.uid, projectId, await getBudgetLines(projectId));
+    var lines = await getBudgetLines(projectId);
+    return revision
+      ? window.ReceiptStore.estimateExcluding(user.uid, projectId, lines, revision.data)
+      : window.ReceiptStore.estimateWithSpent(user.uid, projectId, lines);
   }
 
   // ─── บังคับให้มีประมาณการก่อนอัปโหลด: ขั้นตอนจริงคือลงทะเบียนโครงการ + แนบประมาณการก่อน แล้วจึงตรวจใบเสร็จ ───
@@ -300,6 +354,10 @@ var SAMPLE_VENDORS = [
       return;
     }
     var files = Array.from(fileInput.files);
+    if (revision && files.length === 0) {
+      warn("กรุณาแนบไฟล์ที่แก้ไขแล้วอย่างน้อย 1 ไฟล์");
+      return;
+    }
     var fileError = files.length > 0 ? validateFiles(files) : null;
     if (fileError) {
       warn(fileError);
@@ -329,21 +387,28 @@ var SAMPLE_VENDORS = [
 
       // 1) OCR ทุกไฟล์ที่แนบในเครื่อง (OpenThai 2.0, research/ocr/server.py) — เก็บผลดิบไว้เสมอ
       aiProcessingText.textContent = "กำลังอ่านใบเสร็จและเอกสารแนบด้วย OCR...";
-      var ocrByFile = await ocrAllFiles(files);
-      var ocrTextCombined = ocrByFile.map(function (f) { return f.fileName + ":\n" + (f.text || "(OCR อ่านไม่ได้/ไม่ได้เปิด OCR)"); }).join("\n\n");
+      var ocrNew = await ocrAllFiles(files);
+      var mode = revision ? revisionMode() : null;
+      var keepFields = mode === "append";
 
       // 2) อ่านยอดเงิน/วันที่/หมวด/ชื่อร้าน — ใช้ไฟล์รูปภาพแรก (หรือ pdf หน้าแรกที่แปลงแล้ว) ให้ AI
       // จริงอ่านถ้าตั้งค่าไว้ (js/receipt-ai.js) ไม่งั้นดึงจากข้อความ OCR ตรงๆ ไม่งั้นใช้ข้อมูลจำลอง
-      aiProcessingText.textContent = "กำลังอ่านยอดเงิน วันที่ และหมวดค่าใช้จ่าย...";
-      var primaryFile = files[0] || null;
-      var primaryImageFile = primaryFile ? await toImageFile(primaryFile) : null;
-      var primaryOcrResult = ocrByFile[0] && ocrByFile[0].ocrResult;
-      var aiReady = window.AiClient && window.AiClient.isConfigured();
-
+      //    ฉบับแก้ไขแบบเพิ่มเอกสาร: ไม่อ่านใหม่ ใช้ค่าที่บันทึกไว้ในใบเดิม
       var aiData;
       var aiModeNote;
       var usedRealAi = false;
-      if (primaryImageFile && aiReady) {
+      var primaryFile = files[0] || null;
+      var primaryOcrResult = ocrNew[0] && ocrNew[0].ocrResult;
+      var aiReady = window.AiClient && window.AiClient.isConfigured();
+      if (!keepFields) aiProcessingText.textContent = "กำลังอ่านยอดเงิน วันที่ และหมวดค่าใช้จ่าย...";
+      var primaryImageFile = !keepFields && primaryFile ? await toImageFile(primaryFile) : null;
+      if (keepFields) {
+        aiData = {
+          confirmedAmount: revision.data.confirmedAmount, confirmedDate: revision.data.confirmedDate,
+          confirmedCategory: revision.data.confirmedCategory, confirmedVendorName: revision.data.confirmedVendorName,
+        };
+        aiModeNote = "ฉบับแก้ไข: เพิ่ม " + files.length + " ไฟล์ ตรวจรวมกับไฟล์เดิม ใช้ยอดเงิน วันที่ หมวด และร้านค้าของใบเดิม";
+      } else if (primaryImageFile && aiReady) {
         try {
           aiData = await window.analyzeReceiptWithAI(primaryImageFile, window.RECEIPT_DATA.categories, primaryOcrResult ? window.OcrClient.textForAi(primaryOcrResult) : "");
           aiModeNote = "อ่านด้วย AI (" + window.AiClient.describe(null, true) + ")" + (primaryOcrResult ? " ร่วมกับ OCR ในเครื่อง" : "") + " จากไฟล์ " + primaryFile.name;
@@ -363,6 +428,7 @@ var SAMPLE_VENDORS = [
           ? "ยังไม่ได้ตั้งค่า AI และไม่ได้เปิด OCR ในเครื่อง — ใช้ข้อมูลตัวอย่างแทน (ดู js/ai-config.example.js)"
           : "ไม่ได้แนบไฟล์ — ใช้ข้อมูลตัวอย่างแทน (โหมดสาธิต)";
       }
+      if (revision && !keepFields) aiModeNote = "ฉบับแก้ไข (แทนที่ทั้งชุด): " + aiModeNote;
 
       // อ่านยอดไม่ได้ → null (ไม่ใช่ NaN) เพื่อให้หน้าจอแสดง "-" และ rule engine ตอบ INVALID_AMOUNT
       var parsedAmount = parseFloat(aiData.confirmedAmount);
@@ -373,8 +439,16 @@ var SAMPLE_VENDORS = [
 
       // 3) เดาประเภทเอกสารของทุกไฟล์ที่แนบ + เช็คความครบของเอกสารประกอบแบบอัตโนมัติ (js/receipt-pipeline.js
       // — โมดูลเดียวกับที่ batch runner ใน research/batch/ ใช้ เพื่อไม่ให้ตรรกะสองที่เพี้ยนไปจากกัน)
+      //    ฉบับแก้ไขแบบเพิ่มเอกสาร: ไฟล์เดิม (ข้อความ OCR + ประเภทที่เดาไว้แล้ว) ต่อด้วยไฟล์ใหม่
       aiProcessingText.textContent = "กำลังตรวจสอบความครบของเอกสารประกอบ...";
-      var classification = window.ReceiptPipeline.classifyAttachedFiles(ocrByFile, documentTypesById, window.DocumentClassifier);
+      var classificationNew = window.ReceiptPipeline.classifyAttachedFiles(ocrNew, documentTypesById, window.DocumentClassifier);
+      var stored = keepFields
+        ? await window.ReceiptRecheck.storedOcr(revision.ref, revision.data, documentNames)
+        : { files: [], classification: [] };
+      var merged = window.ReceiptPipeline.revisionInputs(keepFields ? "append" : "replace", stored, ocrNew, classificationNew);
+      var ocrByFile = merged.ocrByFile;
+      var classification = merged.classification;
+      var ocrTextCombined = ocrByFile.map(function (f) { return f.fileName + ":\n" + (f.text || "(OCR อ่านไม่ได้/ไม่ได้เปิด OCR)"); }).join("\n\n");
       var evidence = window.ReceiptPipeline.buildEvidence(ocrByFile, classification, window.DocumentClassifier);
 
       // 4) จับคู่กับรายการในประมาณการของโครงการ (ถ้ามี) จากหมวดที่อ่านได้
@@ -406,12 +480,11 @@ var SAMPLE_VENDORS = [
       // 7) บันทึกใบเสร็จ — เก็บผลดิบของทุกขั้นแยกกันเสมอ (ocrRaw, documentClassification, llmVerdict,
       // ruleCheck) เพื่อย้อนวิเคราะห์ว่าความผิดพลาดเกิดที่ขั้นไหนได้ ไม่ทิ้งอะไรแม้ขั้นนั้นจะ fallback
       aiProcessingText.textContent = "กำลังบันทึกข้อมูลใบเสร็จ...";
-      var newReceiptId = await nextReceiptId();
-      var receiptRef = db.collection("users").doc(user.uid)
-        .collection("projects").doc(projectId)
-        .collection("receipts").doc(newReceiptId);
+      var receiptRef = revision
+        ? revision.ref
+        : db.collection("users").doc(user.uid).collection("projects").doc(projectId).collection("receipts").doc(await nextReceiptId());
 
-      await receiptRef.set({
+      var receiptFields = {
         projectId: projectId,
         confirmedAmount: confirmedAmount,
         confirmedDate: confirmedDate,
@@ -447,27 +520,62 @@ var SAMPLE_VENDORS = [
         // เอกสาร/การยืนยันที่เดาได้อัตโนมัติจากไฟล์ที่แนบ (ไม่ใช่ที่ผู้ใช้ติ๊กเองอีกต่อไป)
         providedDocumentTypeIds: evidence.documentTypeIds,
         confirmedAttestations: evidence.attestationIds,
-        isExported: false,
-        ownerUserId: user.uid,
-        uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      };
 
+      // ไฟล์เดิมของใบนี้ (ฉบับแก้ไขเท่านั้น) — อ่านไว้ก่อนเพิ่มไฟล์ใหม่ เพื่อแยกเก่ากับใหม่ได้
+      var oldFilesSnap = revision ? await receiptRef.collection("files").get() : null;
+      var revisionNumber = revision ? (revision.data.revisionCount || 0) + 1 : 0;
+      var nextSortOrder = 1;
+      if (oldFilesSnap) oldFilesSnap.forEach(function (d) { nextSortOrder = Math.max(nextSortOrder, (d.data().sortOrder || 0) + 1); });
+
+      if (revision) {
+        // ใบเดิม รหัสเดิม — ผลเดิมต่อท้ายใน verdictHistory ก่อนเขียนผลใหม่ (importBatchId ยังอยู่ แต่ ocrRaw
+        // ที่บันทึกตอนนี้มีข้อความของทุกไฟล์ที่ใช้ตรวจแล้ว การตรวจซ้ำจึงใช้ ocrRaw)
+        receiptFields.revisionCount = revisionNumber;
+        receiptFields.revisedAt = firebase.firestore.FieldValue.serverTimestamp();
+        receiptFields.verdictHistory = firebase.firestore.FieldValue.arrayUnion(
+          window.ReceiptPipeline.revisionSnapshot(revision.data, mode, revisionNumber));
+        await receiptRef.update(receiptFields);
+      } else {
+        receiptFields.isExported = false;
+        receiptFields.ownerUserId = user.uid;
+        receiptFields.uploadedAt = firebase.firestore.FieldValue.serverTimestamp();
+        await receiptRef.set(receiptFields);
+      }
+
+      // ไฟล์ใหม่อยู่ท้าย classification เสมอ (ไฟล์เดิมของฉบับแก้ไขแบบเพิ่มเอกสารอยู่ข้างหน้า)
+      var firstNewIndex = classification.length - files.length;
       for (var i = 0; i < files.length; i++) {
         var file = files[i];
         aiProcessingText.textContent = "กำลังอัปโหลดไฟล์ขึ้น Google Drive " + (i + 1) + "/" + files.length + "...";
 
         var driveFile = await window.googleDriveUploadReceiptFile(file, receiptRef.id);
+        var c = classification[firstNewIndex + i];
 
-        await receiptRef.collection("files").add({
+        var fileDoc = {
           originalFileName: file.name,
           fileType: fileExtension(file.name),
           fileSizeBytes: file.size,
           fileReference: driveFile.webViewLink,
           driveFileId: driveFile.id,
-          sortOrder: i + 1,
-          documentTypeId: (classification[i] && classification[i].documentTypeId) || null,
+          sortOrder: nextSortOrder + i,
+          documentTypeId: (c && c.documentTypeId) || null,
           uploadedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        };
+        if (revision) fileDoc.revision = revisionNumber;
+        await receiptRef.collection("files").add(fileDoc);
+      }
+
+      // แทนที่ทั้งชุด: ไฟล์เดิมไม่ลบ (ยังอยู่ใน Drive และใช้ย้อนดูได้) แค่ทำเครื่องหมายว่าถูกแทนที่แล้ว
+      // หน้ารายการไม่แสดงไฟล์ที่มี supersededAt — ทำหลังอัปโหลดไฟล์ใหม่สำเร็จ ถ้าอัปโหลดล้ม ไฟล์เดิมยังแสดงอยู่
+      if (revision && !keepFields && oldFilesSnap && !oldFilesSnap.empty) {
+        var supersede = db.batch();
+        oldFilesSnap.forEach(function (d) {
+          if (!d.data().supersededAt) {
+            supersede.update(d.ref, { supersededAt: firebase.firestore.FieldValue.serverTimestamp(), supersededByRevision: revisionNumber });
+          }
         });
+        await supersede.commit();
       }
 
       // Level 2 agentic AI (js/receipt-check-agent.js) อธิบายผลของ rule-engine เพิ่มเติม — มีความหมาย
@@ -491,6 +599,10 @@ var SAMPLE_VENDORS = [
       }
 
       var projectName = projectSelect.options[projectSelect.selectedIndex].textContent;
+      if (revision) {
+        aiModeNote = "ใบเสร็จ " + revision.id + " ฉบับแก้ไขครั้งที่ " + revisionNumber + " · ผลก่อนแก้ไข: " +
+          (revision.data.status || "-") + " (เก็บไว้ในประวัติ) · " + aiModeNote;
+      }
       showCheckResult({
         confirmedAmount: confirmedAmount, confirmedDate: confirmedDate,
         confirmedCategory: confirmedCategory, confirmedVendorName: confirmedVendorName,
@@ -504,8 +616,6 @@ var SAMPLE_VENDORS = [
     }
   });
 
-  var STATUS_CHIP_CLASS = { "ผ่าน": "chip-status--pass", "ต้องแก้ไข": "chip-status--fix", "ต้องชี้แจง/ขออนุมัติ": "chip-status--approval", "ไม่เข้าเงื่อนไข": "chip-status--reject" };
-  var STATUS_CALLOUT_KIND = { "ผ่าน": "pass", "ต้องแก้ไข": "fix", "ต้องชี้แจง/ขออนุมัติ": "approval", "ไม่เข้าเงื่อนไข": "reject" };
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -550,6 +660,11 @@ var SAMPLE_VENDORS = [
 
   // ─── ขั้นตอนที่ 3 → เริ่มใหม่ ───
   document.getElementById("uploadAgainButton").addEventListener("click", function () {
+    // หลังส่งฉบับแก้ไข เริ่มอัปโหลดใบใหม่ของโครงการเดิมแบบปกติ (ไม่อยู่ในโหมดฉบับแก้ไขแล้ว)
+    if (revision) {
+      location.href = "new-receipt.html?projectId=" + encodeURIComponent(projectSelect.value);
+      return;
+    }
     clearWarning();
     projectSelect.value = "";
     fileInput.value = "";

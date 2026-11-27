@@ -70,6 +70,17 @@ window.ReceiptStore = (function () {
     });
   }
 
+  // ประมาณการสำหรับตรวจใบเสร็จที่บันทึกไว้แล้วซ้ำ (ตรวจซ้ำ/ฉบับแก้ไข): หักยอดของใบนี้ออกจากรายการเดิมของมัน
+  // เพราะตอนตรวจ ใบนี้ยังไม่นับว่าเบิกแล้ว — ไม่งั้นยอดของตัวเองถูกนับซ้ำ
+  async function estimateExcluding(uid, projectId, lines, receipt) {
+    return (await estimateWithSpent(uid, projectId, lines)).map(function (l) {
+      if (l.id === receipt.budgetLineId && typeof receipt.confirmedAmount === "number") {
+        return Object.assign({}, l, { spentBefore: Math.max(0, l.spentBefore - receipt.confirmedAmount) });
+      }
+      return l;
+    });
+  }
+
   // เลขสูงสุดของ receipt001, receipt002, ... ของผู้ใช้คนนี้ข้ามทุกโครงการ (รหัสเรียงต่อกันต่อเจ้าของ)
   async function maxReceiptNumber(uid) {
     var snapshot = await db.collectionGroup("receipts").where("ownerUserId", "==", uid).get();
@@ -91,6 +102,7 @@ window.ReceiptStore = (function () {
     projectRef: projectRef,
     loadBudgetLines: loadBudgetLines,
     estimateWithSpent: estimateWithSpent,
+    estimateExcluding: estimateExcluding,
     maxReceiptNumber: maxReceiptNumber,
     receiptIdFor: receiptIdFor,
   };

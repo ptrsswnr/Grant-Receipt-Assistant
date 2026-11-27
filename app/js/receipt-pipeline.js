@@ -114,8 +114,46 @@
     return { status: ruleCheckResult.status, explanation: "LLM ตัดสินไม่สำเร็จ (" + reason + ") — ใช้ผลของ Rule Engine แทน: " + fallbackExplanation };
   }
 
+  // ─── ฉบับแก้ไขของใบเสร็จเดิม (new-receipt.html?revise=receiptNNN) ───
+  // ใบที่ "ผ่าน" แล้วไม่ต้องส่งฉบับแก้ไข
+  function isRevisable(status) {
+    return !!status && status !== "ผ่าน";
+  }
+
+  // รวมไฟล์ที่ใช้ตรวจของฉบับแก้ไข
+  //   'append'  — ไฟล์เดิม (ข้อความ OCR ที่เก็บไว้ + ประเภทเอกสารที่เดาไว้แล้ว) ต่อด้วยไฟล์ใหม่
+  //   'replace' — ไฟล์ใหม่อย่างเดียว (ไฟล์เดิมถูกแทนที่)
+  // stored: { files: [{ fileName, text }], classification: [{ fileName, documentTypeId }] }
+  function revisionInputs(mode, stored, ocrNew, classificationNew) {
+    if (mode === "append") {
+      return {
+        ocrByFile: stored.files.concat(ocrNew),
+        classification: stored.classification.concat(classificationNew),
+      };
+    }
+    return { ocrByFile: ocrNew, classification: classificationNew };
+  }
+
+  // ผลเดิมของใบเสร็จก่อนบันทึกฉบับแก้ไข — ต่อท้ายไว้ใน verdictHistory (รูปเดียวกับการตรวจซ้ำ + ข้อมูลที่อ่านได้เดิม)
+  // ocrRaw เก็บแค่ข้อความ ไม่เก็บ confidence รายบรรทัด เพื่อไม่ให้เอกสารใหญ่เกินขนาดที่ Firestore รับ
+  function revisionSnapshot(r, mode, revisionNumber) {
+    return {
+      kind: "revision", revision: revisionNumber, revisionMode: mode,
+      status: r.status || null, aiExplanation: r.aiExplanation || null, verdictMode: r.verdictMode || null,
+      ruleCheck: r.ruleCheck || null, llmVerdict: r.llmVerdict || null, budgetLineId: r.budgetLineId || null,
+      confirmedAmount: typeof r.confirmedAmount === "number" ? r.confirmedAmount : null,
+      confirmedDate: r.confirmedDate || null, confirmedCategory: r.confirmedCategory || null,
+      confirmedVendorName: r.confirmedVendorName || null,
+      confirmedAttestations: r.confirmedAttestations || null,
+      providedDocumentTypeIds: r.providedDocumentTypeIds || null,
+      ocrRaw: (r.ocrRaw || []).map(function (f) { return { fileName: f.fileName || "", text: f.text || "" }; }),
+      checkedAt: r.revisedAt || r.recheckedAt || r.uploadedAt || null,
+    };
+  }
+
   return {
     classifyAttachedFiles: classifyAttachedFiles, buildEvidence: buildEvidence, decideVerdict: decideVerdict,
     issueLabel: issueLabel, referenceNames: referenceNames, humanizeAdvice: humanizeAdvice,
+    isRevisable: isRevisable, revisionInputs: revisionInputs, revisionSnapshot: revisionSnapshot,
   };
 });

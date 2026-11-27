@@ -45,8 +45,10 @@ function adviceText(text) {
   return window.ReceiptPipeline ? window.ReceiptPipeline.humanizeAdvice(text, window.ReceiptPipeline.referenceNames(window.RECEIPT_DATA)) : text;
 }
 
+// ไฟล์ที่ถูกแทนที่ด้วยฉบับแก้ไข (supersededAt) ไม่แสดง แต่ยังนับเป็นไฟล์ที่ต้องลบใน Drive ตอนลบใบเสร็จ
 function filesHtml(files) {
-  if (!files || files.length === 0) {
+  files = (files || []).filter(function (f) { return !f.supersededAt; });
+  if (files.length === 0) {
     return '<p class="text-small">ไฟล์แนบ: ไม่มี (ไม่ได้แนบไฟล์จริงตอนอัปโหลด — โหมดสาธิต)</p>';
   }
   var links = files
@@ -59,6 +61,14 @@ function filesHtml(files) {
     })
     .join(" · ");
   return '<p class="text-small">ไฟล์แนบ: ' + links + '</p>';
+}
+
+// ปุ่มส่งฉบับแก้ไข (เฉพาะใบที่ยังไม่ผ่าน) — receiptPath = users/{uid}/projects/{projectId}/receipts/{id}
+function reviseLinkHtml(receiptPath, receipt) {
+  var parts = receiptPath.split("/");
+  if (parts.length !== 6 || !window.ReceiptPipeline || !window.ReceiptPipeline.isRevisable(receipt.status)) return "";
+  return '<a class="btn btn-secondary btn-sm" href="new-receipt.html?projectId=' + encodeURIComponent(parts[3]) +
+    '&revise=' + encodeURIComponent(parts[5]) + '">ส่งฉบับแก้ไข</a>';
 }
 
 // การ์ดใบเสร็จ + ไฟล์แนบ + คำอธิบายผลตรวจของใบเสร็จ 1 รายการ ถูกห่อไว้ใน .receipt-entry
@@ -79,11 +89,13 @@ function receiptCardHtml(receiptPath, receipt, files, projectName) {
       '<div class="receipt-card__thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></div>' +
       '<div class="receipt-card__body">' +
         '<div class="receipt-card__amount">' + esc(formatCurrency(receipt.confirmedAmount)) + '</div>' +
-        '<div class="receipt-card__meta">' + esc(projectName || "(ไม่พบโครงการ)") + ' · ' + esc(receipt.confirmedDate) + ' · ' + esc(receipt.confirmedCategory) + ' · ' + esc(receipt.confirmedVendorName) + '</div>' +
+        '<div class="receipt-card__meta">' + esc(projectName || "(ไม่พบโครงการ)") + ' · ' + esc(receipt.confirmedDate) + ' · ' + esc(receipt.confirmedCategory) + ' · ' + esc(receipt.confirmedVendorName) +
+          (receipt.revisionCount ? ' · แก้ไขแล้ว ' + receipt.revisionCount + ' ครั้ง' : '') + '</div>' +
       '</div>' +
       '<div class="receipt-card__status">' +
         '<span class="chip-status ' + chipClass + '">' + esc(receipt.status || "ไม่ทราบสถานะ") + '</span>' +
       '</div>' +
+      reviseLinkHtml(receiptPath, receipt) +
       '<button type="button" class="btn btn-ghost btn-sm" data-action="delete-receipt">ลบ</button>' +
     '</div>';
 

@@ -37,6 +37,11 @@ window.ReceiptRecheck = (function () {
       return {
         text: r.ocrRaw.map(function (f) { return f.fileName + ":\n" + (f.text || "(OCR อ่านไม่ได้/ไม่ได้เปิด OCR)"); }).join("\n\n"),
         parts: r.ocrRaw.map(function (f) { return f.text || ""; }),
+        files: r.ocrRaw.map(function (f) { return { fileName: f.fileName, text: f.text || "", lines: f.lines || [] }; }),
+        classification: r.ocrRaw.map(function (f, i) {
+          var c = (r.documentClassification || [])[i];
+          return { fileName: f.fileName, documentTypeId: (c && c.documentTypeId) || null };
+        }),
       };
     }
     if (r.importBatchId) {
@@ -56,9 +61,15 @@ window.ReceiptRecheck = (function () {
             " (" + (documentNames[m.documentTypeId] || "ไม่ทราบประเภท") + "):\n" + (parts[i] || "(OCR อ่านไม่ได้)");
         }).join("\n\n"),
         parts: parts,
+        files: members.map(function (m, i) { return { fileName: pagesLabel(i, m), text: parts[i], lines: [] }; }),
+        classification: members.map(function (m, i) { return { fileName: pagesLabel(i, m), documentTypeId: m.documentTypeId || null }; }),
       };
     }
-    return { text: "", parts: [] };
+    return { text: "", parts: [], files: [], classification: [] };
+  }
+
+  function pagesLabel(i, m) {
+    return "เอกสาร #" + i + " หน้า " + m.pageFrom + (m.pageTo !== m.pageFrom ? "–" + m.pageTo : "");
   }
 
   // receiptRef: DocumentReference ของใบเสร็จ (users/{uid}/projects/{projectId}/receipts/{id})
@@ -78,12 +89,7 @@ window.ReceiptRecheck = (function () {
     var ruleSet = await Store.loadActiveRuleSet(project.fundSourceId, ref.evidenceChainsById);
     var lines = await Store.loadBudgetLines(uid, projectId);
     // ยอดที่ใช้ไปของทุกรายการตอนนี้ แล้วหักใบนี้ออกจากรายการเดิมของมัน (ตอนตรวจ ใบนี้ยังไม่นับว่าเบิกแล้ว)
-    var estimate = (await Store.estimateWithSpent(uid, projectId, lines)).map(function (l) {
-      if (l.id === r.budgetLineId && typeof r.confirmedAmount === "number") {
-        return Object.assign({}, l, { spentBefore: Math.max(0, l.spentBefore - r.confirmedAmount) });
-      }
-      return l;
-    });
+    var estimate = await Store.estimateExcluding(uid, projectId, lines, r);
 
     var category = r.confirmedCategory || "";
     var amount = typeof r.confirmedAmount === "number" ? r.confirmedAmount : null;

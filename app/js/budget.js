@@ -101,7 +101,8 @@
 
   function fileLinksHtml(files) {
     // ไฟล์จากการนำเข้าไฟล์สแกนมีช่วงหน้าอยู่ในชื่อไฟล์แล้ว
-    var links = (files || []).filter(function (f) { return f.fileReference; }).map(function (f) {
+    // ไฟล์ที่ถูกแทนที่ด้วยฉบับแก้ไข (supersededAt) ไม่แสดง
+    var links = (files || []).filter(function (f) { return f.fileReference && !f.supersededAt; }).map(function (f) {
       return '<a href="' + esc(f.fileReference) + '" target="_blank" rel="noopener">' + esc(f.originalFileName || "ไฟล์แนบ") + '</a>';
     });
     return links.length ? '<span class="text-small">' + links.join(" · ") + '</span>' : "";
@@ -116,8 +117,11 @@
     var html = '<li class="line-receipt"><div class="line-receipt__head">' +
       '<span class="chip-status ' + chip + '">' + esc(r.status || "ไม่ทราบสถานะ") + '</span>' +
       '<span class="line-receipt__amount">' + (typeof r.confirmedAmount === "number" ? money(r.confirmedAmount) : "-") + '</span>' +
-      '<span class="text-small">' + esc([r.confirmedDate, r.confirmedVendorName].filter(Boolean).join(" · ")) + '</span>' +
+      '<span class="text-small">' + esc([r.confirmedDate, r.confirmedVendorName, r.revisionCount ? "แก้ไขแล้ว " + r.revisionCount + " ครั้ง" : ""].filter(Boolean).join(" · ")) + '</span>' +
       fileLinksHtml(rec.files) +
+      (window.ReceiptPipeline.isRevisable(r.status)
+        ? '<a class="btn btn-secondary btn-sm" href="new-receipt.html?projectId=' + encodeURIComponent(projectId) + '&revise=' + encodeURIComponent(rec.id) + '">ส่งฉบับแก้ไข</a>'
+        : '') +
       (DEV_TOOLS ? '<button type="button" class="btn btn-ghost btn-sm line-receipt__recheck" data-action="recheck-receipt" data-receipt-path="' + esc(rec.ref.path) + '" title="(เฉพาะตอนพัฒนา) ตรวจใบนี้ใหม่ด้วยระเบียบ ประมาณการ และ prompt ปัจจุบัน">ตรวจใหม่</button>' : '') +
       '</div>';
     if (r.aiExplanation) {

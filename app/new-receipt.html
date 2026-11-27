@@ -25,6 +25,7 @@
 <script src="js/receipt-pipeline.js" defer></script>
 <script src="js/receipt-ai.js" defer></script>
 <script src="js/receipt-check-agent.js" defer></script>
+<script src="js/receipt-recheck.js" defer></script>
 <script type="module" src="js/pdf-to-image.js"></script>
 </head>
 <body>
@@ -44,8 +45,8 @@
   <!-- ขั้นตอนที่ 1: อัปโหลด -->
   <section id="step1">
     <div class="section text-left-block">
-      <h1>อัปโหลดใบเสร็จ</h1>
-      <p class="text-body">
+      <h1 id="step1Title">อัปโหลดใบเสร็จ</h1>
+      <p class="text-body" id="step1Intro">
         เลือกโครงการที่ใบเสร็จนี้เบิกจาก แล้วแนบรูปหรือไฟล์ PDF ของใบเสร็จและเอกสารประกอบ (ถ้ามี) ระบบจะอ่านยอดเงิน
         วันที่ ร้านค้า หมวดค่าใช้จ่าย และตรวจสอบตามระเบียบให้ทันทีโดยไม่มีขั้นตอนให้แก้ไขก่อน — ถ้ายังไม่ได้แนบไฟล์หรือ
         ระบบอ่านไม่ได้ จะใช้<strong>ข้อมูลจำลอง</strong>แทนและแจ้งให้ทราบ
@@ -53,6 +54,23 @@
     </div>
 
     <div class="section" style="max-width:640px;">
+      <!-- ฉบับแก้ไขของใบเสร็จเดิม (new-receipt.html?projectId=...&revise=receiptNNN) — เติมโดย js/new-receipt.js -->
+      <div class="card" id="revisionCard" hidden>
+        <h2 style="margin-top:0;">ใบเสร็จเดิม</h2>
+        <div id="revisionSummary"></div>
+        <fieldset class="field" style="border:0;padding:0;margin:16px 0 0;">
+          <legend style="font-weight:600;margin-bottom:8px;">ไฟล์ที่จะอัปโหลดรอบนี้</legend>
+          <label class="row row-align-center" style="gap:8px;cursor:pointer;margin-bottom:8px;">
+            <input type="radio" name="revisionMode" value="append" checked style="width:auto;flex:0 0 auto;">
+            <span><strong>เพิ่มเอกสารที่ขาด</strong> — ไฟล์เดิมยังใช้อยู่ ตรวจรวมกับไฟล์ใหม่ (ยอดเงิน วันที่ หมวด ร้านค้าใช้ของเดิม)</span>
+          </label>
+          <label class="row row-align-center" style="gap:8px;cursor:pointer;">
+            <input type="radio" name="revisionMode" value="replace" style="width:auto;flex:0 0 auto;">
+            <span><strong>แทนที่ทั้งชุด</strong> — ใช้ไฟล์ใหม่อย่างเดียว อ่านยอดเงิน วันที่ หมวด ร้านค้าใหม่ (ไฟล์เดิมเก็บไว้ในประวัติ)</span>
+          </label>
+        </fieldset>
+      </div>
+
       <div class="field">
         <label for="projectId">โครงการวิจัย</label>
         <select id="projectId">

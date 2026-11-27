@@ -179,7 +179,7 @@
         fundSourceName: fundSourceName || "(ไม่พบแหล่งทุน)",
         ownerName: (owner && owner.fullName) || "(ไม่พบผู้ใช้)",
         ownerEmail: (owner && owner.email) || "-",
-        fileCount: filesSnap.size,
+        fileCount: filesSnap.docs.filter(function (f) { return !f.data().supersededAt; }).length,
       };
     }));
 

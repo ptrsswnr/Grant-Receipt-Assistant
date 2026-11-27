@@ -70,7 +70,7 @@ Practical consequences of this nesting, all handled in `app/js/receipts.js` and 
 - `documentTypes/{documentTypeId}` — `documentName`, `formCode`, `requiredFields[]`, `validityChecks[]`, `sourceExcerpt` (added 2026-09-12, see below)
 - `evidenceChains/{evidenceChainId}` — `chainName`, `steps[]`, `conditionalSteps[]` (added 2026-09-12, see below)
 
-**All `receipt.status` values** (exactly 4 persisted values — the `STATUS` map in `app/js/rule-engine.js` — set once at creation and never changed afterward; there is no "edit status" UI). Listed least to most severe; a receipt's status is its most severe finding:
+**All `receipt.status` values** (exactly 4 persisted values — the `STATUS` map in `app/js/rule-engine.js` — set at creation; changed afterwards only by a revised-receipt submission or the dev-only re-check — there is no "edit status" UI). Listed least to most severe; a receipt's status is its most severe finding:
 | Value | Meaning | CSS class |
 |---|---|---|
 | `ผ่าน` | Passes estimate, regulations and attachment checks | `.chip-status--pass` |
@@ -523,6 +523,17 @@ Both rule sets are **owner-scoped** locally (`request.auth.uid` must match the `
   - The rule engine now gives `AVERAGED_WITHIN_GROUP` for both.
   - Both stay ต้องแก้ไข for real reasons: inspection photos missing, the "จ่ายแล้ว"/"ตรวจรับพัสดุ" stamps not found in the OCR text, and receipt001's ฿5,210.28 over the ฿5,000-per-purchase cap for computer materials.
   - The LLM (prompt 1.2.0) still said "ยอดเกินประมาณการ" despite the averaging rule. For receipt002 it also quoted receipt001's amount. Keep both as LLM error examples for the thesis.
+
+## Revised receipts (ส่งฉบับแก้ไข) — 2026-11-26
+
+- **Why:** the owner asked that a researcher can upload a corrected version of a receipt that didn't pass. They wanted both kinds of correction: adding missing documents to the same receipt, and a new receipt replacing the old one.
+- **Entry point:** a "ส่งฉบับแก้ไข" button on every receipt whose status isn't ผ่าน (`ReceiptPipeline.isRevisable`), on `receipts.html` and `budget.html`. It opens `new-receipt.html?projectId=…&revise=receiptNNN`. Available to real users, unlike the dev-only re-check.
+- **Same receipt doc, same ID, in both modes,** so the estimate's spent total never counts it twice. The project dropdown is locked; at least one file is required.
+  - **เพิ่มเอกสารที่ขาด (`append`):** only the new files are OCR'd. The old files' stored OCR text and document-type guesses (`ReceiptRecheck.storedOcr`, which now also returns `files` and `classification`, including for scanned-import receipts) are joined in front (`ReceiptPipeline.revisionInputs`). Amount/date/category/vendor are kept from the old receipt, not re-read.
+  - **แทนที่ทั้งชุด (`replace`):** the normal upload flow on the new files only. Old `files` docs get `supersededAt` + `supersededByRevision` (after the new uploads succeed) and are hidden in receipts, budget and the admin file count; Drive files are kept, and deleting the receipt still deletes them.
+- **Checking:** same rule engine / LLM / `decideVerdict` as upload. The estimate subtracts this receipt's old amount from its old line (`ReceiptStore.estimateExcluding`, now shared with re-check).
+- **Saved:** the receipt is updated in place. The previous result goes into `verdictHistory` via `ReceiptPipeline.revisionSnapshot` (`kind: "revision"`, `revision`, `revisionMode`, old status/explanation/ruleCheck/llmVerdict/fields, and `ocrRaw` text only, no line confidences, to stay under Firestore's 1 MB doc limit). New fields: `revisionCount`, `revisedAt`; new `files` docs carry `revision`. `ocrRaw` now holds every file used in the check. No rule change needed (owner write covers update).
+- **Verified:** tests (pure helpers) and in the browser on the owner's project: buttons appear on both ต้องแก้ไข receipts, the revise page shows the old result and the two modes, stored OCR loads for a scanned-import receipt, and the estimate exclusion is correct (9,957.94 → 5,210.28 on line011). A real submission (Drive upload + live write) was not run.
 
 ## Advice in Thai — 2026-11-25
 

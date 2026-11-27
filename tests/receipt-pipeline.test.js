@@ -2,7 +2,8 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const DocumentClassifier = require("../app/js/document-classifier.js");
-const { classifyAttachedFiles, buildEvidence, decideVerdict } = require("../app/js/receipt-pipeline.js");
+const ReceiptPipeline = require("../app/js/receipt-pipeline.js");
+const { classifyAttachedFiles, buildEvidence, decideVerdict } = ReceiptPipeline;
 
 const STATUS = { PASS: "ผ่าน", FIX: "ต้องแก้ไข", APPROVAL: "ต้องชี้แจง/ขออนุมัติ", REJECT: "ไม่เข้าเงื่อนไข" };
 const DOC_TYPES = { "tax-invoice-full": { documentName: "ใบเสร็จรับเงิน/ใบกำกับภาษีเต็มรูปแบบ", formCode: "-" } };
@@ -84,4 +85,48 @@ test("checklist item names used as issue types get Thai labels", () => {
   assert.equal(issueLabel("cap_check"), "ยอดเกินเพดาน");
   assert.equal(issueLabel("attestations_check"), "ขาดตราประทับ");
   assert.equal(issueLabel("documents_check"), "ขาดเอกสาร");
+});
+
+// ─── ฉบับแก้ไขของใบเสร็จเดิม ───
+test("isRevisable: only receipts that have not passed", () => {
+  assert.equal(ReceiptPipeline.isRevisable("ผ่าน"), false);
+  assert.equal(ReceiptPipeline.isRevisable("ต้องแก้ไข"), true);
+  assert.equal(ReceiptPipeline.isRevisable("ต้องชี้แจง/ขออนุมัติ"), true);
+  assert.equal(ReceiptPipeline.isRevisable("ไม่เข้าเงื่อนไข"), true);
+  assert.equal(ReceiptPipeline.isRevisable(undefined), false);
+});
+
+test("revisionInputs: append keeps old files first, replace uses only new files", () => {
+  const stored = {
+    files: [{ fileName: "old.jpg", text: "ใบเสร็จรับเงิน" }],
+    classification: [{ fileName: "old.jpg", documentTypeId: "tax-invoice-full" }],
+  };
+  const ocrNew = [{ fileName: "photo.jpg", text: "รูปพัสดุ" }];
+  const clsNew = [{ fileName: "photo.jpg", documentTypeId: "inspection-photos" }];
+
+  const appended = ReceiptPipeline.revisionInputs("append", stored, ocrNew, clsNew);
+  assert.deepEqual(appended.ocrByFile.map((f) => f.fileName), ["old.jpg", "photo.jpg"]);
+  assert.deepEqual(appended.classification.map((c) => c.documentTypeId), ["tax-invoice-full", "inspection-photos"]);
+
+  const replaced = ReceiptPipeline.revisionInputs("replace", stored, ocrNew, clsNew);
+  assert.deepEqual(replaced.ocrByFile.map((f) => f.fileName), ["photo.jpg"]);
+  assert.deepEqual(replaced.classification.map((c) => c.documentTypeId), ["inspection-photos"]);
+});
+
+test("revisionSnapshot: keeps the old verdict and fields, drops OCR line detail", () => {
+  const snap = ReceiptPipeline.revisionSnapshot({
+    status: "ต้องแก้ไข", aiExplanation: "ขาดตราจ่ายแล้ว", verdictMode: "llm", budgetLineId: "line003",
+    confirmedAmount: 4747.66, confirmedCategory: "ค่าวัสดุคอมพิวเตอร์", confirmedAttestations: ["inspection-stamp"],
+    ocrRaw: [{ fileName: "a.jpg", text: "ข้อความ", lines: [{ text: "ข้อความ", confidence: 0.9 }] }],
+    uploadedAt: "t0",
+  }, "append", 1);
+  assert.equal(snap.kind, "revision");
+  assert.equal(snap.revision, 1);
+  assert.equal(snap.revisionMode, "append");
+  assert.equal(snap.status, "ต้องแก้ไข");
+  assert.equal(snap.confirmedAmount, 4747.66);
+  assert.equal(snap.budgetLineId, "line003");
+  assert.deepEqual(snap.ocrRaw, [{ fileName: "a.jpg", text: "ข้อความ" }]);
+  assert.equal(snap.checkedAt, "t0");
+  assert.equal(snap.llmVerdict, null);
 });

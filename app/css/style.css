@@ -237,6 +237,8 @@
 }
 
 * { box-sizing: border-box; }
+/* แอตทริบิวต์ hidden ต้องซ่อนเสมอ — class อย่าง .card/.banner ตั้ง display เองแล้วจะทับ hidden ของเบราว์เซอร์ */
+[hidden] { display: none !important; }
 
 html { -webkit-text-size-adjust: 100%; scrollbar-color: var(--color-neutral-400) transparent; }
 
